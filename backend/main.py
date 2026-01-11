@@ -1,6 +1,7 @@
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Depends
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from passlib.context import CryptContext
@@ -11,6 +12,7 @@ import numpy as np
 import database
 import recognition
 import io
+import os
 
 # --- Auth Config ---
 SECRET_KEY = "supersecretkey" # In production, use environment variable
@@ -29,6 +31,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount Visitors directory to serve images
+VISITORS_DIR = os.path.join(os.path.dirname(__file__), "visitors")
+if not os.path.exists(VISITORS_DIR):
+    os.makedirs(VISITORS_DIR)
+app.mount("/visitors", StaticFiles(directory=VISITORS_DIR), name="visitors")
 
 class UserCreate(BaseModel):
     username: str
@@ -90,7 +98,17 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 @app.get("/employees")
 def get_employees():
     employees = database.get_all_employees()
-    return [{"name": e[0]} for e in employees]
+    # Return name AND potential image URL for visitors
+    results = []
+    for e in employees:
+        name = e[0]
+        image_url = None
+        if name.startswith("Visitor_"):
+            filename = f"{name}.jpg"
+            if os.path.exists(os.path.join(VISITORS_DIR, filename)):
+                image_url = f"http://localhost:8000/visitors/{filename}"
+        results.append({"name": name, "image_url": image_url})
+    return results
 
 @app.post("/register")
 async def register_employee(file: UploadFile = File(...), name: str = Form(...)):

@@ -35,9 +35,30 @@ const EmployeeList = ({ refreshKey }) => {
     return (
         <ul className="employee-list">
             {employees.map((emp, index) => (
-                <li key={index} className="employee-item">
-                    <span>{emp.name}</span>
-                    <span className="badge">Active</span>
+                <li key={index} className="employee-item" style={{ alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        {emp.image_url ? (
+                            <img
+                                src={emp.image_url}
+                                alt={emp.name}
+                                style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
+                            />
+                        ) : (
+                            <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <span style={{ fontSize: '1.2rem' }}>👤</span>
+                            </div>
+                        )}
+                        <span>{emp.name}</span>
+                    </div>
+
+                    <span className={`badge ${emp.name.startsWith("Visitor_") ? 'visitor' : 'employee'}`}
+                        style={{
+                            backgroundColor: emp.name.startsWith("Visitor_") ? 'rgba(234, 179, 8, 0.2)' : 'rgba(34, 197, 94, 0.2)',
+                            color: emp.name.startsWith("Visitor_") ? '#facc15' : '#4ade80'
+                        }}
+                    >
+                        {emp.name.startsWith("Visitor_") ? 'Visitor' : 'Employee'}
+                    </span>
                 </li>
             ))}
         </ul>

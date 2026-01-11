@@ -75,8 +75,10 @@ def process_frame(frame):
     detector.setInputSize((w, h))
     
     # --- Face Recognition ---
+    faces_detected = 0
     faces = detector.detect(frame)
     if faces[1] is not None:
+        faces_detected = len(faces[1])
         COSINE_THRESHOLD = 0.363 
         
         for face in faces[1]:
@@ -88,7 +90,6 @@ def process_frame(frame):
             name = "Unknown"
             max_score = 0.0
             
-            # 1. Compare against known faces
             if len(known_face_embeddings) > 0:
                 for idx, known_emb in enumerate(known_face_embeddings):
                     score = recognizer.match(known_emb, curr_emb, cv2.FaceRecognizerSF_FR_COSINE)
@@ -97,54 +98,41 @@ def process_frame(frame):
                         if score > COSINE_THRESHOLD:
                             name = known_face_names[idx]
             
-            # 2. Auto-Register Unknowns
             if name == "Unknown":
                 short_id = str(uuid.uuid4())[:8]
                 new_name = f"Visitor_{short_id}"
                 
-                # Add to DB
                 database.add_employee(new_name, curr_emb)
                 
-                # Save Snapshot
                 try:
                     filename = f"{new_name}.jpg"
                     filepath = os.path.join(VISITORS_DIR, filename)
-                    # Save the aligned face or crop from original? 
-                    # Aligned is better for recognition, but Crop is better for human viewing.
-                    # Let's save the Crop.
                     x, y, w_box, h_box = coords
-                    # Ensure within bounds
                     x = max(0, x); y = max(0, y)
                     w_box = min(w_box, w - x); h_box = min(h_box, h - y)
                     if w_box > 0 and h_box > 0:
                         face_crop = frame[y:y+h_box, x:x+w_box]
                         cv2.imwrite(filepath, face_crop)
-                        print(f"Saved snapshot to {filepath}")
-                except Exception as e:
-                    print(f"Failed to save snapshot: {e}")
+                except Exception:
+                    pass
                 
-                # Add to memory
                 known_face_names.append(new_name)
                 known_face_embeddings.append(curr_emb)
-                
                 name = new_name
-                print(f"Auto-registered: {new_name}")
 
-            # Draw box
             x, y, w_box, h_box = coords
-            
-            if name.startswith("Visitor_"):
-                color = (0, 255, 255) # Yellow
-            else:
-                color = (0, 255, 0) # Green
-
+            color = (0, 255, 255) if name.startswith("Visitor_") else (0, 255, 0)
             cv2.rectangle(frame, (x, y), (x + w_box, y + h_box), color, 2)
             label = f"{name}"
             cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_DUPLEX, 0.6, color, 1)
 
-    # --- PPE Detection ---
+    # --- PPE Detection & Status Logic ---
+    helmet_detected = False
+    helmet_missing = False # Explicit 'no_helmet' class
+    
     if ppe_model:
-        results = ppe_model(frame, verbose=False, conf=0.4) 
+        # Class names: {0: 'glove', 1: 'goggles', 2: 'helmet', 3: 'mask', 4: 'no_glove', 5: 'no_goggles', 6: 'no_helmet', 7: 'no_mask', 8: 'no_shoes', 9: 'shoes'}
+        results = ppe_model(frame, verbose=False, conf=0.3) 
         for r in results:
             boxes = r.boxes
             for box in boxes:
@@ -152,15 +140,49 @@ def process_frame(frame):
                 cls = int(box.cls[0])
                 conf = float(box.conf[0])
                 
-                # Check bounds
                 if cls < len(ppe_model.names):
                     label_name = ppe_model.names[cls]
                 else:
                     label_name = str(cls)
                 
-                color = (0, 165, 255) # Orange
+                # Logic based on real classes
+                n = label_name.lower()
+                
+                color = (0, 165, 255) # Default Orange
+                
+                if 'no_helmet' in n:
+                    helmet_missing = True
+                    color = (0, 0, 255) # Red for danger
+                elif 'helmet' in n:
+                    helmet_detected = True
+                    color = (0, 255, 0) # Green for safe
+                    
                 cv2.rectangle(frame, (b[0], b[1]), (b[2], b[3]), color, 2)
                 label = f"{label_name} {conf:.2f}"
                 cv2.putText(frame, label, (b[0], b[3] + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+
+    # --- STATUS OVERLAY ---
+    if faces_detected > 0:
+        # Logic: If 'no_helmet' detected -> DANGER
+        # If 'helmet' detected -> SAFE
+        # If neither -> UNKNOWN (or WARNING)
+        
+        status = "Checking PPE..."
+        status_color = (255, 255, 255) # White
+
+        if helmet_missing:
+            status = "DANGER: NO HELMET"
+            status_color = (0, 0, 255) # Red
+        elif helmet_detected:
+            status = "SAFE: Helmet On"
+            status_color = (0, 255, 0) # Green
+        else:
+            status = "WARNING: No Helmet Detected"
+            status_color = (0, 255, 255) # Yellow
+            
+        # Draw Status Box in Top-Right
+        (tw, th), _ = cv2.getTextSize(status, cv2.FONT_HERSHEY_DUPLEX, 0.8, 1)
+        cv2.rectangle(frame, (w - tw - 20, 10), (w - 10, 10 + th + 20), (0, 0, 0), -1) 
+        cv2.putText(frame, status, (w - tw - 15, 35), cv2.FONT_HERSHEY_DUPLEX, 0.8, status_color, 1)
 
     return frame
