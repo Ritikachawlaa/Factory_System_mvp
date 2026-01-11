@@ -34,7 +34,7 @@ const Login = ({ onLogin }) => {
     return (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
             <div className="card" style={{ width: '100%', maxWidth: '400px' }}>
-                <h2 className="title" style={{ textAlign: 'center' }}>Admin Login</h2>
+                <h2 className="title" style={{ textAlign: 'center' }}>Admin Panel Access</h2>
                 <form onSubmit={handleSubmit}>
                     <div className="input-group">
                         <label className="input-label">Username</label>

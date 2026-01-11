@@ -47,6 +47,7 @@ def load_models():
 def load_known_faces():
     global known_face_embeddings, known_face_names
     employees = database.get_all_employees()
+    # e is now (name, embedding, id)
     known_face_names = [e[0] for e in employees]
     known_face_embeddings = [e[1] for e in employees] 
     print(f"Loaded {len(known_face_names)} faces from database.")

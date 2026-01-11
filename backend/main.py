@@ -32,12 +32,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount Visitors directory to serve images
+# Mount Visitors directory
 VISITORS_DIR = os.path.join(os.path.dirname(__file__), "visitors")
 if not os.path.exists(VISITORS_DIR):
     os.makedirs(VISITORS_DIR)
 app.mount("/visitors", StaticFiles(directory=VISITORS_DIR), name="visitors")
 
+# --- Models ---
 class UserCreate(BaseModel):
     username: str
     password: str
@@ -46,6 +47,14 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
+class CameraCreate(BaseModel):
+    name: str
+    source: str
+
+class EmployeeUpdate(BaseModel):
+    name: str
+
+# --- Auth Helpers ---
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
@@ -67,11 +76,10 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 async def startup_event():
     database.init_db()
     recognition.load_models()
-    # Create default admin user if not exists
     if database.create_user("admin", get_password_hash("admin123")):
         print("Created default admin user (admin/admin123)")
 
-# --- Endpoints ---
+# --- Auth Endpoints ---
 @app.post("/signup")
 async def signup(user: UserCreate):
     password_hash = get_password_hash(user.password)
@@ -95,19 +103,21 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
+# --- Employee Endpoints ---
 @app.get("/employees")
 def get_employees():
     employees = database.get_all_employees()
-    # Return name AND potential image URL for visitors
     results = []
     for e in employees:
+        # e = (name, embedding, id)
         name = e[0]
+        emp_id = e[2]
         image_url = None
         if name.startswith("Visitor_"):
             filename = f"{name}.jpg"
             if os.path.exists(os.path.join(VISITORS_DIR, filename)):
                 image_url = f"http://localhost:8000/visitors/{filename}"
-        results.append({"name": name, "image_url": image_url})
+        results.append({"id": emp_id, "name": name, "image_url": image_url})
     return results
 
 @app.post("/register")
@@ -127,10 +137,55 @@ async def register_employee(file: UploadFile = File(...), name: str = Form(...))
     recognition.load_known_faces()
     return {"message": f"Employee {name} registered successfully"}
 
-def generate_frames():
-    camera = cv2.VideoCapture(0)
+@app.delete("/employees/{emp_id}")
+def delete_employee(emp_id: int):
+    database.delete_employee(emp_id)
+    recognition.load_known_faces()
+    return {"message": "Employee deleted"}
+
+@app.put("/employees/{emp_id}")
+def update_employee(emp_id: int, emp: EmployeeUpdate):
+    database.update_employee(emp_id, emp.name)
+    recognition.load_known_faces()
+    return {"message": "Employee updated"}
+
+# --- Camera Endpoints ---
+@app.post("/cameras")
+def add_camera(camera: CameraCreate):
+    database.add_camera(camera.name, camera.source)
+    return {"message": "Camera added"}
+
+@app.get("/cameras")
+def get_cameras():
+    return database.get_cameras()
+
+@app.delete("/cameras/{cam_id}")
+def delete_camera(cam_id: int):
+    database.delete_camera(cam_id)
+    return {"message": "Camera deleted"}
+
+# --- User Management Endpoints ---
+@app.get("/users")
+def get_users():
+    return database.get_all_users()
+
+# --- Video Feed ---
+def generate_frames(camera_source=0):
+    # Try to parse as int (webcam index) or keep as string (URL)
+    try:
+        src = int(camera_source)
+    except ValueError:
+        src = camera_source
+        
+    camera = cv2.VideoCapture(src)
     if not camera.isOpened():
-        print("Error: Could not open camera.")
+        print(f"Error: Could not open camera source {src}.")
+        # Return a black frame with error text
+        img = np.zeros((480, 640, 3), dtype=np.uint8)
+        cv2.putText(img, "Camera Connection Failed", (50, 240), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+        ret, buffer = cv2.imencode('.jpg', img)
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
         return
 
     while True:
@@ -148,8 +203,8 @@ def generate_frames():
     camera.release()
 
 @app.get("/video_feed")
-def video_feed():
-    return StreamingResponse(generate_frames(), media_type="multipart/x-mixed-replace; boundary=frame")
+def video_feed(source: str = "0"):
+    return StreamingResponse(generate_frames(source), media_type="multipart/x-mixed-replace; boundary=frame")
 
 if __name__ == "__main__":
     import uvicorn
