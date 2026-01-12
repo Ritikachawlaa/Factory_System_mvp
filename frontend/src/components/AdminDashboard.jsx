@@ -3,6 +3,8 @@ import ManageEmployees from './ManageEmployees';
 import ManageCameras from './ManageCameras';
 import RegisterForm from './RegisterForm';
 
+import ManageViolations from './ManageViolations';
+
 const AdminDashboard = ({ onLogout }) => {
     const [activeTab, setActiveTab] = useState('overview');
     const [stats, setStats] = useState({ employees: 0, cameras: 0, users: 1 });
@@ -52,6 +54,8 @@ const AdminDashboard = ({ onLogout }) => {
                 );
             case 'cameras':
                 return <ManageCameras />;
+            case 'violations':
+                return <ManageViolations />;
             default:
                 return <div>Select a tab</div>;
         }
@@ -69,6 +73,7 @@ const AdminDashboard = ({ onLogout }) => {
                     <SidebarItem label="Overview" icon="📊" active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} />
                     <SidebarItem label="Personnel" icon="👥" active={activeTab === 'personnel'} onClick={() => setActiveTab('personnel')} />
                     <SidebarItem label="Cameras" icon="📹" active={activeTab === 'cameras'} onClick={() => setActiveTab('cameras')} />
+                    <SidebarItem label="Safety Logs" icon="⚠️" active={activeTab === 'violations'} onClick={() => setActiveTab('violations')} />
                 </nav>
 
                 <div style={{ borderTop: '1px solid #334155', paddingTop: '1rem' }}>

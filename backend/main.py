@@ -169,6 +169,11 @@ def delete_camera(cam_id: int):
 def get_users():
     return database.get_all_users()
 
+# --- Violation Endpoints ---
+@app.get("/violations")
+def get_violations():
+    return database.get_violations(limit=20)
+
 # --- Video Feed ---
 def generate_frames(camera_source=0):
     # Try to parse as int (webcam index) or keep as string (URL)

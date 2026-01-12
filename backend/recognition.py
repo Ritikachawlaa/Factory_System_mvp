@@ -13,7 +13,7 @@ known_face_names = []
 WEIGHTS_DIR = os.path.join(os.path.dirname(__file__), "weights")
 face_c_path = os.path.join(WEIGHTS_DIR, "face_detection_yunet_2023mar.onnx")
 face_r_path = os.path.join(WEIGHTS_DIR, "face_recognition_sface_2021dec.onnx")
-ppe_path = os.path.join(WEIGHTS_DIR, "ppe.pt")
+ppe_path = os.path.join(WEIGHTS_DIR, "best_ppe.pt")
 
 VISITORS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "backend", "visitors")
 if not os.path.exists(VISITORS_DIR):
@@ -128,12 +128,14 @@ def process_frame(frame):
             cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_DUPLEX, 0.6, color, 1)
 
     # --- PPE Detection & Status Logic ---
+    # Classes: {0: 'Gloves', 1: 'Vest', 2: 'goggles', 3: 'helmet', 4: 'mask', 5: 'safety_shoe'}
+    
     helmet_detected = False
-    helmet_missing = False # Explicit 'no_helmet' class
+    vest_detected = False
+    gloves_detected = False
     
     if ppe_model:
-        # Class names: {0: 'glove', 1: 'goggles', 2: 'helmet', 3: 'mask', 4: 'no_glove', 5: 'no_goggles', 6: 'no_helmet', 7: 'no_mask', 8: 'no_shoes', 9: 'shoes'}
-        results = ppe_model(frame, verbose=False, conf=0.3) 
+        results = ppe_model(frame, verbose=False, conf=0.4) 
         for r in results:
             boxes = r.boxes
             for box in boxes:
@@ -146,17 +148,20 @@ def process_frame(frame):
                 else:
                     label_name = str(cls)
                 
-                # Logic based on real classes
+                # Normalize label
                 n = label_name.lower()
                 
-                color = (0, 165, 255) # Default Orange
+                color = (255, 165, 0) # Default Orange
                 
-                if 'no_helmet' in n:
-                    helmet_missing = True
-                    color = (0, 0, 255) # Red for danger
-                elif 'helmet' in n:
+                if 'helmet' in n:
                     helmet_detected = True
-                    color = (0, 255, 0) # Green for safe
+                    color = (0, 255, 0)
+                elif 'vest' in n:
+                    vest_detected = True
+                    color = (0, 255, 0)
+                elif 'gloves' in n:
+                    gloves_detected = True
+                    color = (0, 255, 0)
                     
                 cv2.rectangle(frame, (b[0], b[1]), (b[2], b[3]), color, 2)
                 label = f"{label_name} {conf:.2f}"
@@ -164,26 +169,38 @@ def process_frame(frame):
 
     # --- STATUS OVERLAY ---
     if faces_detected > 0:
-        # Logic: If 'no_helmet' detected -> DANGER
-        # If 'helmet' detected -> SAFE
-        # If neither -> UNKNOWN (or WARNING)
+        # Check requirements
+        missing = []
+        if not helmet_detected: missing.append("HELMET")
+        if not vest_detected: missing.append("VEST")
+        if not gloves_detected: missing.append("GLOVES")
         
-        status = "Checking PPE..."
-        status_color = (255, 255, 255) # White
-
-        if helmet_missing:
-            status = "DANGER: NO HELMET"
-            status_color = (0, 0, 255) # Red
-        elif helmet_detected:
-            status = "SAFE: Helmet On"
-            status_color = (0, 255, 0) # Green
+        status_lines = []
+        overall_color = (0, 255, 0) # Safe by default
+        
+        if len(missing) == 0:
+            status_lines.append("SAFE: Full PPE Detected")
         else:
-            status = "WARNING: No Helmet Detected"
-            status_color = (0, 255, 255) # Yellow
+            overall_color = (0, 0, 255) # Danger
+            status_lines.append("DANGER: MISSING PPE")
+            status_lines.append(", ".join(missing))
             
-        # Draw Status Box in Top-Right
-        (tw, th), _ = cv2.getTextSize(status, cv2.FONT_HERSHEY_DUPLEX, 0.8, 1)
-        cv2.rectangle(frame, (w - tw - 20, 10), (w - 10, 10 + th + 20), (0, 0, 0), -1) 
-        cv2.putText(frame, status, (w - tw - 15, 35), cv2.FONT_HERSHEY_DUPLEX, 0.8, status_color, 1)
+            # Log violation (simple rate limiting could be added here if needed, but for now we rely on DB inserts)
+            # To prevent spam, we could check a global timestamp or just let it flow (might be heavy on DB)
+            # For this simplified version, let's log with a random chance or skip to avoid massive DB growth in 1 sec
+            import random
+            if random.random() < 0.05: # Log ~5% of frames to avoid DB lock/spam
+                try:
+                    database.log_violation("PPE_MISSING", f"Missing: {', '.join(missing)}")
+                except:
+                    pass
+
+        # Draw Status Box
+        y_offset = 10
+        for line in status_lines:
+            (tw, th), _ = cv2.getTextSize(line, cv2.FONT_HERSHEY_DUPLEX, 0.8, 1)
+            cv2.rectangle(frame, (w - tw - 20, y_offset), (w - 10, y_offset + th + 20), (0, 0, 0), -1) 
+            cv2.putText(frame, line, (w - tw - 15, y_offset + 25), cv2.FONT_HERSHEY_DUPLEX, 0.8, overall_color, 1)
+            y_offset += 50
 
     return frame

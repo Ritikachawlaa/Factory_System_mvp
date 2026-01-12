@@ -2,9 +2,12 @@ import sqlite3
 import pickle
 import numpy as np
 import hashlib
+import os
 from typing import List, Tuple, Optional
 
-DB_NAME = "employees.db"
+# Use absolute path to ensure we always use the same DB file (in project root)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_NAME = os.path.join(BASE_DIR, "employees.db")
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
@@ -19,6 +22,10 @@ def init_db():
     # Cameras table
     c.execute('''CREATE TABLE IF NOT EXISTS cameras
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, source TEXT)''')
+    
+    # Violations table
+    c.execute('''CREATE TABLE IF NOT EXISTS violations
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp TEXT, type TEXT, description TEXT)''')
                  
     conn.commit()
     conn.close()
@@ -62,6 +69,7 @@ def update_employee(emp_id: int, name: str):
 # --- Cameras ---
 def add_camera(name: str, source: str):
     conn = sqlite3.connect(DB_NAME)
+    conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute("INSERT INTO cameras (name, source) VALUES (?, ?)", (name, source))
     conn.commit()
@@ -81,6 +89,24 @@ def delete_camera(cam_id: int):
     c.execute("DELETE FROM cameras WHERE id = ?", (cam_id,))
     conn.commit()
     conn.close()
+
+# --- Violations ---
+def log_violation(v_type: str, description: str):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    import datetime
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    c.execute("INSERT INTO violations (timestamp, type, description) VALUES (?, ?, ?)", (timestamp, v_type, description))
+    conn.commit()
+    conn.close()
+
+def get_violations(limit=50):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT id, timestamp, type, description FROM violations ORDER BY id DESC LIMIT ?", (limit,))
+    rows = c.fetchall()
+    conn.close()
+    return [{"id": r[0], "timestamp": r[1], "type": r[2], "description": r[3]} for r in rows]
 
 # --- User Auth ---
 def create_user(username, password_hash):
