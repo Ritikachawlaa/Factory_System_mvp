@@ -14,6 +14,7 @@ WEIGHTS_DIR = os.path.join(os.path.dirname(__file__), "weights")
 face_c_path = os.path.join(WEIGHTS_DIR, "face_detection_yunet_2023mar.onnx")
 face_r_path = os.path.join(WEIGHTS_DIR, "face_recognition_sface_2021dec.onnx")
 ppe_path = os.path.join(WEIGHTS_DIR, "best_ppe.pt")
+hand_path = os.path.join(WEIGHTS_DIR, "hand_yolov8n.pt")
 
 VISITORS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "backend", "visitors")
 if not os.path.exists(VISITORS_DIR):
@@ -23,9 +24,10 @@ if not os.path.exists(VISITORS_DIR):
 detector = None
 recognizer = None
 ppe_model = None
+hand_model = None
 
 def load_models():
-    global detector, recognizer, ppe_model
+    global detector, recognizer, ppe_model, hand_model
     if not os.path.exists(face_c_path) or not os.path.exists(face_r_path):
         print("Face models not found! Run download_weights.py")
         return
@@ -41,6 +43,13 @@ def load_models():
     else:
         print("PPE Model weights not found, skipping PPE.")
         
+    # Hand Model (YOLOv8)
+    if os.path.exists(hand_path):
+        print(f"Loading Hand Model from {hand_path}...")
+        hand_model = YOLO(hand_path)
+    else:
+        print("Hand Model weights not found, skipping Hand Detection.")
+
     print("All models loaded.")
     load_known_faces()
 
@@ -67,6 +76,22 @@ def get_embedding(img_bgr):
     aligned_face = recognizer.alignCrop(img_bgr, best_face)
     feature = recognizer.feature(aligned_face)
     return feature[0]
+
+def compute_iou(box1, box2):
+    # box: [x1, y1, x2, y2]
+    x1 = max(box1[0], box2[0])
+    y1 = max(box1[1], box2[1])
+    x2 = min(box1[2], box2[2])
+    y2 = min(box1[3], box2[3])
+    
+    inter_area = max(0, x2 - x1) * max(0, y2 - y1)
+    
+    box1_area = (box1[2] - box1[0]) * (box1[3] - box1[1])
+    box2_area = (box2[2] - box2[0]) * (box2[3] - box2[1])
+    
+    union_area = box1_area + box2_area - inter_area
+    if union_area == 0: return 0
+    return inter_area / union_area
 
 def process_frame(frame):
     if detector is None:
@@ -132,7 +157,9 @@ def process_frame(frame):
     
     helmet_detected = False
     vest_detected = False
-    gloves_detected = False
+    
+    # Store detected items for cross-referencing
+    detected_gloves_boxes = []
     
     if ppe_model:
         results = ppe_model(frame, verbose=False, conf=0.4) 
@@ -160,12 +187,24 @@ def process_frame(frame):
                     vest_detected = True
                     color = (0, 255, 0)
                 elif 'gloves' in n:
-                    gloves_detected = True
+                    detected_gloves_boxes.append(b)
                     color = (0, 255, 0)
                     
                 cv2.rectangle(frame, (b[0], b[1]), (b[2], b[3]), color, 2)
                 label = f"{label_name} {conf:.2f}"
                 cv2.putText(frame, label, (b[0], b[3] + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+
+    # --- Hand Detection ---
+    hands_detected = [] # List of [x1, y1, x2, y2]
+    if hand_model:
+         hand_results = hand_model(frame, verbose=False, conf=0.4)
+         for r in hand_results:
+             for box in r.boxes:
+                 b = box.xyxy[0].cpu().numpy().astype(int)
+                 hands_detected.append(b)
+                 # Visualization for Hands (Optional, maybe Blue)
+                 cv2.rectangle(frame, (b[0], b[1]), (b[2], b[3]), (255, 0, 0), 1)
+                 cv2.putText(frame, "Hand", (b[0], b[1] - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 0, 0), 1)
 
     # --- STATUS OVERLAY ---
     if faces_detected > 0:
@@ -173,7 +212,28 @@ def process_frame(frame):
         missing = []
         if not helmet_detected: missing.append("HELMET")
         if not vest_detected: missing.append("VEST")
-        if not gloves_detected: missing.append("GLOVES")
+        
+        # Gloves Logic:
+        # If Hands Detected -> Check if each hand is Gloved.
+        # If Hand detected AND No Glove overlap -> MISSING GLOVES.
+        # If NO Hand detected -> Passed (Assume hidden/safe).
+        
+        if len(hands_detected) > 0:
+            bare_hands = 0
+            for h_box in hands_detected:
+                is_gloved = False
+                for g_box in detected_gloves_boxes:
+                    iou = compute_iou(h_box, g_box)
+                    if iou > 0.1: # Threshold for overlap
+                        is_gloved = True
+                        break
+                if not is_gloved:
+                    bare_hands += 1
+            
+            if bare_hands > 0:
+                missing.append("GLOVES")
+        # else: No hands visible -> No violation for gloves.
+
         
         status_lines = []
         overall_color = (0, 255, 0) # Safe by default
