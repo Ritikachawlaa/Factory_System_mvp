@@ -175,9 +175,119 @@ def process_frame(frame, modules=None):
     total_confidence = 0.0
     detection_count = 0
 
-    # ... (Face Logic is fine) ...
+    # --- VARS ---
+    faces_detected = 0
+    helmet_detected = False
+    vest_detected = False
+    hands_detected = []
+    detected_gloves_boxes = []
 
-    # --- STATUS OVERLAY (Gated by run_ppe) ---
+    # --- FACE DETECTION & RECOGNITION ---
+    if run_face:
+        with inference_lock:
+            faces = detector.detect(frame)
+        
+        if faces[1] is not None:
+            faces_detected = len(faces[1])
+            detection_count += faces_detected
+            
+            for face in faces[1]:
+                box = list(map(int, face[:4]))
+                
+                # Recognition
+                identity = "Unknown"
+                color = (0, 0, 255) # Red for Unknown
+                
+                try:
+                    with inference_lock:
+                        aligned_face = recognizer.alignCrop(frame, face)
+                        feat = recognizer.feature(aligned_face)[0]
+                    
+                    max_score = 0.0
+                    best_match = None
+                    
+                    for name, known_feat in zip(known_face_names, known_face_embeddings):
+                        score = recognizer.match(feat, known_feat, cv2.FaceRecognizerSF_FR_COSINE)
+                        if score > max_score:
+                            max_score = score
+                            best_match = name
+                    
+                    if max_score > 0.363:
+                        identity = best_match
+                        color = (0, 255, 0) # Green for Known
+                        
+                        # Log Event (Throttle?)
+                        # database.log_event("FACE_RECOGNITION", f"{identity} detected")
+                except Exception as e:
+                    print(f"Rec Error: {e}")
+
+                # Draw Face Box (CORRECTED COORDINATES)
+                # pt1=(x,y), pt2=(x+w, y+h)
+                x, y, w, h = box
+                current_render_data.append({
+                    'type': 'rect', 'args': [(x, y), (x+w, y+h), color, 2], 'kwargs': {}
+                })
+                # Draw Label
+                current_render_data.append({
+                    'type': 'text', 'args': [f"{identity} ({max_score:.2f})", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1], 'kwargs': {}
+                })
+
+    # --- PPE DETECTION (YOLO) ---
+    if run_ppe and ppe_model is not None:
+        with inference_lock:
+            results = ppe_model(frame, verbose=False)
+        
+        for r in results:
+            boxes = r.boxes
+            for box in boxes:
+                cls = int(box.cls[0])
+                conf = float(box.conf[0])
+                x1, y1, x2, y2 = map(int, box.xyxy[0])
+                label = ppe_model.names[cls]
+                
+                # Only draw high confidence
+                if conf < 0.4: continue
+                
+                # Check Classes (Heuristic based on standard PPE models)
+                # 'Hardhat', 'Mask', 'NO-Hardhat', 'NO-Mask', 'NO-Safety Vest', 'Person', 'Safety Cone', 'Safety Vest', 'machinery', 'vehicle'
+                
+                is_violation = False
+                color = (0, 255, 0)
+                
+                if 'Hardhat' in label and 'NO' not in label:
+                    helmet_detected = True
+                elif 'Safety Vest' in label and 'NO' not in label:
+                    vest_detected = True
+                elif 'NO-' in label:
+                    is_violation = True
+                    color = (0, 0, 255)
+                
+                # Draw PPE Box
+                current_render_data.append({
+                     'type': 'rect', 'args': [(x1, y1), (x2, y2), color, 2], 'kwargs': {}
+                })
+                current_render_data.append({
+                     'type': 'text', 'args': [f"{label}", (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1], 'kwargs': {}
+                })
+
+    # --- HAND DETECTION (For Gloves) ---
+    if run_ppe and hand_model is not None:
+        with inference_lock:
+            hand_results = hand_model(frame, verbose=False)
+        
+        for r in hand_results:
+            boxes = r.boxes
+            for box in boxes:
+                # Hand detected
+                x1, y1, x2, y2 = map(int, box.xyxy[0])
+                hands_detected.append([x1, y1, x2, y2])
+                
+                # Check overlap with "Gloves" from PPE model? 
+                # Actually earlier I assumed PPE model detects gloves. Does it?
+                # If not, we might need a separate Glove model or heuristics.
+                # Assuming simple "Hand Detected" implies "No Glove" if not overlapped by Glove class?
+                # For now, let's just mark hands.
+                pass
     if run_ppe and faces_detected > 0:
         missing = []
         if not helmet_detected: missing.append("HELMET")
