@@ -59,12 +59,31 @@ const ManageCameras = () => {
             <ul style={{ listStyle: 'none', padding: 0 }}>
                 {cameras.map(cam => (
                     <li key={cam.id} className="employee-item">
-                        <div>
+                        <div style={{ flex: 1 }}>
                             <strong>{cam.name}</strong> <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>({cam.source})</span>
                         </div>
-                        <button onClick={() => handleDelete(cam.id)} style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer' }}>
-                            Delete
-                        </button>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <a
+                                href={`http://localhost:8000/video_feed?camera_id=${cam.id}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{
+                                    backgroundColor: '#3b82f6',
+                                    color: 'white',
+                                    textDecoration: 'none',
+                                    padding: '0.25rem 0.5rem',
+                                    borderRadius: '4px',
+                                    fontSize: '0.9rem',
+                                    display: 'flex',
+                                    alignItems: 'center'
+                                }}
+                            >
+                                View
+                            </a>
+                            <button onClick={() => handleDelete(cam.id)} style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer' }}>
+                                Delete
+                            </button>
+                        </div>
                     </li>
                 ))}
             </ul>

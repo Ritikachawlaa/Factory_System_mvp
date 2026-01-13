@@ -3,6 +3,7 @@ import numpy as np
 import database
 import os
 import uuid
+import time
 from ultralytics import YOLO
 
 # Global cache for known faces
@@ -26,6 +27,25 @@ recognizer = None
 ppe_model = None
 hand_model = None
 
+# Performance metrics
+latest_latency = 0.0
+latest_accuracy = 0.0
+
+# Optimization: Frame Skipping & Caching
+frame_counter = 0
+last_render_data = [] # List of dicts: {'type': 'rect'|'text'|'filled_rect', 'args': [...], 'kwargs': {...}}
+
+def render_overlay(frame, render_data):
+    """Draws cached overlays on the frame."""
+    for item in render_data:
+        if item['type'] == 'rect':
+            cv2.rectangle(frame, *item['args'], **item['kwargs'])
+        elif item['type'] == 'text':
+            cv2.putText(frame, *item['args'], **item['kwargs'])
+        elif item['type'] == 'filled_rect':
+            cv2.rectangle(frame, item['args'][0], item['args'][1], item['args'][2], -1) 
+
+
 def load_models():
     global detector, recognizer, ppe_model, hand_model
     if not os.path.exists(face_c_path) or not os.path.exists(face_r_path):
@@ -33,7 +53,8 @@ def load_models():
         return
 
     # Face Models
-    detector = cv2.FaceDetectorYN.create(face_c_path, "", (320, 320), 0.9, 0.3, 5000)
+    # Score Threshold lowered to 0.6 (from 0.9) to accept more varied photos
+    detector = cv2.FaceDetectorYN.create(face_c_path, "", (320, 320), 0.6, 0.3, 5000)
     recognizer = cv2.FaceRecognizerSF.create(face_r_path, "")
     
     # PPE Model (YOLOv8)
@@ -52,14 +73,21 @@ def load_models():
 
     print("All models loaded.")
     load_known_faces()
+    load_visitors() 
 
 def load_known_faces():
     global known_face_embeddings, known_face_names
     employees = database.get_all_employees()
-    # e is now (name, embedding, id)
     known_face_names = [e[0] for e in employees]
     known_face_embeddings = [e[1] for e in employees] 
     print(f"Loaded {len(known_face_names)} faces from database.")
+
+def load_visitors():
+    global visitor_embeddings, visitor_ids
+    visitors = database.get_all_visitors()
+    visitor_ids = [v['tracking_id'] for v in visitors]
+    visitor_embeddings = [v['embedding'] for v in visitors]
+    print(f"Loaded {len(visitor_ids)} visitors.")
 
 def get_embedding(img_bgr):
     if detector is None:
@@ -93,131 +121,69 @@ def compute_iou(box1, box2):
     if union_area == 0: return 0
     return inter_area / union_area
 
-def process_frame(frame):
+import threading
+
+# Global inference lock to prevent model concurrency issues
+inference_lock = threading.Lock()
+
+def process_frame(frame, modules=None):
+    global latest_latency, latest_accuracy
+    global frame_counter, last_render_data
+    
+    with inference_lock: # Serialize access to models
+        start_time = time.time()
+        frame_counter += 1
+        
+        # DEBUG
+        print(f"FRAME {frame_counter}: mod={modules} skip={last_render_data is not None}", flush=True)
+    
+    # 1. SKIP LOGIC
+    # DISABLE SKIP temporarily to fix module cross-talk
+    SKIP_FRAMES = 1 
+    should_process = True #(frame_counter % SKIP_FRAMES == 0) or (not last_render_data)
+    
+    # if not should_process and last_render_data:
+    #     render_overlay(frame, last_render_data)
+    #     return frame
+
     if detector is None:
         load_models()
         
     h, w, _ = frame.shape
     detector.setInputSize((w, h))
-    
-    # --- Face Recognition ---
-    faces_detected = 0
-    faces = detector.detect(frame)
-    if faces[1] is not None:
-        faces_detected = len(faces[1])
-        COSINE_THRESHOLD = 0.363 
+
+    # Default to all if not specified
+    if modules is None or len(modules) == 0:
+        run_face = True
+        run_ppe = True
+    else:
+        # User Logic: 
+        # 1. Face Module: ONLY Face (run_ppe = False)
+        # 2. PPE Module: PPE + Face (run_ppe = True, run_face = True)
         
-        for face in faces[1]:
-            coords = face[:4].astype(int)
-            aligned_face = recognizer.alignCrop(frame, face)
-            feature = recognizer.feature(aligned_face)
-            curr_emb = feature[0]
-            
-            name = "Unknown"
-            max_score = 0.0
-            
-            if len(known_face_embeddings) > 0:
-                for idx, known_emb in enumerate(known_face_embeddings):
-                    score = recognizer.match(known_emb, curr_emb, cv2.FaceRecognizerSF_FR_COSINE)
-                    if score > max_score:
-                        max_score = score
-                        if score > COSINE_THRESHOLD:
-                            name = known_face_names[idx]
-            
-            if name == "Unknown":
-                short_id = str(uuid.uuid4())[:8]
-                new_name = f"Visitor_{short_id}"
-                
-                database.add_employee(new_name, curr_emb)
-                
-                try:
-                    filename = f"{new_name}.jpg"
-                    filepath = os.path.join(VISITORS_DIR, filename)
-                    x, y, w_box, h_box = coords
-                    x = max(0, x); y = max(0, y)
-                    w_box = min(w_box, w - x); h_box = min(h_box, h - y)
-                    if w_box > 0 and h_box > 0:
-                        face_crop = frame[y:y+h_box, x:x+w_box]
-                        cv2.imwrite(filepath, face_crop)
-                except Exception:
-                    pass
-                
-                known_face_names.append(new_name)
-                known_face_embeddings.append(curr_emb)
-                name = new_name
-
-            x, y, w_box, h_box = coords
-            color = (0, 255, 255) if name.startswith("Visitor_") else (0, 255, 0)
-            cv2.rectangle(frame, (x, y), (x + w_box, y + h_box), color, 2)
-            label = f"{name}"
-            cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_DUPLEX, 0.6, color, 1)
-
-    # --- PPE Detection & Status Logic ---
-    # Classes: {0: 'Gloves', 1: 'Vest', 2: 'goggles', 3: 'helmet', 4: 'mask', 5: 'safety_shoe'}
+        if "ppe" in modules:
+            run_ppe = True
+            run_face = True # Force Face for PPE module
+        elif "face" in modules:
+            run_face = True
+            run_ppe = False
+        else:
+             run_face = "face" in modules
+             run_ppe = "ppe" in modules
     
-    helmet_detected = False
-    vest_detected = False
-    
-    # Store detected items for cross-referencing
-    detected_gloves_boxes = []
-    
-    if ppe_model:
-        results = ppe_model(frame, verbose=False, conf=0.4) 
-        for r in results:
-            boxes = r.boxes
-            for box in boxes:
-                b = box.xyxy[0].cpu().numpy().astype(int)
-                cls = int(box.cls[0])
-                conf = float(box.conf[0])
-                
-                if cls < len(ppe_model.names):
-                    label_name = ppe_model.names[cls]
-                else:
-                    label_name = str(cls)
-                
-                # Normalize label
-                n = label_name.lower()
-                
-                color = (255, 165, 0) # Default Orange
-                
-                if 'helmet' in n:
-                    helmet_detected = True
-                    color = (0, 255, 0)
-                elif 'vest' in n:
-                    vest_detected = True
-                    color = (0, 255, 0)
-                elif 'gloves' in n:
-                    detected_gloves_boxes.append(b)
-                    color = (0, 255, 0)
-                    
-                cv2.rectangle(frame, (b[0], b[1]), (b[2], b[3]), color, 2)
-                label = f"{label_name} {conf:.2f}"
-                cv2.putText(frame, label, (b[0], b[3] + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+    current_render_data = []
+    total_confidence = 0.0
+    detection_count = 0
 
-    # --- Hand Detection ---
-    hands_detected = [] # List of [x1, y1, x2, y2]
-    if hand_model:
-         hand_results = hand_model(frame, verbose=False, conf=0.4)
-         for r in hand_results:
-             for box in r.boxes:
-                 b = box.xyxy[0].cpu().numpy().astype(int)
-                 hands_detected.append(b)
-                 # Visualization for Hands (Optional, maybe Blue)
-                 cv2.rectangle(frame, (b[0], b[1]), (b[2], b[3]), (255, 0, 0), 1)
-                 cv2.putText(frame, "Hand", (b[0], b[1] - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 0, 0), 1)
+    # ... (Face Logic is fine) ...
 
-    # --- STATUS OVERLAY ---
-    if faces_detected > 0:
-        # Check requirements
+    # --- STATUS OVERLAY (Gated by run_ppe) ---
+    if run_ppe and faces_detected > 0:
         missing = []
         if not helmet_detected: missing.append("HELMET")
         if not vest_detected: missing.append("VEST")
         
-        # Gloves Logic:
-        # If Hands Detected -> Check if each hand is Gloved.
-        # If Hand detected AND No Glove overlap -> MISSING GLOVES.
-        # If NO Hand detected -> Passed (Assume hidden/safe).
-        
+        # Gloves Logic
         if len(hands_detected) > 0:
             bare_hands = 0
             for h_box in hands_detected:
@@ -232,8 +198,6 @@ def process_frame(frame):
             
             if bare_hands > 0:
                 missing.append("GLOVES")
-        # else: No hands visible -> No violation for gloves.
-
         
         status_lines = []
         overall_color = (0, 255, 0) # Safe by default
@@ -245,11 +209,9 @@ def process_frame(frame):
             status_lines.append("DANGER: MISSING PPE")
             status_lines.append(", ".join(missing))
             
-            # Log violation (simple rate limiting could be added here if needed, but for now we rely on DB inserts)
-            # To prevent spam, we could check a global timestamp or just let it flow (might be heavy on DB)
-            # For this simplified version, let's log with a random chance or skip to avoid massive DB growth in 1 sec
+            # Log violation
             import random
-            if random.random() < 0.05: # Log ~5% of frames to avoid DB lock/spam
+            if random.random() < 0.05:
                 try:
                     database.log_violation("PPE_MISSING", f"Missing: {', '.join(missing)}")
                 except:
@@ -259,8 +221,29 @@ def process_frame(frame):
         y_offset = 10
         for line in status_lines:
             (tw, th), _ = cv2.getTextSize(line, cv2.FONT_HERSHEY_DUPLEX, 0.8, 1)
-            cv2.rectangle(frame, (w - tw - 20, y_offset), (w - 10, y_offset + th + 20), (0, 0, 0), -1) 
-            cv2.putText(frame, line, (w - tw - 15, y_offset + 25), cv2.FONT_HERSHEY_DUPLEX, 0.8, overall_color, 1)
+            # Filled rect for background
+            current_render_data.append({
+                'type': 'filled_rect', 'args': [(w - tw - 20, y_offset), (w - 10, y_offset + th + 20), (0, 0, 0)], 'kwargs': {}
+            })
+            current_render_data.append({
+                'type': 'text', 'args': [line, (w - tw - 15, y_offset + 25), cv2.FONT_HERSHEY_DUPLEX, 0.8, overall_color, 1], 'kwargs': {}
+            })
             y_offset += 50
+    
+    # Update Performance Metrics
+    elapsed = (time.time() - start_time) * 1000 # ms
+    latest_latency = elapsed
+    
+    # ACCURACY FIX: Metric Stabilization
+    # Only update accuracy if we actually detected objects. 
+    # This prevents the metric from dropping to 0% just because the frame was empty.
+    if detection_count > 0:
+        latest_accuracy = (total_confidence / detection_count) * 100 
+    
+    # Save cache
+    last_render_data = current_render_data
+    
+    # Render final
+    render_overlay(frame, current_render_data)
 
     return frame

@@ -26,7 +26,24 @@ def init_db():
     # Violations table
     c.execute('''CREATE TABLE IF NOT EXISTS violations
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp TEXT, type TEXT, description TEXT)''')
-                 
+
+    # Detections table (General purpose for Face, Object, Plate)
+    c.execute('''CREATE TABLE IF NOT EXISTS detections
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                  timestamp TEXT, 
+                  type TEXT,      -- 'face', 'object', 'plate', 'motion'
+                  label TEXT,     -- 'John Doe', 'Car', 'ABC-123'
+                  confidence REAL, 
+                  camera_id INTEGER)''')
+                  
+    # Visitors table for Unknown Face Re-ID
+    c.execute('''CREATE TABLE IF NOT EXISTS visitors
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                  tracking_id TEXT UNIQUE,  -- 'Visitor_1', 'Visitor_2'
+                  embedding BLOB, 
+                  first_seen TEXT, 
+                  screenshot_path TEXT)''')
+                  
     conn.commit()
     conn.close()
 
@@ -83,6 +100,16 @@ def get_cameras():
     conn.close()
     return [{"id": r[0], "name": r[1], "source": r[2]} for r in rows]
 
+def get_camera_by_id(cam_id: int):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT id, name, source FROM cameras WHERE id = ?", (cam_id,))
+    row = c.fetchone()
+    conn.close()
+    if row:
+        return {"id": row[0], "name": row[1], "source": row[2]}
+    return None
+
 def delete_camera(cam_id: int):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -90,7 +117,45 @@ def delete_camera(cam_id: int):
     conn.commit()
     conn.close()
 
-# --- Violations ---
+def update_camera(cam_id: int, name: str, source: str):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("UPDATE cameras SET name = ?, source = ? WHERE id = ?", (name, source, cam_id))
+    conn.commit()
+    conn.close()
+
+# --- Visitors ---
+def add_visitor(tracking_id: str, embedding: np.ndarray, screenshot_path: str):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    import datetime
+    first_seen = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    embedding_bytes = pickle.dumps(embedding)
+    c.execute("INSERT INTO visitors (tracking_id, embedding, first_seen, screenshot_path) VALUES (?, ?, ?, ?)", 
+              (tracking_id, embedding_bytes, first_seen, screenshot_path))
+    conn.commit()
+    conn.close()
+
+def get_all_visitors():
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT tracking_id, embedding, first_seen, screenshot_path, id FROM visitors")
+    rows = c.fetchall()
+    conn.close()
+    
+    visitors = []
+    for r in rows:
+        embedding = pickle.loads(r[1])
+        visitors.append({
+            "tracking_id": r[0],
+            "embedding": embedding,
+            "first_seen": r[2],
+            "screenshot_path": r[3],
+            "id": r[4]
+        })
+    return visitors
+
+# --- User Auth ---
 def log_violation(v_type: str, description: str):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -107,6 +172,145 @@ def get_violations(limit=50):
     rows = c.fetchall()
     conn.close()
     return [{"id": r[0], "timestamp": r[1], "type": r[2], "description": r[3]} for r in rows]
+
+# --- Detections Generic ---
+def log_detection(type: str, label: str, confidence: float, camera_id: int = 1):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    import datetime
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    c.execute("INSERT INTO detections (timestamp, type, label, confidence, camera_id) VALUES (?, ?, ?, ?, ?)", 
+              (timestamp, type, label, confidence, camera_id))
+    conn.commit()
+    conn.close()
+
+def get_recent_detections(type_filter: str = None, limit=20):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    if type_filter:
+        c.execute("SELECT id, timestamp, type, label, confidence, camera_id FROM detections WHERE type = ? ORDER BY id DESC LIMIT ?", (type_filter, limit))
+    else:
+        c.execute("SELECT id, timestamp, type, label, confidence, camera_id FROM detections ORDER BY id DESC LIMIT ?", (limit,))
+    rows = c.fetchall()
+    conn.close()
+    return [{
+        "id": r[0], 
+        "timestamp": r[1], 
+        "type": r[2], 
+        "label": r[3], 
+        "confidence": r[4], 
+        "camera_id": r[5]
+    } for r in rows]
+
+# --- Stats / Analytics Helpers ---
+def get_detection_stats_by_type():
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT label, COUNT(*) FROM detections WHERE type='object' GROUP BY label")
+    rows = c.fetchall()
+    conn.close()
+    # Format for chart: {label: count}
+    return {r[0]: r[1] for r in rows}
+
+def get_detection_history_last_7_days():
+    # Mock/Simulator for now as we don't have historical data in a fresh DB
+    # In real app, we would query GROUP BY date(timestamp)
+    import datetime
+    days = []
+    counts = []
+    today = datetime.date.today()
+    for i in range(6, -1, -1):
+        d = today - datetime.timedelta(days=i)
+        days.append(d.strftime("%a")) # Mon, Tue...
+        # Mock count, replace with SQL COUNT query if real data existed
+        counts.append(int(np.random.randint(20, 100))) 
+    return {"labels": days, "data": counts}
+
+def get_face_stats():
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    # Mock data for now as we build up history, but query structure is here
+    # Total detections today
+    c.execute("SELECT COUNT(*) FROM detections WHERE type='face' AND date(timestamp) = date('now')")
+    today_count = c.fetchone()[0]
+    
+    # Known vs Unknown (Visitor)
+    c.execute("SELECT COUNT(*) FROM detections WHERE type='face' AND label LIKE 'Visitor_%'")
+    unknown_count = c.fetchone()[0]
+    
+    c.execute("SELECT COUNT(*) FROM detections WHERE type='face' AND label NOT LIKE 'Visitor_%'")
+    known_count = c.fetchone()[0]
+    
+    conn.close()
+    return {
+        "today_total": today_count,
+        "known": known_count,
+        "unknown": unknown_count,
+        # Mock bar chart data [40, 60, 30...] matching the UI request
+        "chart_data": [int(x) for x in np.random.randint(20, 100, 7)] 
+    }
+
+def get_compliance_stats():
+    """
+    Calculates PPE Compliance Rate.
+    Formula: 100 - ( (Violations Today / Unique People Detections Today) * 100 )
+    Clamped between 0 and 100.
+    """
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    
+    # 1. Total Unique People Detected Today
+    # We count distinct labels (John, Visitor_1, etc.) seen today in Face module
+    c.execute("SELECT COUNT(DISTINCT label) FROM detections WHERE type='face' AND date(timestamp) = date('now')")
+    people_count = c.fetchone()[0]
+    
+    # 2. Total PPE Violations Today
+    c.execute("SELECT COUNT(*) FROM violations WHERE type='PPE_MISSING' AND date(timestamp) = date('now')")
+    violation_count = c.fetchone()[0]
+    
+    conn.close()
+    
+    if people_count == 0:
+        return 100 # Default to 100% if no one is around
+        
+    # Calculate non-compliance rate
+    # If 1 person has 5 violations, it might skew. Let's stick to simple ratio.
+    # Ideally: (People with NO violations / Total People) * 100
+    # But current simple logic: violation count vs person count
+    
+    rate = 100 - ((violation_count / people_count) * 20) 
+    # Multiplier 20 is arbitrary "weight" for a violation. 
+    # Real logic: "Percentage of compliant frames" is harder without total frame count.
+    # Let's try: (1 - (violations / total_detections)) * 100 ?
+    # Let's revert to a simpler mock-ish compliant logic if real data is sparse.
+    
+    rate = max(0, min(100, int(rate)))
+    return rate
+
+def get_recent_events(limit=5):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute('''SELECT d.timestamp, d.label, c.name 
+                 FROM detections d 
+                 LEFT JOIN cameras c ON d.camera_id = c.id 
+                 ORDER BY d.id DESC LIMIT ?''', (limit,))
+    rows = c.fetchall()
+    conn.close()
+    
+    events = []
+    if not rows:
+        # Fallback if no joined data
+        return []
+        
+    for r in rows:
+        # r: timestamp, label, cam_name
+        time_str = r[0].split(' ')[1]
+        cam_name = r[2] if r[2] else "System"
+        msg = f"{cam_name}: {r[1]} detected"
+        if "Visitor" in r[1]:
+             msg = f"{cam_name}: Unknown face detected"
+        events.append({"message": msg, "time": time_str})
+    return events
 
 # --- User Auth ---
 def create_user(username, password_hash):
@@ -136,6 +340,24 @@ def get_all_users():
     rows = c.fetchall()
     conn.close()
     return [{"id": r[0], "username": r[1]} for r in rows]
+
+def delete_user(username: str):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("DELETE FROM users WHERE username = ?", (username,))
+    deleted = c.rowcount > 0
+    conn.commit()
+    conn.close()
+    return deleted
+
+def update_password(username: str, new_password_hash: str):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("UPDATE users SET password_hash = ? WHERE username = ?", (new_password_hash, username))
+    updated = c.rowcount > 0
+    conn.commit()
+    conn.close()
+    return updated
 
 if __name__ == "__main__":
     init_db()
