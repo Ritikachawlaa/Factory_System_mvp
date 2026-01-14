@@ -89,6 +89,11 @@ async def startup_event():
         print("No cameras found. Creating default 'Main Cam'...")
         database.add_camera("Main Cam", "0")
 
+@app.on_event("shutdown")
+def shutdown_event():
+    print("Shutting down... Releasing Camera Resources.")
+    camera_manager.release_all()
+
 # --- Auth Endpoints ---
 @app.post("/signup")
 async def signup(user: UserCreate):
@@ -282,6 +287,11 @@ def get_users():
 def get_violations():
     return database.get_violations(limit=20)
 
+@app.delete("/violations")
+def clear_violations():
+    database.clear_violations()
+    return {"message": "Violations cleared"}
+
 # --- Detections & Stats Endpoints ---
 @app.get("/detections")
 def get_detections(type: str = None, limit: int = 20):
@@ -358,6 +368,13 @@ class CameraManager:
                     self.cameras[source] = ThreadedCamera(source)
         return self.cameras[source]
 
+    def release_all(self):
+        with self._lock:
+            for source, cam in self.cameras.items():
+                print(f"Releasing camera {source}...")
+                cam.stop()
+            self.cameras.clear()
+
 class ThreadedCamera:
     def __init__(self, src=0):
         self.capture = cv2.VideoCapture(src)
@@ -425,17 +442,14 @@ def generate_frames(camera_source=0, modules=None):
             # COPY FRAME to prevent drawing conflicts between threads!
             frame = frame_ref.copy()
             
-            # Resize
-            h, w = frame.shape[:2]
-            if w > 640:
-                new_h = int(h * (640 / w))
-                frame = cv2.resize(frame, (640, new_h))
+            # Resize for Mobile Optimization (320x240)
+            frame = cv2.resize(frame, (320, 240))
             
             active_modules = modules.split(',') if modules else None
             # print(f"GenFrames: modules={active_modules}", flush=True)
             frame = recognition.process_frame(frame, modules=active_modules)
             
-            ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 60])
+            ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 40])
             frame_bytes = buffer.tobytes()
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
@@ -486,7 +500,7 @@ async def websocket_stream(websocket: WebSocket, client_id: str, modules: str = 
             processed_frame = recognition.process_frame(frame, modules=active_modules)
             
             # Encode response
-            ret, buffer = cv2.imencode('.jpg', processed_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 60])
+            ret, buffer = cv2.imencode('.jpg', processed_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 40])
             
             # Send back processed image
             await websocket.send_bytes(buffer.tobytes())

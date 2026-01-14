@@ -165,6 +165,13 @@ def log_violation(v_type: str, description: str):
     conn.commit()
     conn.close()
 
+def clear_violations():
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("DELETE FROM violations")
+    conn.commit()
+    conn.close()
+
 def get_violations(limit=50):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -278,11 +285,9 @@ def get_compliance_stats():
     # Ideally: (People with NO violations / Total People) * 100
     # But current simple logic: violation count vs person count
     
-    rate = 100 - ((violation_count / people_count) * 20) 
-    # Multiplier 20 is arbitrary "weight" for a violation. 
-    # Real logic: "Percentage of compliant frames" is harder without total frame count.
-    # Let's try: (1 - (violations / total_detections)) * 100 ?
-    # Let's revert to a simpler mock-ish compliant logic if real data is sparse.
+    # Relaxed Formula: Each violation deducts 5 points from 100
+    penalty = violation_count * 5
+    rate = 100 - penalty
     
     rate = max(0, min(100, int(rate)))
     return rate

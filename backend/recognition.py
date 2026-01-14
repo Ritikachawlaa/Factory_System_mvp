@@ -30,6 +30,7 @@ hand_model = None
 # Performance metrics
 latest_latency = 0.0
 latest_accuracy = 0.0
+last_violation_time = 0.0
 
 # Optimization: Frame Skipping & Caching
 frame_counter = 0
@@ -127,7 +128,7 @@ import threading
 inference_lock = threading.Lock()
 
 def process_frame(frame, modules=None):
-    global latest_latency, latest_accuracy
+    global latest_latency, latest_accuracy, last_violation_time
     global frame_counter, last_render_data
     
     with inference_lock: # Serialize access to models
@@ -321,13 +322,15 @@ def process_frame(frame, modules=None):
             status_lines.append("DANGER: MISSING PPE")
             status_lines.append(", ".join(missing))
             
-            # Log violation
-            import random
-            if random.random() < 0.05:
+            # Log violation (Throttled)
+            current_time = time.time()
+            if current_time - last_violation_time > 10: # 10 seconds throttle
                 try:
                     database.log_violation("PPE_MISSING", f"Missing: {', '.join(missing)}")
-                except:
-                    pass
+                    last_violation_time = current_time
+                    print(f"Logged Violation: {missing}", flush=True)
+                except Exception as e:
+                    print(f"Log Error: {e}")
 
         # Draw Status Box
         y_offset = 20
