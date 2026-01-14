@@ -4,6 +4,7 @@ import ManageCameras from './ManageCameras';
 import RegisterForm from './RegisterForm';
 
 import ManageViolations from './ManageViolations';
+import API_BASE_URL from '../config';
 
 const AdminDashboard = ({ onLogout }) => {
     const [activeTab, setActiveTab] = useState('overview');
@@ -13,8 +14,8 @@ const AdminDashboard = ({ onLogout }) => {
         // Fetch simple stats
         const loadStats = async () => {
             try {
-                const eRes = await fetch('http://localhost:8000/employees');
-                const cRes = await fetch('http://localhost:8000/cameras');
+                const eRes = await fetch(`${API_BASE_URL}/employees`, { headers: { 'ngrok-skip-browser-warning': 'true' } });
+                const cRes = await fetch(`${API_BASE_URL}/cameras`, { headers: { 'ngrok-skip-browser-warning': 'true' } });
                 const eData = await eRes.json();
                 const cData = await cRes.json();
                 setStats({ employees: eData.length, cameras: cData.length, users: 1 });

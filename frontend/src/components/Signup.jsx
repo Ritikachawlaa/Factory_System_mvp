@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import API_BASE_URL from '../config';
 
 const Signup = ({ onSignupSuccess, onSwitchToLogin }) => {
     const [username, setUsername] = useState('');
@@ -10,9 +11,12 @@ const Signup = ({ onSignupSuccess, onSwitchToLogin }) => {
         setError('');
 
         try {
-            const response = await fetch('http://localhost:8000/signup', {
+            const response = await fetch(`${API_BASE_URL}/signup`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'ngrok-skip-browser-warning': 'true'
+                },
                 body: JSON.stringify({ username, password }),
             });
 

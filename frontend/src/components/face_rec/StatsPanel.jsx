@@ -10,9 +10,9 @@ const StatsPanel = () => {
         const fetchData = async () => {
             try {
                 const [evtRes, statRes, perfRes] = await Promise.all([
-                    fetch(`${API_BASE_URL}/events`),
-                    fetch(`${API_BASE_URL}/stats/face`),
-                    fetch(`${API_BASE_URL}/performance`)
+                    fetch(`${API_BASE_URL}/events`, { headers: { 'ngrok-skip-browser-warning': 'true' } }),
+                    fetch(`${API_BASE_URL}/stats/face`, { headers: { 'ngrok-skip-browser-warning': 'true' } }),
+                    fetch(`${API_BASE_URL}/performance`, { headers: { 'ngrok-skip-browser-warning': 'true' } })
                 ]);
 
                 if (evtRes.ok) setEvents(await evtRes.json());

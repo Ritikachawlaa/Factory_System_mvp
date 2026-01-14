@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import API_BASE_URL from '../../config';
 
 const UserManagement = () => {
     const [users, setUsers] = useState([]);
@@ -8,8 +9,11 @@ const UserManagement = () => {
 
     const fetchUsers = async () => {
         try {
-            const response = await fetch('http://localhost:8000/users', {
-                headers: { 'Authorization': `Bearer ${token}` }
+            const response = await fetch(`${API_BASE_URL}/users`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'ngrok-skip-browser-warning': 'true'
+                }
             });
             if (response.ok) {
                 setUsers(await response.json());
@@ -27,9 +31,12 @@ const UserManagement = () => {
         if (!window.confirm(`Are you sure you want to delete ${username}?`)) return;
 
         try {
-            const response = await fetch(`http://localhost:8000/users/${username}`, {
+            const response = await fetch(`${API_BASE_URL}/users/${username}`, {
                 method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'ngrok-skip-browser-warning': 'true'
+                }
             });
             if (response.ok) {
                 fetchUsers();
@@ -50,9 +57,12 @@ const UserManagement = () => {
         if (!password) return;
 
         try {
-            const response = await fetch('http://localhost:8000/signup', {
+            const response = await fetch(`${API_BASE_URL}/signup`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'ngrok-skip-browser-warning': 'true'
+                },
                 body: JSON.stringify({ username, password })
             });
             if (response.ok) {

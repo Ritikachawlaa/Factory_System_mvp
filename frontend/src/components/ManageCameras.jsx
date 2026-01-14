@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import API_BASE_URL from '../config';
 
 const ManageCameras = () => {
     const [cameras, setCameras] = useState([]);
@@ -7,7 +8,7 @@ const ManageCameras = () => {
 
     const fetchCameras = async () => {
         try {
-            const res = await fetch('http://localhost:8000/cameras');
+            const res = await fetch(`${API_BASE_URL}/cameras`, { headers: { 'ngrok-skip-browser-warning': 'true' } });
             if (res.ok) setCameras(await res.json());
         } catch (error) {
             console.error(error);
@@ -21,9 +22,12 @@ const ManageCameras = () => {
     const handleAdd = async (e) => {
         e.preventDefault();
         try {
-            const res = await fetch('http://localhost:8000/cameras', {
+            const res = await fetch(`${API_BASE_URL}/cameras`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'ngrok-skip-browser-warning': 'true'
+                },
                 body: JSON.stringify({ name: newName, source: newSource })
             });
             if (res.ok) {
@@ -39,7 +43,10 @@ const ManageCameras = () => {
     const handleDelete = async (id) => {
         if (!confirm("Remove this camera?")) return;
         try {
-            const res = await fetch(`http://localhost:8000/cameras/${id}`, { method: 'DELETE' });
+            const res = await fetch(`${API_BASE_URL}/cameras/${id}`, {
+                method: 'DELETE',
+                headers: { 'ngrok-skip-browser-warning': 'true' }
+            });
             if (res.ok) fetchCameras();
         } catch (error) {
             console.error(error);
@@ -64,7 +71,7 @@ const ManageCameras = () => {
                         </div>
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
                             <a
-                                href={`http://localhost:8000/video_feed?camera_id=${cam.id}`}
+                                href={`${API_BASE_URL}/video_feed?camera_id=${cam.id}`}
                                 target="_blank"
                                 rel="noreferrer"
                                 style={{

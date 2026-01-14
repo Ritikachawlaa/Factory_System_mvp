@@ -9,7 +9,7 @@ const PPECompliance = () => {
     useEffect(() => {
         const fetchViolations = async () => {
             try {
-                const response = await fetch(`${API_BASE_URL}/violations`);
+                const response = await fetch(`${API_BASE_URL}/violations`, { headers: { 'ngrok-skip-browser-warning': 'true' } });
                 if (response.ok) {
                     setViolations(await response.json());
                 }
@@ -18,7 +18,7 @@ const PPECompliance = () => {
 
         const fetchStats = async () => {
             try {
-                const response = await fetch(`${API_BASE_URL}/stats/compliance`);
+                const response = await fetch(`${API_BASE_URL}/stats/compliance`, { headers: { 'ngrok-skip-browser-warning': 'true' } });
                 if (response.ok) {
                     const data = await response.json();
                     setComplianceRate(data.compliance_rate);

@@ -27,7 +27,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -435,7 +435,7 @@ def generate_frames(camera_source=0, modules=None):
             # print(f"GenFrames: modules={active_modules}", flush=True)
             frame = recognition.process_frame(frame, modules=active_modules)
             
-            ret, buffer = cv2.imencode('.jpg', frame)
+            ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 60])
             frame_bytes = buffer.tobytes()
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
@@ -455,6 +455,49 @@ def video_feed(source: str = "0", camera_id: int = None, modules: str = None):
             final_source = cam['source']
     
     return StreamingResponse(generate_frames(final_source, modules=modules), media_type="multipart/x-mixed-replace; boundary=frame")
+
+# --- WebSocket Streaming ---
+from fastapi import WebSocket, WebSocketDisconnect
+
+@app.websocket("/ws/stream/{client_id}")
+async def websocket_stream(websocket: WebSocket, client_id: str, modules: str = None):
+    # Accept standard or ngrok-bypass subprotocol
+    protocol = websocket.headers.get("sec-websocket-protocol")
+    if protocol:
+        await websocket.accept(subprotocol=protocol)
+    else:
+        await websocket.accept()
+        
+    try:
+        while True:
+            # Receive frame bytes from client
+            data = await websocket.receive_bytes()
+            
+            # Decode
+            nparr = np.frombuffer(data, np.uint8)
+            frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            
+            if frame is None:
+                continue
+                
+            # Process Frame
+            active_modules = modules.split(',') if modules else None
+            # Use process_frame from recognition module
+            processed_frame = recognition.process_frame(frame, modules=active_modules)
+            
+            # Encode response
+            ret, buffer = cv2.imencode('.jpg', processed_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 60])
+            
+            # Send back processed image
+            await websocket.send_bytes(buffer.tobytes())
+            
+    except WebSocketDisconnect:
+        print(f"Client {client_id} disconnected")
+    except Exception as e:
+        print(f"WebSocket Error: {e}")
+        try:
+             await websocket.close()
+        except: pass
 
 if __name__ == "__main__":
     import uvicorn

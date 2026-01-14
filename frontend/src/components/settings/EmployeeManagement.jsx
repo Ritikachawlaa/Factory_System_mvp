@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import API_BASE_URL from '../../config';
 
 const EmployeeManagement = () => {
     const [employees, setEmployees] = useState([]);
@@ -7,8 +8,11 @@ const EmployeeManagement = () => {
 
     const fetchEmployees = async () => {
         try {
-            const res = await fetch('http://localhost:8000/employees', {
-                headers: { 'Authorization': `Bearer ${token}` }
+            const res = await fetch(`${API_BASE_URL}/employees`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'ngrok-skip-browser-warning': 'true'
+                }
             });
             if (res.ok) setEmployees(await res.json());
         } catch (e) {
@@ -37,9 +41,12 @@ const EmployeeManagement = () => {
         formData.append('file', file);
 
         try {
-            const res = await fetch('http://localhost:8000/employees', {
+            const res = await fetch(`${API_BASE_URL}/employees`, {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` },
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'ngrok-skip-browser-warning': 'true'
+                },
                 body: formData
             });
             if (res.ok) {
@@ -59,9 +66,12 @@ const EmployeeManagement = () => {
     const handleDelete = async (id) => {
         if (!confirm("Delete employee?")) return;
         try {
-            await fetch(`http://localhost:8000/employees/${id}`, {
+            await fetch(`${API_BASE_URL}/employees/${id}`, {
                 method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'ngrok-skip-browser-warning': 'true'
+                }
             });
             fetchEmployees();
         } catch (e) {

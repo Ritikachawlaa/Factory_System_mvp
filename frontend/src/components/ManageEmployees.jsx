@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import API_BASE_URL from '../config';
 
 const ManageEmployees = () => {
     const [employees, setEmployees] = useState([]);
@@ -10,7 +11,7 @@ const ManageEmployees = () => {
     const fetchEmployees = async () => {
         setLoading(true);
         try {
-            const res = await fetch('http://localhost:8000/employees');
+            const res = await fetch(`${API_BASE_URL}/employees`, { headers: { 'ngrok-skip-browser-warning': 'true' } });
             if (res.ok) {
                 setEmployees(await res.json());
             }
@@ -28,7 +29,10 @@ const ManageEmployees = () => {
     const handleDelete = async (id) => {
         if (!confirm("Are you sure you want to delete this employee?")) return;
         try {
-            const res = await fetch(`http://localhost:8000/employees/${id}`, { method: 'DELETE' });
+            const res = await fetch(`${API_BASE_URL}/employees/${id}`, {
+                method: 'DELETE',
+                headers: { 'ngrok-skip-browser-warning': 'true' }
+            });
             if (res.ok) fetchEmployees();
         } catch (error) {
             console.error(error);
@@ -47,9 +51,12 @@ const ManageEmployees = () => {
 
     const saveEdit = async (id) => {
         try {
-            const res = await fetch(`http://localhost:8000/employees/${id}`, {
+            const res = await fetch(`${API_BASE_URL}/employees/${id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'ngrok-skip-browser-warning': 'true'
+                },
                 body: JSON.stringify({ name: editName })
             });
             if (res.ok) {

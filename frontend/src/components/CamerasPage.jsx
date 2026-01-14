@@ -2,6 +2,7 @@ import React from 'react';
 import Header from './Header';
 import Footer from './Footer';
 import VideoFeed from './VideoFeed';
+import API_BASE_URL from '../config';
 
 const CamerasPage = () => {
     const [cameras, setCameras] = React.useState([]);
@@ -9,7 +10,7 @@ const CamerasPage = () => {
     React.useEffect(() => {
         const fetchCameras = async () => {
             try {
-                const response = await fetch('http://localhost:8000/cameras');
+                const response = await fetch(`${API_BASE_URL}/cameras`, { headers: { 'ngrok-skip-browser-warning': 'true' } });
                 if (response.ok) {
                     const data = await response.json();
                     // Map backend data to UI format if needed, or just use as is

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import API_BASE_URL from '../../config';
 
 const EventTrends = () => {
     const [data, setData] = useState({ labels: [], data: [] });
@@ -6,7 +7,7 @@ const EventTrends = () => {
     useEffect(() => {
         const fetchTrends = async () => {
             try {
-                const response = await fetch('http://localhost:8000/stats/trends');
+                const response = await fetch(`${API_BASE_URL}/stats/trends`, { headers: { 'ngrok-skip-browser-warning': 'true' } });
                 if (response.ok) {
                     setData(await response.json());
                 }

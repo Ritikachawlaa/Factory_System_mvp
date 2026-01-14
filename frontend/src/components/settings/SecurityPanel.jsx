@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import API_BASE_URL from '../../config';
 
 const SecurityPanel = () => {
     const { token, user } = useAuth();
@@ -10,11 +11,12 @@ const SecurityPanel = () => {
     const handleChangePassword = async () => {
         if (!newPassword) return;
         try {
-            const response = await fetch(`http://localhost:8000/users/${user.username}/password`, {
+            const response = await fetch(`${API_BASE_URL}/users/${user.username}/password`, {
                 method: 'PUT',
                 headers: {
                     'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'ngrok-skip-browser-warning': 'true'
                 },
                 body: JSON.stringify({ new_password: newPassword })
             });

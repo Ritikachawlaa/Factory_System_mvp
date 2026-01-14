@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import API_BASE_URL from '../config';
 
 const AuthContext = createContext(null);
 
@@ -14,8 +15,11 @@ export const AuthProvider = ({ children }) => {
                 return;
             }
             try {
-                const response = await fetch('http://localhost:8000/users/me', {
-                    headers: { 'Authorization': `Bearer ${token}` }
+                const response = await fetch(`${API_BASE_URL}/users/me`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'ngrok-skip-browser-warning': 'true'
+                    }
                 });
                 if (response.ok) {
                     const data = await response.json();
@@ -32,6 +36,7 @@ export const AuthProvider = ({ children }) => {
     }, [token]);
 
     const login = (newToken) => {
+        setLoading(true);
         localStorage.setItem('token', newToken);
         setToken(newToken);
     };
@@ -44,7 +49,28 @@ export const AuthProvider = ({ children }) => {
 
     return (
         <AuthContext.Provider value={{ token, user, login, logout, loading }}>
-            {!loading && children}
+            {loading ? (
+                <div style={{
+                    height: '100vh',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    color: '#fff',
+                    flexDirection: 'column',
+                    gap: '1rem'
+                }}>
+                    <div className="loader" style={{
+                        width: '40px',
+                        height: '40px',
+                        border: '3px solid rgba(255,255,255,0.1)',
+                        borderRadius: '50%',
+                        borderTopColor: '#06b6d4',
+                        animation: 'spin 1s ease-in-out infinite'
+                    }}></div>
+                    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                    <div>Loading Application...</div>
+                </div>
+            ) : children}
         </AuthContext.Provider>
     );
 };

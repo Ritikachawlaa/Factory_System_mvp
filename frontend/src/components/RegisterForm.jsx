@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import API_BASE_URL from '../config';
 
 const RegisterForm = ({ onSuccess }) => {
     const [name, setName] = useState('');
@@ -64,8 +65,9 @@ const RegisterForm = ({ onSuccess }) => {
         formData.append('file', file);
 
         try {
-            const response = await fetch('http://localhost:8000/register', {
+            const response = await fetch(`${API_BASE_URL}/register`, {
                 method: 'POST',
+                headers: { 'ngrok-skip-browser-warning': 'true' },
                 body: formData,
             });
 

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import API_BASE_URL from '../config';
 
 const EmployeeList = ({ refreshKey }) => {
     const [employees, setEmployees] = useState([]);
@@ -8,7 +9,7 @@ const EmployeeList = ({ refreshKey }) => {
     useEffect(() => {
         const fetchEmployees = async () => {
             try {
-                const response = await fetch('http://localhost:8000/employees');
+                const response = await fetch(`${API_BASE_URL}/employees`, { headers: { 'ngrok-skip-browser-warning': 'true' } });
                 if (response.ok) {
                     const data = await response.json();
                     setEmployees(data);

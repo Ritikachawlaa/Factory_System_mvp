@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import API_BASE_URL from '../config';
 
 const ManageViolations = () => {
     const [violations, setViolations] = useState([]);
 
     const fetchViolations = async () => {
         try {
-            const res = await fetch('http://localhost:8000/violations');
+            const res = await fetch(`${API_BASE_URL}/violations`, { headers: { 'ngrok-skip-browser-warning': 'true' } });
             const data = await res.json();
             setViolations(data);
         } catch (error) {

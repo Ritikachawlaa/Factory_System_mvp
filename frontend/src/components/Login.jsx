@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import API_BASE_URL from '../config';
 
 const Login = () => {
     const [username, setUsername] = useState('');
@@ -18,9 +19,12 @@ const Login = () => {
         formData.append('password', password);
 
         try {
-            const response = await fetch('http://localhost:8000/token', {
+            const response = await fetch(`${API_BASE_URL}/token`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'ngrok-skip-browser-warning': 'true'
+                },
                 body: formData
             });
 

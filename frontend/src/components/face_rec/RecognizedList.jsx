@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import API_BASE_URL from '../../config';
 
 const RecognizedList = () => {
     const [people, setPeople] = useState([]);
@@ -7,7 +8,7 @@ const RecognizedList = () => {
     useEffect(() => {
         const fetchDetections = async () => {
             try {
-                const response = await fetch('http://localhost:8000/detections?type=face&limit=50');
+                const response = await fetch(`${API_BASE_URL}/detections?type=face&limit=50`, { headers: { 'ngrok-skip-browser-warning': 'true' } });
                 if (response.ok) {
                     const data = await response.json();
                     setPeople(data);

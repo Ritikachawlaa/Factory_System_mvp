@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import API_BASE_URL from '../../config';
 
 const CameraManagement = () => {
     const [cameras, setCameras] = useState([]);
@@ -7,7 +8,7 @@ const CameraManagement = () => {
 
     const fetchCameras = async () => {
         try {
-            const res = await fetch('http://localhost:8000/cameras');
+            const res = await fetch(`${API_BASE_URL}/cameras`, { headers: { 'ngrok-skip-browser-warning': 'true' } });
             if (res.ok) setCameras(await res.json());
         } catch (e) {
             console.error("Failed to fetch cameras");
@@ -25,11 +26,12 @@ const CameraManagement = () => {
         if (!source) return;
 
         try {
-            await fetch('http://localhost:8000/cameras', {
+            await fetch(`${API_BASE_URL}/cameras`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${token}`,
+                    'ngrok-skip-browser-warning': 'true'
                 },
                 body: JSON.stringify({ name, source })
             });
@@ -42,9 +44,12 @@ const CameraManagement = () => {
     const handleDelete = async (id) => {
         if (!confirm("Delete camera?")) return;
         try {
-            await fetch(`http://localhost:8000/cameras/${id}`, {
+            await fetch(`${API_BASE_URL}/cameras/${id}`, {
                 method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'ngrok-skip-browser-warning': 'true'
+                }
             });
             fetchCameras();
         } catch (e) {

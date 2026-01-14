@@ -212,6 +212,8 @@ def process_frame(frame, modules=None):
                             max_score = score
                             best_match = name
                     
+                    total_confidence += max_score
+                    
                     if max_score > 0.363:
                         identity = best_match
                         color = (0, 255, 0) # Green for Known
@@ -328,15 +330,21 @@ def process_frame(frame, modules=None):
                     pass
 
         # Draw Status Box
-        y_offset = 10
+        y_offset = 20
+        font_scale = 0.7
         for line in status_lines:
-            (tw, th), _ = cv2.getTextSize(line, cv2.FONT_HERSHEY_DUPLEX, 0.8, 1)
+            (tw, th), _ = cv2.getTextSize(line, cv2.FONT_HERSHEY_DUPLEX, font_scale, 1)
+            
+            # Left Align
+            x_start = 20
+            x_end = x_start + tw + 20
+            
             # Filled rect for background
             current_render_data.append({
-                'type': 'filled_rect', 'args': [(w - tw - 20, y_offset), (w - 10, y_offset + th + 20), (0, 0, 0)], 'kwargs': {}
+                'type': 'filled_rect', 'args': [(x_start, y_offset), (x_end, y_offset + th + 20), (0, 0, 0)], 'kwargs': {}
             })
             current_render_data.append({
-                'type': 'text', 'args': [line, (w - tw - 15, y_offset + 25), cv2.FONT_HERSHEY_DUPLEX, 0.8, overall_color, 1], 'kwargs': {}
+                'type': 'text', 'args': [line, (x_start + 10, y_offset + 25), cv2.FONT_HERSHEY_DUPLEX, font_scale, overall_color, 1], 'kwargs': {}
             })
             y_offset += 50
     
