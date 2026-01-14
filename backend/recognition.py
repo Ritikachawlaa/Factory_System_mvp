@@ -139,13 +139,13 @@ def process_frame(frame, modules=None):
         print(f"FRAME {frame_counter}: mod={modules} skip={last_render_data is not None}", flush=True)
     
     # 1. SKIP LOGIC
-    # DISABLE SKIP temporarily to fix module cross-talk
-    SKIP_FRAMES = 1 
-    should_process = True #(frame_counter % SKIP_FRAMES == 0) or (not last_render_data)
+    # Enable SKIP to optimize performance
+    SKIP_FRAMES = 3
+    should_process = (frame_counter % SKIP_FRAMES == 0) or (not last_render_data)
     
-    # if not should_process and last_render_data:
-    #     render_overlay(frame, last_render_data)
-    #     return frame
+    if not should_process and last_render_data:
+        render_overlay(frame, last_render_data)
+        return frame
 
     if detector is None:
         load_models()
