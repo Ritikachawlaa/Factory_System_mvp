@@ -172,6 +172,8 @@ def process_frame(frame, modules=None):
              run_face = "face" in modules
              run_ppe = "ppe" in modules
     
+    # DISABLE HAND MODEL FOR PERFORMANCE (Localhost Optimization)
+    run_hand = False
     current_render_data = []
     total_confidence = 0.0
     detection_count = 0
@@ -220,7 +222,13 @@ def process_frame(frame, modules=None):
                         color = (0, 255, 0) # Green for Known
                         
                         # Log Event (Throttle?)
-                        # database.log_event("FACE_RECOGNITION", f"{identity} detected")
+                        # Log to DB for stats
+                        try:
+                            # Simple throttle: Log once per 30 frames (approx 1 sec) to avoid DB spam
+                            if frame_counter % 30 == 0:
+                                database.log_detection("face", identity, float(max_score))
+                        except Exception as e:
+                            print(f"Log Error: {e}")
                 except Exception as e:
                     print(f"Rec Error: {e}")
 
@@ -274,7 +282,7 @@ def process_frame(frame, modules=None):
                 })
 
     # --- HAND DETECTION (For Gloves) ---
-    if run_ppe and hand_model is not None:
+    if run_ppe and run_hand and hand_model is not None:
         with inference_lock:
             hand_results = hand_model(frame, verbose=False)
         
