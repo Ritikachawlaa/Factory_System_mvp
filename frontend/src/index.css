@@ -30,7 +30,7 @@ body {
   overflow: hidden;
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar Global */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -47,6 +47,22 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #475569;
+}
+
+/* Force Scrollbar Visibility Class */
+.always-scroll::-webkit-scrollbar {
+  display: block;
+  width: 8px;
+}
+
+.always-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.always-scroll::-webkit-scrollbar-thumb {
+  background: #475569;
+  /* Make it slightly more visible by default */
+  border-radius: 4px;
 }
 
 /* Utility Classes */

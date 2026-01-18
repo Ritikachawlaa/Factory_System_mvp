@@ -7,11 +7,22 @@ const Sidebar = () => {
     const navigate = useNavigate();
 
     const modules = [
-        { name: 'Facial Recognition', icon: 'face', active: window.location.pathname === '/face-recognition' },
-        { name: 'PPE Compliance', icon: 'ppe', active: window.location.pathname === '/ppe-compliance' },
-        { name: 'Object Detection', icon: 'obj', active: window.location.pathname === '/object-detection' },
-        { name: 'Motion Tracking', icon: 'motion', active: window.location.pathname === '/motion-tracking' },
-        { name: 'License Plate Recognition', icon: 'lpr', active: window.location.pathname === '/lpr' },
+        { name: 'Face Recognition', icon: 'face', path: '/face-recognition' },
+        { name: 'Vehicle/ANPR', icon: 'lpr', path: '/lpr' },
+        { name: 'Animal Detection', icon: 'animal', path: '/animal-detection' },
+        { name: 'Object Detection/Abandoned', icon: 'obj', path: '/object-detection' },
+        { name: 'Intrusion Detection', icon: 'intrusion', path: '/intrusion-detection' },
+        { name: 'Loitering Detection', icon: 'loiter', path: '/loitering-detection' },
+        { name: 'People Count', icon: 'people', path: '/people-count' },
+        { name: 'Line Crossing', icon: 'line', path: '/line-crossing' },
+        { name: 'Box Production', icon: 'box', path: '/box-production' },
+        { name: 'Fault Detection', icon: 'fault', path: '/fault-detection' },
+        { name: 'Helmet/PPE', icon: 'ppe', path: '/ppe-compliance' },
+        { name: 'Fire/Smoke', icon: 'fire', path: '/fire-smoke' },
+        { name: 'Entry/Exit', icon: 'entry', path: '/entry-exit' },
+        { name: 'Aggressive Behaviour/Fight', icon: 'fight', path: '/fight-detection' },
+        { name: 'Camera Tampering', icon: 'cam', path: '/camera-tampering' },
+
     ];
 
     const statuses = [
@@ -23,6 +34,7 @@ const Sidebar = () => {
     return (
         <aside style={{
             width: '280px',
+            height: '100%',
             padding: '1.5rem',
             display: 'flex',
             flexDirection: 'column',
@@ -31,7 +43,7 @@ const Sidebar = () => {
             background: 'rgba(5, 11, 20, 0.2)'
         }}>
             {/* Modules Section */}
-            <div>
+            <div className="always-scroll" style={{ flex: 1, overflowY: 'auto', minHeight: 0, paddingRight: '0.5rem', marginRight: '-0.5rem' }}>
                 <h3 style={{
                     color: 'var(--text-secondary)',
                     fontSize: '0.8rem',
@@ -42,32 +54,25 @@ const Sidebar = () => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     {modules.map((mod) => (
                         <div key={mod.name}
-                            onClick={() => {
-                                if (mod.name === 'Facial Recognition') window.location.href = '/face-recognition';
-                                if (mod.name === 'Dashboard') window.location.href = '/';
-                                if (mod.name === 'PPE Compliance') window.location.href = '/ppe-compliance';
-                                if (mod.name === 'Object Detection') window.location.href = '/object-detection';
-                                if (mod.name === 'Motion Tracking') window.location.href = '/motion-tracking';
-                                if (mod.name === 'License Plate Recognition') window.location.href = '/lpr';
-                            }}
+                            onClick={() => window.location.href = mod.path}
                             style={{
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '0.75rem',
                                 padding: '0.75rem',
                                 borderRadius: '8px',
-                                background: mod.active ? 'rgba(6, 182, 212, 0.1)' : 'transparent',
-                                border: mod.active ? '1px solid var(--accent-cyan)' : '1px solid transparent',
+                                background: window.location.pathname === mod.path ? 'rgba(6, 182, 212, 0.1)' : 'transparent',
+                                border: window.location.pathname === mod.path ? '1px solid var(--accent-cyan)' : '1px solid transparent',
                                 cursor: 'pointer',
-                                color: mod.active ? '#fff' : 'var(--text-secondary)',
+                                color: window.location.pathname === mod.path ? '#fff' : 'var(--text-secondary)',
                                 transition: 'all 0.2s'
                             }}>
                             <div style={{
                                 width: '32px', height: '32px',
-                                background: mod.active ? 'var(--accent-cyan)' : '#1e293b',
+                                background: window.location.pathname === mod.path ? 'var(--accent-cyan)' : '#1e293b',
                                 borderRadius: '6px',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                color: mod.active ? '#000' : '#fff'
+                                color: window.location.pathname === mod.path ? '#000' : '#fff'
                             }}>
                                 <span style={{ fontSize: '0.8rem' }}>AI</span>
                             </div>

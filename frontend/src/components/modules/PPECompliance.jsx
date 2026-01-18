@@ -38,7 +38,7 @@ const PPECompliance = () => {
     }, []);
 
     return (
-        <ModulePage title="PPE Compliance Monitoring" videoModules="ppe">
+        <ModulePage title="Helmet & PPE Compliance" videoModules="ppe">
             {/* Filters removed as per user request */}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>

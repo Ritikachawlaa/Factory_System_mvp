@@ -19,6 +19,13 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS users
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password_hash TEXT)''')
     
+    # Check if 'role' column exists in users, if not add it
+    c.execute("PRAGMA table_info(users)")
+    columns = [info[1] for info in c.fetchall()]
+    if 'role' not in columns:
+        print("Migrating DB: Adding 'role' column to users table...")
+        c.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'admin'")
+    
     # Cameras table
     c.execute('''CREATE TABLE IF NOT EXISTS cameras
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, source TEXT)''')
@@ -43,6 +50,7 @@ def init_db():
                   embedding BLOB, 
                   first_seen TEXT, 
                   screenshot_path TEXT)''')
+                  
                   
     conn.commit()
     conn.close()
@@ -85,7 +93,6 @@ def update_employee(emp_id: int, name: str):
 
 # --- Cameras ---
 def add_camera(name: str, source: str):
-    conn = sqlite3.connect(DB_NAME)
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute("INSERT INTO cameras (name, source) VALUES (?, ?)", (name, source))
@@ -155,7 +162,7 @@ def get_all_visitors():
         })
     return visitors
 
-# --- User Auth ---
+# --- Violations ---
 def log_violation(v_type: str, description: str):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -216,32 +223,25 @@ def get_detection_stats_by_type():
     c.execute("SELECT label, COUNT(*) FROM detections WHERE type='object' GROUP BY label")
     rows = c.fetchall()
     conn.close()
-    # Format for chart: {label: count}
     return {r[0]: r[1] for r in rows}
 
 def get_detection_history_last_7_days():
-    # Mock/Simulator for now as we don't have historical data in a fresh DB
-    # In real app, we would query GROUP BY date(timestamp)
     import datetime
     days = []
     counts = []
     today = datetime.date.today()
     for i in range(6, -1, -1):
         d = today - datetime.timedelta(days=i)
-        days.append(d.strftime("%a")) # Mon, Tue...
-        # Mock count, replace with SQL COUNT query if real data existed
+        days.append(d.strftime("%a"))
         counts.append(int(np.random.randint(20, 100))) 
     return {"labels": days, "data": counts}
 
 def get_face_stats():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    # Mock data for now as we build up history, but query structure is here
-    # Total detections today
     c.execute("SELECT COUNT(*) FROM detections WHERE type='face' AND date(timestamp) = date('now')")
     today_count = c.fetchone()[0]
     
-    # Known vs Unknown (Visitor)
     c.execute("SELECT COUNT(*) FROM detections WHERE type='face' AND label LIKE 'Visitor_%'")
     unknown_count = c.fetchone()[0]
     
@@ -253,39 +253,24 @@ def get_face_stats():
         "today_total": today_count,
         "known": known_count,
         "unknown": unknown_count,
-        # Mock bar chart data [40, 60, 30...] matching the UI request
         "chart_data": [int(x) for x in np.random.randint(20, 100, 7)] 
     }
 
 def get_compliance_stats():
-    """
-    Calculates PPE Compliance Rate.
-    Formula: 100 - ( (Violations Today / Unique People Detections Today) * 100 )
-    Clamped between 0 and 100.
-    """
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     
-    # 1. Total Unique People Detected Today
-    # We count distinct labels (John, Visitor_1, etc.) seen today in Face module
     c.execute("SELECT COUNT(DISTINCT label) FROM detections WHERE type='face' AND date(timestamp) = date('now')")
     people_count = c.fetchone()[0]
     
-    # 2. Total PPE Violations Today
     c.execute("SELECT COUNT(*) FROM violations WHERE type='PPE_MISSING' AND date(timestamp) = date('now')")
     violation_count = c.fetchone()[0]
     
     conn.close()
     
     if people_count == 0:
-        return 100 # Default to 100% if no one is around
+        return 100
         
-    # Calculate non-compliance rate
-    # If 1 person has 5 violations, it might skew. Let's stick to simple ratio.
-    # Ideally: (People with NO violations / Total People) * 100
-    # But current simple logic: violation count vs person count
-    
-    # Relaxed Formula: Each violation deducts 5 points from 100
     penalty = violation_count * 5
     rate = 100 - penalty
     
@@ -304,11 +289,9 @@ def get_recent_events(limit=5):
     
     events = []
     if not rows:
-        # Fallback if no joined data
         return []
         
     for r in rows:
-        # r: timestamp, label, cam_name
         time_str = r[0].split(' ')[1]
         cam_name = r[2] if r[2] else "System"
         msg = f"{cam_name}: {r[1]} detected"
@@ -318,11 +301,11 @@ def get_recent_events(limit=5):
     return events
 
 # --- User Auth ---
-def create_user(username, password_hash):
+def create_user(username, password_hash, role="admin"):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     try:
-        c.execute("INSERT INTO users (username, password_hash) VALUES (?, ?)", (username, password_hash))
+        c.execute("INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)", (username, password_hash, role))
         conn.commit()
         return True
     except sqlite3.IntegrityError:
@@ -333,18 +316,18 @@ def create_user(username, password_hash):
 def get_user(username):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("SELECT username, password_hash FROM users WHERE username = ?", (username,))
+    c.execute("SELECT username, password_hash, role FROM users WHERE username = ?", (username,))
     row = c.fetchone()
     conn.close()
-    return row # (username, password_hash) or None
+    return row # (username, password_hash, role) or None
     
 def get_all_users():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("SELECT id, username FROM users")
+    c.execute("SELECT id, username, role FROM users")
     rows = c.fetchall()
     conn.close()
-    return [{"id": r[0], "username": r[1]} for r in rows]
+    return [{"id": r[0], "username": r[1], "role": r[2]} for r in rows]
 
 def delete_user(username: str):
     conn = sqlite3.connect(DB_NAME)

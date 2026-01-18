@@ -16,7 +16,9 @@ const Footer = () => {
                 <div style={{ fontWeight: '600', color: '#fff', fontSize: '0.9rem' }}>Fordnard Syatus</div>
                 <div>Copyright binarydeep-16attreed Egids</div>
                 <div style={{ fontSize: '0.7rem', opacity: 0.7, marginTop: '2px' }}>
-                    Privacy Policy &nbsp; • &nbsp; Terms of Service
+                    <span style={{ cursor: 'pointer', textDecoration: 'none', color: 'inherit' }} onClick={() => window.location.href = '/privacy-policy'}>Privacy Policy</span>
+                    &nbsp; • &nbsp;
+                    <span style={{ cursor: 'pointer', textDecoration: 'none', color: 'inherit' }} onClick={() => window.location.href = '/terms-of-service'}>Terms of Service</span>
                 </div>
             </div>
 

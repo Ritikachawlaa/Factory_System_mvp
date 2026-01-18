@@ -71,12 +71,10 @@ const Login = () => {
                 boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
             }}>
                 <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-                    <div style={{
-                        width: '60px', height: '60px', margin: '0 auto 1rem',
-                        background: 'linear-gradient(135deg, #0ea5e9, #6366f1)',
-                        borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '1.5rem'
-                    }}>👁️</div>
+                    <img src="/logo-shield.jpg" alt="Logo" style={{
+                        width: '80px', height: 'auto', margin: '0 auto 1rem',
+                        display: 'block'
+                    }} />
                     <h2 style={{ fontSize: '1.75rem', fontWeight: '600', marginBottom: '0.5rem', letterSpacing: '-0.5px' }}>Welcome Back</h2>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Vision AI Security System</p>
                 </div>

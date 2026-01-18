@@ -3,7 +3,7 @@ import ModulePage from './ModulePage';
 
 const LicensePlateRecognition = () => {
     return (
-        <ModulePage title="License Plate Recognition">
+        <ModulePage title="Vehicle & ANPR">
             <div className="glass-panel" style={{ padding: '1.5rem' }}>
                 <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1rem' }}>Scanned Plates</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
