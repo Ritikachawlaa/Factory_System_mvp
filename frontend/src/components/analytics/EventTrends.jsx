@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import API_BASE_URL from '../../config';
+import analyticsApi from '../../api/analytics.api';
 
 const EventTrends = () => {
     const [data, setData] = useState({ labels: [], data: [] });
@@ -7,9 +8,12 @@ const EventTrends = () => {
     useEffect(() => {
         const fetchTrends = async () => {
             try {
-                const response = await fetch(`${API_BASE_URL}/stats/trends`, { headers: { 'ngrok-skip-browser-warning': 'true' } });
-                if (response.ok) {
-                    setData(await response.json());
+                // analyticsApi.getStats('trends') returns { labels: [], data: [] }
+                // Backend endpoint /stats/trends must exist or be mapped.
+                // Assuming backend aligns with previous fetch.
+                const response = await analyticsApi.getStats('trends');
+                if (response) {
+                    setData(response);
                 }
             } catch (e) { console.error(e); }
         };

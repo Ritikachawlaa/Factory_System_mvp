@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import API_BASE_URL from '../config';
+import authApi from '../api/auth.api';
 
 const Login = () => {
     const [username, setUsername] = useState('');
@@ -14,29 +15,21 @@ const Login = () => {
         e.preventDefault();
         setError('');
 
-        const formData = new URLSearchParams();
-        formData.append('username', username);
-        formData.append('password', password);
-
         try {
-            const response = await fetch(`${API_BASE_URL}/token`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'ngrok-skip-browser-warning': 'true'
-                },
-                body: formData
-            });
-
-            if (response.ok) {
-                const data = await response.json();
+            const data = await authApi.login(username, password);
+            if (data.access_token) {
                 login(data.access_token);
                 navigate('/');
             } else {
-                setError('Invalid credentials');
+                setError('Login failed: No token received');
             }
         } catch (e) {
-            setError('Connection failed');
+            console.error(e);
+            if (e.response && e.response.status === 401) {
+                setError('Invalid credentials');
+            } else {
+                setError('Connection failed');
+            }
         }
     };
 

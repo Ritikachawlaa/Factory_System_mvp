@@ -1,0 +1,12 @@
+﻿# npm audit report
+
+axios  <=1.13.4
+Severity: high
+Axios is Vulnerable to Denial of Service via __proto__ Key in mergeConfig - https://github.com/advisories/GHSA-43fc-jf86-j433
+fix available via `npm audit fix`
+node_modules/axios
+
+1 high severity vulnerability
+
+To address all issues, run:
+  npm audit fix

@@ -1,0 +1,13 @@
+requests
+opencv-python
+python-dotenv
+# Add specific dependencies from backend's reqs that are needed for modules
+ultralytics
+deepface
+dlib
+imutils
+numpy
+pandas
+scipy
+tensorflow
+tf-keras

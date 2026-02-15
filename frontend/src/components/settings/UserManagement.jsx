@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import API_BASE_URL from '../../config';
+import authApi from '../../api/auth.api';
 
 const UserManagement = () => {
     const [users, setUsers] = useState([]);
@@ -23,10 +23,8 @@ const UserManagement = () => {
 
     const fetchUsers = async () => {
         try {
-            const response = await fetch(`${API_BASE_URL}/users`, {
-                headers: { 'Authorization': `Bearer ${token}`, 'ngrok-skip-browser-warning': 'true' }
-            });
-            if (response.ok) setUsers(await response.json());
+            const data = await authApi.getAllUsers();
+            setUsers(data);
         } catch (e) { console.error("Failed to fetch users"); }
     };
 
@@ -46,37 +44,26 @@ const UserManagement = () => {
         }
 
         try {
-            // In a real app, send department and permissions too. backend/signup might need updates.
-            // For MVP, we stick to basic signup but "mock" the extra data storage or assume backend handles it if updated.
-            const response = await fetch(`${API_BASE_URL}/users`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'ngrok-skip-browser-warning': 'true',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ username: newUser.username, password: newUser.password, role: 'admin' })
+            // authApi.createUser(username, password, role)
+            await authApi.createUser({
+                username: newUser.username,
+                password: newUser.password,
+                role: 'admin' // Defaulting to admin for MVP or add role selector
             });
 
-            if (response.ok) {
-                alert(`User Created!\nID: ${newUser.username}\nPass: ${newUser.password}`);
-                setShowModal(false);
-                fetchUsers();
-                setNewUser({ name: '', department: '', username: '', password: '', permissions: { viewCameras: true, editSettings: false, exportReports: false, manageUsers: false } });
-            } else {
-                alert("Failed to create user. Username might exist.");
-            }
-        } catch (e) { alert("Error creating user"); }
+            alert(`User Created!\nID: ${newUser.username}\nPass: ${newUser.password}`);
+            setShowModal(false);
+            fetchUsers();
+            setNewUser({ name: '', department: '', username: '', password: '', permissions: { viewCameras: true, editSettings: false, exportReports: false, manageUsers: false } });
+
+        } catch (e) { alert("Error creating user: " + e.message); }
     };
 
     const handleDelete = async (username) => {
         if (!window.confirm(`Delete ${username}?`)) return;
         try {
-            const response = await fetch(`${API_BASE_URL}/users/${username}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}`, 'ngrok-skip-browser-warning': 'true' }
-            });
-            if (response.ok) fetchUsers();
+            await authApi.deleteUser(username);
+            fetchUsers();
         } catch (e) { alert("Error deleting user"); }
     };
 

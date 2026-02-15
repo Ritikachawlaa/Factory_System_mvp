@@ -1,17 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from './Header';
+import evidenceApi from '../api/evidence.api';
 
 import Footer from './Footer';
 
 const EvidencePage = () => {
     const [selectedCase, setSelectedCase] = useState(null);
     const [isPlaying, setIsPlaying] = useState(false);
+    const [cases, setCases] = useState([]);
 
-    const [cases, setCases] = useState([
-        { id: 'CASE-2025-001', title: 'Unauthorized Entry at Gate 3', date: '2025-01-18', time: '10:42 AM', type: 'Intrusion', status: 'Open', operator: 'Ritik', notes: 'Suspect identified as former employee.' },
-        { id: 'CASE-2025-002', title: 'PPE Violation - Sector B', date: '2025-01-17', time: '02:15 PM', type: 'Safety', status: 'Closed', operator: 'John', notes: 'Warning issued to worker ID #445.' },
-        { id: 'CASE-2025-003', title: 'Inventory Theft Attempt', date: '2025-01-15', time: '11:55 PM', type: 'Theft', status: 'Archived', operator: 'System', notes: 'Auto-flagged by motion detection.' },
-    ]);
+    useEffect(() => {
+        const fetchEvidence = async () => {
+            try {
+                const data = await evidenceApi.getAll();
+                // Map API evidence to UI format
+                const mapped = data.map(e => ({
+                    id: e.id,
+                    dbId: e.id, // Keep real ID for deletion
+                    title: e.title || e.module_key || 'Incident',
+                    date: new Date(e.timestamp).toLocaleDateString(),
+                    time: new Date(e.timestamp).toLocaleTimeString(),
+                    type: e.type || 'Alert',
+                    status: 'Open',
+                    operator: 'System',
+                    notes: e.title
+                }));
+                setCases(mapped);
+            } catch (e) {
+                console.error("Failed to load evidence", e);
+            }
+        };
+        fetchEvidence();
+    }, []);
 
     const getStatusColor = (status) => {
         switch (status) {
@@ -35,11 +55,16 @@ const EvidencePage = () => {
         URL.revokeObjectURL(url);
     };
 
-    const handleDeleteCase = () => {
+    const handleDeleteCase = async () => {
         if (window.confirm('Are you sure you want to delete this case?')) {
-            setCases(cases.filter(c => c.id !== selectedCase.id));
-            setSelectedCase(null);
-            setIsPlaying(false);
+            try {
+                await evidenceApi.delete(selectedCase.dbId);
+                setCases(cases.filter(c => c.id !== selectedCase.id));
+                setSelectedCase(null);
+                setIsPlaying(false);
+            } catch (e) {
+                alert("Failed to delete evidence");
+            }
         }
     };
 

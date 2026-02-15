@@ -63,6 +63,14 @@ const Dashboard = () => {
                             </div>
                             <h2 style={{ fontSize: '2.5rem', fontWeight: '800', margin: 0 }} className="text-gradient">
                                 Command Center
+                                <span style={{
+                                    fontSize: '0.8rem', verticalAlign: 'middle', marginLeft: '1rem',
+                                    padding: '4px 8px', borderRadius: '4px',
+                                    background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444',
+                                    border: '1px solid rgba(239, 68, 68, 0.4)'
+                                }}>
+                                    DEV ENVIRONMENT
+                                </span>
                             </h2>
                         </div>
                         <div style={{ textAlign: 'right', display: 'flex', gap: '1rem' }}>
@@ -70,6 +78,14 @@ const Dashboard = () => {
                                 <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>System Uptime</div>
                                 <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff' }}>24d : 12h : 45m</div>
                             </div>
+                            <button onClick={() => navigate('/audit-logs')} className="glass-panel" style={{
+                                padding: '0.75rem 1.5rem', background: 'rgba(255,255,255,0.05)',
+                                border: '1px solid var(--panel-border)', cursor: 'pointer',
+                                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'
+                            }}>
+                                <span style={{ fontSize: '1.2rem' }}>📋</span>
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '4px' }}>AUDIT LOGS</span>
+                            </button>
                         </div>
                     </div>
 
@@ -79,7 +95,7 @@ const Dashboard = () => {
                             { label: "Today's Alerts", value: stats.totalAlerts, icon: '🚨', bg: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '#ef4444' },
                             { label: 'Attendance', value: `${stats.attendance}%`, icon: '📋', bg: 'rgba(6, 182, 212, 0.1)', color: 'var(--accent-cyan)', border: 'var(--accent-cyan)' },
                             { label: 'Active Cameras', value: `${stats.activeCameras}/${stats.totalCameras}`, icon: '📹', bg: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '#10b981' },
-                            { label: 'System Health', value: stats.systemStatus, icon: '🛡️', bg: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '#3b82f6' }
+                            { label: 'Critical Alerts', value: '3', icon: '🔥', bg: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '#ef4444' }
                         ].map((item, idx) => (
                             <div key={idx} className="glass-panel" style={{
                                 padding: '1.5rem',

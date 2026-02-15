@@ -25,8 +25,13 @@ import Login from './components/Login'
 import AttendancePage from './components/AttendancePage'
 import SubscriptionPage from './components/SubscriptionPage'
 import EvidencePage from './components/EvidencePage'
+import AuditLogsPage from './components/AuditLogsPage'
 import PrivacyPolicy from './components/PrivacyPolicy'
 import TermsOfService from './components/TermsOfService'
+
+import CameraDashboard from './components/camera/CameraDashboard';
+import CameraModuleDetail from './components/camera/CameraModuleDetail';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 // --- Protected Route Wrapper ---
 const ProtectedRoute = ({ children }) => {
@@ -50,8 +55,13 @@ function AppRoutes() {
       <Route path="/login" element={<Login />} />
 
       {/* Protected System Routes */}
-      <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/cameras" element={<ProtectedRoute><CamerasPage /></ProtectedRoute>} />
+      <Route path="/" element={<ProtectedRoute><ErrorBoundary><Dashboard /></ErrorBoundary></ProtectedRoute>} />
+
+      {/* Camera Centric Routes */}
+      <Route path="/cameras" element={<ProtectedRoute><ErrorBoundary><CamerasPage /></ErrorBoundary></ProtectedRoute>} />
+      <Route path="/cameras/:cameraId" element={<ProtectedRoute><CameraDashboard /></ProtectedRoute>} />
+      <Route path="/cameras/:cameraId/module/:moduleType" element={<ProtectedRoute><CameraModuleDetail /></ProtectedRoute>} />
+
       <Route path="/face-recognition" element={<ProtectedRoute><FaceRecognition /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
       <Route path="/analytics" element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
@@ -75,6 +85,7 @@ function AppRoutes() {
       <Route path="/line-crossing" element={<ProtectedRoute><LineCrossing /></ProtectedRoute>} />
       <Route path="/fire-smoke" element={<ProtectedRoute><FireSmokeDetection /></ProtectedRoute>} />
       <Route path="/evidence" element={<ProtectedRoute><EvidencePage /></ProtectedRoute>} />
+      <Route path="/audit-logs" element={<ProtectedRoute><AuditLogsPage /></ProtectedRoute>} />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       <Route path="/terms-of-service" element={<TermsOfService />} />
     </Routes>

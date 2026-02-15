@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import API_BASE_URL from '../config';
+import authApi from '../api/auth.api';
 
 const AuthContext = createContext(null);
 
@@ -15,19 +16,20 @@ export const AuthProvider = ({ children }) => {
                 return;
             }
             try {
-                const response = await fetch(`${API_BASE_URL}/users/me`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'ngrok-skip-browser-warning': 'true'
-                    }
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    setUser(data);
-                } else {
-                    logout();
-                }
+                // Ensure auth header is set if httpClient relies on localStorage, 
+                // but since we set it in interceptor from localStorage, it should be fine.
+                // However, the interceptor reads from localStorage at request time.
+                // We must ensure localStorage is updated before this runs.
+
+                const data = await authApi.getCurrentUser();
+
+                // MOCK RBAC ROLE INJECTION (if backend doesn't send it yet)
+                // Backend sends { username: "...", role: "..." } now per main.py update earlier
+                // So we can use data.role directly.
+
+                setUser(data);
             } catch (e) {
+                console.error("Auth Check Failed:", e);
                 logout();
             }
             setLoading(false);
@@ -47,8 +49,20 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
     };
 
+    const checkPermission = (action) => {
+        if (!user) return false;
+        const role = user.role || 'viewer';
+
+        switch (action) {
+            case 'manage_system': return role === 'admin';
+            case 'control_module': return ['admin', 'supervisor'].includes(role);
+            case 'view_sensitive': return ['admin', 'supervisor', 'operator'].includes(role);
+            default: return true; // Default view access
+        }
+    };
+
     return (
-        <AuthContext.Provider value={{ token, user, login, logout, loading }}>
+        <AuthContext.Provider value={{ token, user, login, logout, loading, checkPermission }}>
             {loading ? (
                 <div style={{
                     height: '100vh',

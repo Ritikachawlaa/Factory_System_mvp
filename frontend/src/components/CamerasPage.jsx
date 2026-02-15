@@ -3,7 +3,12 @@ import Header from './Header';
 import Footer from './Footer';
 import API_BASE_URL from '../config';
 
+import { useNavigate } from 'react-router-dom';
+import { getAllModules } from '../config/moduleRegistry';
+import camerasApi from '../api/cameras.api';
+
 const CamerasPage = () => {
+    const navigate = useNavigate();
     // State
     const [cameras, setCameras] = useState([]);
     const [selectedCamera, setSelectedCamera] = useState(null); // For Detail View
@@ -15,18 +20,7 @@ const CamerasPage = () => {
     const [newCamera, setNewCamera] = useState({ name: '', rtsp: '', models: [], status: 'Online' });
 
     // Data Models
-    const aiModels = [
-        'PPE Detection',
-        'Fault Detection',
-        'Fight Detection',
-        'Camera Tampering',
-        'Box Production',
-        'People Counting',
-        'Entry/Exit Count',
-        'Intrusion Detection',
-        'Animal Detection',
-        'Face Recognition'
-    ];
+    const aiModels = getAllModules().map(m => m.label);
 
     // Mock Data for Dynamic Detail View
     const getModuleSpecificLogs = (module) => {
@@ -58,17 +52,22 @@ const CamerasPage = () => {
     };
 
     useEffect(() => {
-        // Fetch existing cameras or use mock if empty
         const fetchCameras = async () => {
             try {
-                // In a real app, this would come from the backend. 
-                const initialCameras = [
-                    { id: 101, name: 'Main Entrance', rtsp: 'webcam', models: ['Face Recognition', 'People Counting'], status: 'Online' },
-                    { id: 102, name: 'Warehouse A', rtsp: 'rtsp://192.168.1.102/stream', models: ['PPE Detection'], status: 'Recording' },
-                    { id: 103, name: 'Perimeter Fence', rtsp: 'rtsp://192.168.1.103/stream', models: ['Intrusion Detection', 'Animal Detection'], status: 'Offline' }
-                ];
-                setCameras(initialCameras);
-            } catch (e) { console.error(e); }
+                const data = await camerasApi.getAll();
+                // Map backend fields (source) to frontend fields (rtsp) if needed
+                // Backend returns: { id, name, source, ... }
+                // Frontend uses: { id, name, rtsp, status, modules }
+                // We need to preserve client-side 'modules'/status if backend doesn't have them yet,
+                // or merge them. For now, let's assume backend is truth for name/source.
+                // Since backend doesn't store modules yet, we might lose them on refresh if we don't sync.
+                // Hybrid: Load from backend, merge with local storage for modules.
+
+                // Backend now returns full object with modules
+                setCameras(data);
+            } catch (e) {
+                console.error("Failed to load cameras", e);
+            }
         };
         fetchCameras();
     }, []);
@@ -76,7 +75,18 @@ const CamerasPage = () => {
     // Filtered Cameras
     const filteredCameras = selectedFilter === 'All'
         ? cameras
-        : cameras.filter(cam => cam.models.includes(selectedFilter));
+        : cameras.filter(cam => {
+            // Check legacy string array
+            if (cam.models && cam.models.includes(selectedFilter)) return true;
+
+            // Check new objects array
+            if (cam.modules) {
+                // Find key for selected label
+                const targetModule = getAllModules().find(m => m.label === selectedFilter);
+                if (targetModule && cam.modules.some(m => m.key === targetModule.key)) return true;
+            }
+            return false;
+        });
 
     // Detail View State
     const [detailViewMode, setDetailViewMode] = React.useState('All');
@@ -108,6 +118,18 @@ const CamerasPage = () => {
         }
     };
 
+    // Helper to count active modules
+    const getActiveModuleCount = (cam) => {
+        if (!cam) return 0;
+        if (cam.modules && Array.isArray(cam.modules)) {
+            return cam.modules.filter(m => m.status === 'active').length;
+        }
+        if (cam.models && Array.isArray(cam.models)) {
+            return cam.models.length;
+        }
+        return 0;
+    };
+
     // Webcam Logic REMOVED in favor of Backend Stream
     // The backend now handles the webcam stream via /video_feed?source=0
 
@@ -124,33 +146,77 @@ const CamerasPage = () => {
     // Handlers
     const openAddModal = () => {
         setEditingCamera(null);
-        setNewCamera({ name: '', rtsp: '', models: [], status: 'Online' });
+        setNewCamera({ name: '', rtsp: '', modules: [], status: 'Online' });
         setShowAddModal(true);
     };
 
-    const openEditModal = (cam) => {
+    const toggleNewCameraModule = (moduleKey) => {
+        // Ensure modules is initialized
+        const currentModules = newCamera.modules || [];
+
+        if (currentModules.some(m => m.key === moduleKey)) {
+            // Remove
+            setNewCamera({ ...newCamera, modules: currentModules.filter(m => m.key !== moduleKey) });
+        } else {
+            // Add (default active)
+            setNewCamera({ ...newCamera, modules: [...currentModules, { key: moduleKey, status: 'active' }] });
+        }
+    };
+
+    const openEditModal = (e, cam) => {
+        e.stopPropagation(); // Prevent navigation
         setEditingCamera(cam);
         setNewCamera({ ...cam });
         setShowAddModal(true);
     };
 
-    const handleSaveCamera = () => {
+    const handleSaveCamera = async () => {
         if (!newCamera.name || !newCamera.rtsp) return;
 
-        if (editingCamera) {
-            // Edit
-            setCameras(cameras.map(c => c.id === editingCamera.id ? { ...newCamera, id: c.id } : c));
-        } else {
-            // Add
-            const newId = Math.max(...cameras.map(c => c.id), 100) + 1;
-            setCameras([...cameras, { ...newCamera, id: newId }]);
+        try {
+            let savedCam;
+            if (editingCamera) {
+                // Update
+                await camerasApi.update(editingCamera.id, { name: newCamera.name, source: newCamera.rtsp });
+                savedCam = { ...newCamera, id: editingCamera.id };
+            } else {
+                // Create
+                const res = await camerasApi.create({ name: newCamera.name, source: newCamera.rtsp });
+                // If backend returns the created object with ID, use it. 
+                // Currently backend returns { message: "Camera added" }, so we might need to re-fetch or guess ID.
+                // Ideally backend should return the object.
+                // Re-fetch all to get ID is safest.
+                const all = await camerasApi.getAll();
+                const created = all.find(c => c.name === newCamera.name && c.source === newCamera.rtsp);
+                savedCam = { ...newCamera, id: created?.id || Date.now() }; // Fallback ID
+            }
+
+            // Update Local State (Merge backend data with local props like modules)
+            let updatedCameras;
+            if (editingCamera) {
+                updatedCameras = cameras.map(c => c.id === editingCamera.id ? savedCam : c);
+            } else {
+                updatedCameras = [...cameras, savedCam];
+            }
+
+            setCameras(updatedCameras);
+            setShowAddModal(false);
+        } catch (e) {
+            console.error("Failed to save camera", e);
+            alert("Failed to save camera. check console.");
         }
-        setShowAddModal(false);
     };
 
-    const handleDeleteCamera = (id) => {
+    const handleDeleteCamera = async (id) => {
         if (window.confirm('Are you sure you want to delete this camera? This action cannot be undone.')) {
-            setCameras(cameras.filter(c => c.id !== id));
+            try {
+                await camerasApi.delete(id);
+                const updated = cameras.filter(c => c.id !== id);
+                setCameras(updated);
+            } catch (e) {
+                console.error("Failed to delete camera", e);
+                alert("Failed to delete camera");
+            }
         }
     };
 
@@ -358,7 +424,7 @@ const CamerasPage = () => {
 
                                 {/* Feed Preview (Clickable) */}
                                 <div
-                                    onClick={() => setSelectedCamera(cam)}
+                                    onClick={() => navigate(`/cameras/${cam.id}`)}
                                     style={{
                                         height: '220px', background: '#000', borderRadius: '8px', cursor: 'pointer', overflow: 'hidden', position: 'relative',
                                         border: '1px solid #334155', display: 'flex', alignItems: 'center', justifyContent: 'center'
@@ -366,43 +432,35 @@ const CamerasPage = () => {
                                     {/* Mock Video Feed placeholder */}
                                     <div style={{ textAlign: 'center' }}>
                                         <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📷</div>
-                                        <div style={{ color: '#64748b', fontSize: '0.8rem' }}>Click to view live stream</div>
+                                        <div style={{ color: '#64748b', fontSize: '0.8rem' }}>Click to view dashboard</div>
                                         <div style={{ color: '#475569', fontSize: '0.7rem', marginTop: '0.25rem' }}>{cam.rtsp}</div>
                                     </div>
                                     {/* Overlay icon */}
                                     <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%)', opacity: 0, transition: 'opacity 0.2s', background: 'rgba(0,0,0,0.6)', padding: '1rem', borderRadius: '50%' }} className="play-icon">
-                                        ▶
+                                        ⤢
                                     </div>
                                 </div>
 
-                                {/* Models Tag */}
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Active Models</label>
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                                        {cam.models && cam.models.length > 0 ? (
-                                            cam.models.slice(0, 3).map(m => ( // Limit tags to 3 for neatness
-                                                <span key={m} style={{ fontSize: '0.7rem', background: 'rgba(6, 182, 212, 0.1)', color: 'var(--accent-cyan)', padding: '0.25rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(6, 182, 212, 0.3)' }}>
-                                                    {m}
-                                                </span>
-                                            ))
-                                        ) : (
-                                            <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>None</span>
-                                        )}
-                                        {cam.models && cam.models.length > 3 && (
-                                            <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>+{cam.models.length - 3} more</span>
-                                        )}
-                                    </div>
+                                {/* Active Models Tag */}
+                                <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                    {getActiveModuleCount(cam) > 0 ? (
+                                        <span style={{ fontSize: '0.75rem', color: '#fff', background: 'rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: '4px' }}>
+                                            {getActiveModuleCount(cam)} Active Modules
+                                        </span>
+                                    ) : (
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>No active modules</span>
+                                    )}
                                 </div>
 
                                 {/* Actions Footer */}
                                 <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--panel-border)', display: 'flex', gap: '1rem' }}>
                                     <button
-                                        onClick={() => openEditModal(cam)}
+                                        onClick={(e) => openEditModal(e, cam)}
                                         style={{ flex: 1, padding: '0.5rem', background: 'transparent', border: '1px solid var(--accent-cyan)', color: 'var(--accent-cyan)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.9rem' }}>
                                         Edit
                                     </button>
                                     <button
-                                        onClick={() => handleDeleteCamera(cam.id)}
+                                        onClick={(e) => { e.stopPropagation(); handleDeleteCamera(cam.id); }}
                                         style={{ flex: 1, padding: '0.5rem', background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '4px', cursor: 'pointer', fontSize: '0.9rem' }}>
                                         Delete
                                     </button>
@@ -455,27 +513,28 @@ const CamerasPage = () => {
                                 </select>
                             </div>
 
-                            {/* Multi-select for Models */}
+                            {/* Multi-select for Models (using Registry) */}
                             <div>
-                                <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Select AI Models</label>
-                                <div style={{ maxHeight: '200px', overflowY: 'auto', background: 'rgba(255,255,255,0.05)', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--panel-border)' }}>
-                                    {aiModels.map(m => (
-                                        <label key={m} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem', cursor: 'pointer', borderRadius: '4px', transition: 'background 0.2s' }}
-                                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-                                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                checked={newCamera.models.includes(m)}
-                                                onChange={() => toggleNewCameraModel(m)}
-                                                style={{ accentColor: 'var(--accent-cyan)', width: '16px', height: '16px' }}
-                                            />
-                                            <span style={{ color: '#fff', fontSize: '0.9rem' }}>{m}</span>
-                                        </label>
-                                    ))}
-                                </div>
-                                <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                                    {newCamera.models.length} models selected
+                                <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Select AI Modules</label>
+                                <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--panel-border)', borderRadius: '4px', padding: '0.5rem' }}>
+                                    {getAllModules().map(m => {
+                                        const isSelected = (newCamera.modules || []).some(mod => mod.key === m.key);
+                                        return (
+                                            <label key={m.key} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', cursor: 'pointer', background: isSelected ? 'rgba(34, 211, 238, 0.1)' : 'transparent', borderRadius: '4px', marginBottom: '4px' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isSelected}
+                                                    onChange={() => toggleNewCameraModule(m.key)}
+                                                    style={{ accentColor: 'var(--accent-cyan)' }}
+                                                />
+                                                <span style={{ fontSize: '1.2rem' }}>{m.icon}</span>
+                                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                    <span style={{ color: '#fff', fontWeight: '500' }}>{m.label}</span>
+                                                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.7rem' }}>{m.description}</span>
+                                                </div>
+                                            </label>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </div>
@@ -487,116 +546,7 @@ const CamerasPage = () => {
                 </div>
             )}
 
-            {/* DETAIL VIEW (BIG TAB) */}
-            {selectedCamera && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.95)', zIndex: 2000, display: 'flex', flexDirection: 'column' }}>
-                    {/* Header */}
-                    <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--panel-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                            <h2 style={{ color: '#fff', margin: 0 }}>{selectedCamera.name}</h2>
-                            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginTop: '0.25rem' }}>
-                                <span style={{ color: 'var(--accent-cyan)', fontSize: '0.9rem' }}>{selectedCamera.rtsp}</span>
-                                <span style={{ background: 'var(--accent-cyan)', color: '#000', fontSize: '0.75rem', padding: '0.1rem 0.5rem', borderRadius: '10px', fontWeight: 'bold' }}>
-                                    {detailViewMode === 'All' ? 'Standard View' : detailViewMode}
-                                </span>
-                                {!isLive && (
-                                    <span style={{ background: '#ef4444', color: '#fff', fontSize: '0.75rem', padding: '0.1rem 0.5rem', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                        Running {Math.abs(playbackTime)}s Behind
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                        <button
-                            onClick={() => setSelectedCamera(null)}
-                            style={{
-                                background: 'rgba(255,255,255,0.1)',
-                                border: 'none',
-                                color: '#fff',
-                                width: '32px',
-                                height: '32px',
-                                borderRadius: '50%',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: 'pointer',
-                                transition: 'background 0.2s'
-                            }}
-                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
-                            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <line x1="18" y1="6" x2="6" y2="18"></line>
-                                <line x1="6" y1="6" x2="18" y2="18"></line>
-                            </svg>
-                        </button>
-                    </div>
-
-                    {/* Content */}
-                    <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-                        {/* Main Feed */}
-                        <div style={{ flex: 2, background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-                            {selectedCamera.rtsp === 'webcam' ? (
-                                <img
-                                    src={`${API_BASE_URL}/video_feed?source=0&modules=${getModuleParam(detailViewMode)}&ts=${Date.now()}`}
-                                    alt="Live Feed"
-                                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                                />
-                            ) : (
-                                <>
-                                    <div style={{ fontSize: '3rem', color: '#334155' }}>Live RTSP Feed</div>
-                                </>
-                            )}
-
-                            {/* PLAYBACK CONTROLS OVERLAY */}
-                            <div style={{ position: 'absolute', bottom: '2rem', left: '2rem', right: '2rem', background: 'rgba(0,0,0,0.6)', padding: '1rem', borderRadius: '8px', backdropFilter: 'blur(5px)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                                {/* Timeline Scrubber (Visual) */}
-                                <div style={{ height: '4px', background: 'rgba(255,255,255,0.2)', borderRadius: '2px', marginBottom: '1rem', position: 'relative', cursor: 'pointer' }}>
-                                    <div style={{ width: isLive ? '100%' : '80%', height: '100%', background: isLive ? 'var(--accent-cyan)' : '#ef4444', borderRadius: '2px', position: 'absolute', right: 0 }}></div>
-                                    <div style={{ position: 'absolute', right: isLive ? '0' : '20%', top: '-6px', width: '16px', height: '16px', background: '#fff', borderRadius: '50%', cursor: 'grab' }}></div>
-                                </div>
-
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                                        <button onClick={() => handleJump(-5)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.9rem' }}>
-                                            ⏪ -5s
-                                        </button>
-                                        <button style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid #fff', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                                            {isLive ? '⏸' : '▶'}
-                                        </button>
-                                        <button onClick={() => handleJump(5)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.9rem' }}>
-                                            +5s ⏩
-                                        </button>
-                                    </div>
-
-                                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                                        <span style={{ color: '#fff', fontSize: '0.9rem', fontFamily: 'monospace' }}>
-                                            {isLive ? 'LIVE' : `-00:0${Math.abs(playbackTime)}`}
-                                        </span>
-                                        <button
-                                            onClick={handleGoLive}
-                                            style={{
-                                                padding: '0.5rem 1rem',
-                                                background: isLive ? 'var(--accent-cyan)' : 'transparent',
-                                                color: isLive ? '#000' : 'var(--accent-cyan)',
-                                                border: `1px solid var(--accent-cyan)`,
-                                                borderRadius: '4px',
-                                                fontWeight: 'bold',
-                                                cursor: 'pointer'
-                                            }}>
-                                            {isLive ? '• LIVE' : 'GO LIVE'}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Sidebar Data - DYNAMIC based on detailViewMode */}
-                        <div style={{ flex: 1, maxWidth: '400px', borderLeft: '1px solid var(--panel-border)', background: 'var(--bg-dark)', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
-                            {renderSidebarContent()}
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* DETAIL VIEW removed in favor of /cameras/:id route */}
         </div>
     );
 };
