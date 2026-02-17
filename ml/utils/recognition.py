@@ -12,9 +12,9 @@ known_face_names = []
 latest_accuracy = 0.0
 latest_latency = 0.0
 
-from config import BACKEND_API_URL, MODEL_NAME
+from config import BACKEND_BASE_URL, MODEL_NAME
 
-BACKEND_URL = BACKEND_API_URL
+BACKEND_URL = BACKEND_BASE_URL
 
 def load_known_faces():
     """
