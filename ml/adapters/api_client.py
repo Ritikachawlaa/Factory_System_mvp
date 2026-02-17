@@ -7,13 +7,15 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ml_client")
 
-from config import BACKEND_BASE_URL
+from config import BACKEND_API_URL
 
 class APIClient:
     def __init__(self, base_url=None):
-        self.base_url = base_url or BACKEND_BASE_URL
+        # Use BACKEND_API_URL as the default source for base_url
+        self.base_url = base_url or BACKEND_API_URL
         self.session = requests.Session()
         logger.info(f"API Client initialized with URL: {self.base_url}")
+
 
     def _post(self, endpoint, data):
         url = f"{self.base_url}{endpoint}"

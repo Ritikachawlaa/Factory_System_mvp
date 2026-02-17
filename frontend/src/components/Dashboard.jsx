@@ -25,8 +25,6 @@ const Dashboard = () => {
         { id: 1, type: 'PPE Violation', location: 'Construction Site B', time: '10:45 AM', message: 'Worker detected without helmet', severity: 'high' },
         { id: 2, type: 'Intrusion', location: 'Perimeter Fence', time: '10:42 AM', message: 'Unauthorized entry detected', severity: 'high' },
         { id: 3, type: 'Face Recognition', location: 'Main Entrance', time: '10:40 AM', message: 'Identified: John Doe (Manager)', severity: 'low' },
-        { id: 4, type: 'Fire', location: 'Warehouse A', time: '10:15 AM', message: 'Smoke detected in sector 4', severity: 'critical' },
-        { id: 5, type: 'Vehicle', location: 'Loading Dock', time: '10:10 AM', message: 'License Plate: KL-07-AB-1234', severity: 'medium' },
     ];
 
     const lateArrivals = [

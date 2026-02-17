@@ -1,25 +1,34 @@
 import os
+import sys
 from dotenv import load_dotenv
 
 # Load environment variables from .env file if it exists
 load_dotenv()
 
 # Backend API Configuration
-# BACKEND_BASE_URL should be set in .env (e.g., http://<BACKEND_HOST>:<PORT>)
-BACKEND_BASE_URL = os.getenv("BACKEND_BASE_URL", "").rstrip('/')
+# BACKEND_API_URL should be set in .env or environment variables
+# Requirement: Remove all hardcoded references to localhost, 127.0.0.1, etc.
+# Default should be: http://localhost:8000 (development only)
+ENV_BACKEND_URL = os.getenv("BACKEND_API_URL")
+BACKEND_API_URL = (ENV_BACKEND_URL or "http://localhost:8000").rstrip('/')
 
-if not BACKEND_BASE_URL:
-    # In production, this should be set via environment variable.
-    print("WARNING: BACKEND_BASE_URL is not set in environment variables.")
+# Production Safety Check:
+# Requirement: "If BACKEND_API_URL is not set in production, raise error and exit."
+if os.getenv("ENVIRONMENT") == "production" and not ENV_BACKEND_URL:
+    print("❌ ERROR: BACKEND_API_URL must be set in production environment.")
+    sys.exit(1)
+
 
 # WebSocket Configuration
-# Derive WebSocket URL from Base URL
-if BACKEND_BASE_URL.startswith("https://"):
-    BACKEND_WS_URL = BACKEND_BASE_URL.replace("https://", "wss://")
-elif BACKEND_BASE_URL.startswith("http://"):
-    BACKEND_WS_URL = BACKEND_BASE_URL.replace("http://", "ws://")
+# Derive WebSocket URL dynamically from BACKEND_API_URL
+if BACKEND_API_URL.startswith("https://"):
+    BACKEND_WS_URL = BACKEND_API_URL.replace("https://", "wss://")
+elif BACKEND_API_URL.startswith("http://"):
+    BACKEND_WS_URL = BACKEND_API_URL.replace("http://", "ws://")
 else:
-    BACKEND_WS_URL = f"ws://{BACKEND_BASE_URL}" if BACKEND_BASE_URL else ""
+    # Fallback or strict derivation
+    BACKEND_WS_URL = BACKEND_API_URL.replace("https://", "wss://").replace("http://", "ws://")
 
 # Model Configuration (Example)
 MODEL_NAME = os.getenv("MODEL_NAME", "Facenet")
+

@@ -51,37 +51,6 @@ export const MODULE_REGISTRY = {
             control: ['admin', 'supervisor']
         }
     },
-    'fire-smoke': {
-        key: 'fire-smoke',
-        label: 'Fire & Smoke',
-        icon: '🔥',
-        panelComponent: null,
-        description: 'Early warning system for fire and smoke hazards.',
-        supportsAlerts: true,
-        supportsStats: false,
-        permissions: {
-            view: ['admin', 'supervisor', 'operator', 'viewer'],
-            control: ['admin'] // Critical - Admin Only
-        }
-    },
-    'vehicle-anpr': {
-        key: 'vehicle-anpr',
-        label: 'Vehicle/ANPR',
-        icon: '🚗',
-        panelComponent: null,
-        description: 'License plate recognition and vehicle tracking.',
-        supportsAlerts: true,
-        supportsStats: true
-    },
-    'animal-detection': {
-        key: 'animal-detection',
-        label: 'Animal Detection',
-        icon: '🐕',
-        panelComponent: null,
-        description: 'Detect wild or stray animals in premises.',
-        supportsAlerts: true,
-        supportsStats: false
-    },
     'object-detection-abandoned': {
         key: 'object-detection-abandoned',
         label: 'Object/Abandoned',
@@ -118,24 +87,6 @@ export const MODULE_REGISTRY = {
         supportsAlerts: true,
         supportsStats: true
     },
-    'box-production': {
-        key: 'box-production',
-        label: 'Box Production',
-        icon: '🏭',
-        panelComponent: null,
-        description: 'Count production line output.',
-        supportsAlerts: false,
-        supportsStats: true
-    },
-    'fault-detection': {
-        key: 'fault-detection',
-        label: 'Fault Detection',
-        icon: '🔧',
-        panelComponent: null,
-        description: 'Identify equipment faults or anomalies.',
-        supportsAlerts: true,
-        supportsStats: true
-    },
     'entry-exit': {
         key: 'entry-exit',
         label: 'Entry/Exit',
@@ -144,24 +95,6 @@ export const MODULE_REGISTRY = {
         description: 'Monitor entry and exit points.',
         supportsAlerts: true,
         supportsStats: true
-    },
-    'fight-detection': {
-        key: 'fight-detection',
-        label: 'Fight Detection',
-        icon: '👊',
-        panelComponent: null,
-        description: 'Detect aggressive behavior or fights.',
-        supportsAlerts: true,
-        supportsStats: false
-    },
-    'camera-tampering': {
-        key: 'camera-tampering',
-        label: 'Camera Tampering',
-        icon: '📹',
-        panelComponent: null,
-        description: 'Alert on camera obstruction or movement.',
-        supportsAlerts: true,
-        supportsStats: false
     },
     'heatmap': {
         key: 'heatmap',

@@ -37,11 +37,6 @@ const CamerasPage = () => {
                     { id: 2, type: 'Compliance', time: '10:30 AM', message: 'Safety Vest Verified', color: '#10b981' },
                     { id: 3, type: 'Violation', time: '09:15 AM', message: 'No Safety Boots', color: '#ef4444' }
                 ];
-            case 'Start Fire':
-            case 'Fire/Smoke':
-                return [
-                    { id: 1, type: 'Critical', time: '10:05 AM', message: 'Smoke Detected in Sector 4', color: '#ef4444' }
-                ];
             default: // Generic Alerts
                 return [
                     { id: 1, type: 'Intrusion', time: '10:45 AM', message: 'Person detected in restricted zone', color: '#ef4444' },

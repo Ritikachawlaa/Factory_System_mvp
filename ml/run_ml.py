@@ -17,6 +17,8 @@ from modules.line_crossing.service import LineCrossingService
 from modules.region_entrance.service import RegionEntranceService
 from modules.heatmap.service import HeatmapService
 from modules.face_recognition.service import FaceRecognitionService
+from modules.people_count.service import PeopleCountService
+from modules.entry_exit.service import EntryExitService
 
 # Load Env
 load_dotenv()
@@ -33,7 +35,9 @@ SERVICES = {
     "region_entrance": RegionEntranceService(),
     "heatmap": HeatmapService(),
     "face_rec": FaceRecognitionService(),
-    "face_recognition": FaceRecognitionService() # Alias
+    "face_recognition": FaceRecognitionService(), # Alias
+    "people_count": PeopleCountService(),
+    "entry_exit": EntryExitService()
 }
 
 def run_camera_inference(camera, client):
