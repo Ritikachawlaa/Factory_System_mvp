@@ -1,4 +1,4 @@
-name: Deploy ML Service
+name: Deploy ML
 
 on:
   push:
@@ -10,19 +10,20 @@ jobs:
     runs-on: self-hosted
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Stop ML service
+      - name: Deploy on Server
         run: |
-          sudo systemctl stop ml.service || true
+          echo "Deploying ML..."
 
-      - name: Install dependencies
-        run: |
+          cd ~/Factory_System_mvp
+
+          git pull origin main
+
           cd ml
+
           source venv/bin/activate
+
           pip install -r requirements.txt
 
-      - name: Start ML service
-        run: |
-          sudo systemctl start ml.service
+          sudo systemctl restart ml
+
+          echo "Deployment complete 🚀"
