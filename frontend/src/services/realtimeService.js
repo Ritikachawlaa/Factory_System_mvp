@@ -1,8 +1,10 @@
 import analyticsApi from '../api/analytics.api';
 import camerasApi from '../api/cameras.api';
-const API_BASE = import.meta.env.VITE_API_BASE_URL;
+import API_BASE_URL from '../config';
 
-const WS_URL = API_BASE
+const API_BASE = API_BASE_URL;
+
+const WS_URL = (API_BASE || "")
     .replace("https://", "wss://")
     .replace("http://", "ws://") + "/ws/events";
 
