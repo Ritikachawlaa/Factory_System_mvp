@@ -19,6 +19,11 @@ from modules.heatmap.service import HeatmapService
 from modules.face_recognition.service import FaceRecognitionService
 from modules.people_count.service import PeopleCountService
 from modules.entry_exit.service import EntryExitService
+from modules.human_detection.service import HumanDetectionService
+from modules.face_detection.service import FaceDetectionService
+from modules.crowd_density.service import CrowdDensityService
+from modules.auto_tracking.service import AutoTrackingService
+from modules.labour_counting.service import LabourCountingService
 
 # Load Env
 load_dotenv()
@@ -37,7 +42,12 @@ SERVICES = {
     "face_rec": FaceRecognitionService(),
     "face_recognition": FaceRecognitionService(), # Alias
     "people_count": PeopleCountService(),
-    "entry_exit": EntryExitService()
+    "entry_exit": EntryExitService(),
+    "human_detection": HumanDetectionService(),
+    "face_detection": FaceDetectionService(),
+    "crowd_density": CrowdDensityService(),
+    "auto_tracking": AutoTrackingService(),
+    "labour_counting": LabourCountingService()
 }
 
 def run_camera_inference(camera, client):

@@ -411,20 +411,13 @@ def update_camera(cam_id: int, cam: CameraCreate, current_user = Depends(get_cur
 def get_camera_modules_endpoint(cam_id: int):
     return database.get_camera_modules(cam_id)
 
-@app.post("/cameras/{cam_id}/modules")
-def add_camera_module(cam_id: int, module: ModuleConfig):
-    # This acts as "Enable" / "Register" module
+@app.post("/cameras/{cam_id}/modules/{module_key}")
+def add_camera_module(cam_id: int, module_key: str, module: ModuleConfig):
+    # Enable/Register module
     import json
     config_str = json.dumps(module.config) if module.config else "{}"
-    database.update_module_status(cam_id, "unknown_key_from_post", module.status, config_str) # Wait, need Key.
-    # The requirement says: POST /api/cameras/:id/modules -> Persist module assignment
-    # But usage implies we need the key. Let's assume the body has the key OR the URL does?
-    # Requirement: POST /api/cameras/:id/modules
-    # Request body: { enabled: true, status: "active" } -- Wait, where is the KEY?
-    # Usually in the body: { key: "face-rec", status: "active" }
-    # Or strict endpoint: POST /cameras/:id/modules/:key ?
-    # Let's adjust usage to require Key in body or URL.
-    return {"message": "Use specific endpoint with key"}
+    database.update_module_status(cam_id, module_key, module.status, config_str)
+    return {"message": f"Module {module_key} added/updated"}
 
 @app.patch("/cameras/{cam_id}/modules/{module_key}")
 async def update_module_state(cam_id: int, module_key: str, config: ModuleConfig):
@@ -548,13 +541,22 @@ async def ingest_detection(event: DetectionSchema):
     """
     Receive detection events from external ML engine.
     """
+    # Parse metadata to string
+    meta_str = None
+    if event.metadata:
+        # If the dict contains a 'meta' key (from our APIClient), use that directly
+        if 'meta' in event.metadata:
+            meta_str = str(event.metadata['meta'])
+        else:
+            meta_str = str(event.metadata)
+
     success = database.log_external_detection(
         camera_id=event.camera_id,
         module_key=event.module_key,
         label=event.label,
         confidence=event.confidence,
         timestamp=event.timestamp,
-        meta=str(event.metadata) if event.metadata else None
+        meta=meta_str
     )
     if success:
         await manager.broadcast({

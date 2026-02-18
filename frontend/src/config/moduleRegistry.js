@@ -96,6 +96,51 @@ export const MODULE_REGISTRY = {
         supportsAlerts: true,
         supportsStats: true
     },
+    'human-detection': {
+        key: 'human-detection',
+        label: 'Human Detection',
+        icon: '🧍',
+        panelComponent: null,
+        description: 'Detect and track human presence in camera feeds.',
+        supportsAlerts: true,
+        supportsStats: true
+    },
+    'face-detection': {
+        key: 'face-detection',
+        label: 'Face Detection',
+        icon: '😊',
+        panelComponent: null,
+        description: 'Detect and locate faces in camera feeds.',
+        supportsAlerts: true,
+        supportsStats: true
+    },
+    'crowd-density': {
+        key: 'crowd-density',
+        label: 'Crowd Density',
+        icon: '👨‍👩‍👧‍👦',
+        panelComponent: null,
+        description: 'Analyze crowd density and congestion levels.',
+        supportsAlerts: true,
+        supportsStats: true
+    },
+    'auto-tracking': {
+        key: 'auto-tracking',
+        label: 'Auto Tracking',
+        icon: '🎯',
+        panelComponent: null,
+        description: 'Automatically track and follow objects or persons.',
+        supportsAlerts: false,
+        supportsStats: true
+    },
+    'labour-counting': {
+        key: 'labour-counting',
+        label: 'Labour Counting',
+        icon: '👷',
+        panelComponent: null,
+        description: 'Count and monitor workforce on site.',
+        supportsAlerts: false,
+        supportsStats: true
+    },
     'heatmap': {
         key: 'heatmap',
         label: 'Crowd Heatmap',

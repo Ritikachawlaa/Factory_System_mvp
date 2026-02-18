@@ -272,9 +272,17 @@ def log_external_detection(camera_id: int, module_key: str, label: str, confiden
     
     type_ = 'detection' 
     severity = 'info'
+    
+    # Mapping logic for specific modules
     if module_key == 'ppe-detection':
         type_ = 'violation'
         severity = 'warning'
+    elif module_key == 'crowd_density' and 'High' in label:
+        type_ = 'alert'
+        severity = 'warning'
+    elif 'Unauthorized' in label:
+        type_ = 'alert'
+        severity = 'high'
     
     try:
         stmt = text("INSERT INTO events (timestamp, camera_id, module_key, type, label, confidence, metadata, severity) VALUES (:ts, :cid, :key, :type, :label, :conf, :meta, :sev)")

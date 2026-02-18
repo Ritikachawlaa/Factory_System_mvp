@@ -8,6 +8,11 @@ import AnalyticsPage from './components/analytics/AnalyticsPage'
 import ObjectDetection from './components/modules/ObjectDetection'
 import PPECompliance from './components/modules/PPECompliance'
 import MotionTracking from './components/modules/MotionTracking'
+import HumanDetection from './components/modules/HumanDetection'
+import FaceDetection from './components/modules/FaceDetection'
+import CrowdDensity from './components/modules/CrowdDensity'
+import AutoTracking from './components/modules/AutoTracking'
+import LabourCounting from './components/modules/LabourCounting'
 import PeopleCount from './components/modules/PeopleCount'
 import EntryExitCount from './components/modules/EntryExitCount'
 import IntrusionDetection from './components/modules/IntrusionDetection'
@@ -61,6 +66,11 @@ function AppRoutes() {
       <Route path="/object-detection" element={<ProtectedRoute><ObjectDetection /></ProtectedRoute>} />
       <Route path="/ppe-compliance" element={<ProtectedRoute><PPECompliance /></ProtectedRoute>} />
       <Route path="/motion-tracking" element={<ProtectedRoute><MotionTracking /></ProtectedRoute>} />
+      <Route path="/human-detection" element={<ProtectedRoute><HumanDetection /></ProtectedRoute>} />
+      <Route path="/face-detection" element={<ProtectedRoute><FaceDetection /></ProtectedRoute>} />
+      <Route path="/crowd-density" element={<ProtectedRoute><CrowdDensity /></ProtectedRoute>} />
+      <Route path="/auto-tracking" element={<ProtectedRoute><AutoTracking /></ProtectedRoute>} />
+      <Route path="/labour-counting" element={<ProtectedRoute><LabourCounting /></ProtectedRoute>} />
       <Route path="/people-count" element={<ProtectedRoute><PeopleCount /></ProtectedRoute>} />
       <Route path="/entry-exit" element={<ProtectedRoute><EntryExitCount /></ProtectedRoute>} />
       <Route path="/entry-exit" element={<ProtectedRoute><EntryExitCount /></ProtectedRoute>} />
