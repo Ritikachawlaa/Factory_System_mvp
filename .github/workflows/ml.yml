@@ -1,0 +1,28 @@
+name: Deploy ML Service
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Stop ML service
+        run: |
+          sudo systemctl stop ml.service || true
+
+      - name: Install dependencies
+        run: |
+          cd ml
+          source venv/bin/activate
+          pip install -r requirements.txt
+
+      - name: Start ML service
+        run: |
+          sudo systemctl start ml.service

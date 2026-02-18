@@ -67,14 +67,21 @@ def run_camera_inference(camera, client):
 
     logger.info(f"Camera {cam_id}: Starting inference for {active_keys} on source {source}")
 
-    # Open Cam
+    # --- SAFE CAMERA INIT ---
+
+    # If no RTSP configured yet (default 0), skip safely
+    if str(source) == "0":
+        logger.warning(f"Camera {cam_id}: No RTSP configured yet. Skipping camera.")
+        return
+
     try:
-        cap = cv2.VideoCapture(int(source) if source.isdigit() else source)
-    except:
-        cap = cv2.VideoCapture(source)
+        cap = cv2.VideoCapture(int(source) if str(source).isdigit() else source)
+    except Exception as e:
+        logger.error(f"Camera {cam_id}: Exception opening source {source} - {e}")
+        return
 
     if not cap.isOpened():
-        logger.error(f"Camera {cam_id}: Failed to open source {source}")
+        logger.warning(f"Camera {cam_id}: Cannot open source {source}. Skipping.")
         return
 
     while True:
