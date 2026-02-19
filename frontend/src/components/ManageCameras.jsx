@@ -59,7 +59,7 @@ const ManageCameras = () => {
 
             <form onSubmit={handleAdd} style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
                 <input className="input-field" placeholder="Camera Name (e.g. Main Gate)" value={newName} onChange={e => setNewName(e.target.value)} required />
-                <input className="input-field" placeholder="Source (0 for Webcam, URL for RTSP)" value={newSource} onChange={e => setNewSource(e.target.value)} required />
+                <input className="input-field" placeholder="Source (RTSP URL or Video File Path)" value={newSource} onChange={e => setNewSource(e.target.value)} required />
                 <button type="submit" className="btn" style={{ width: 'auto' }}>Add</button>
             </form>
 

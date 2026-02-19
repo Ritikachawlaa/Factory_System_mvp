@@ -6,50 +6,10 @@ const RegisterForm = ({ onSuccess }) => {
     const [file, setFile] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [message, setMessage] = useState(null);
-    const [isCameraOpen, setIsCameraOpen] = useState(false);
 
-    const videoRef = useRef(null);
-    const canvasRef = useRef(null);
+    // Removed videoRef and canvasRef as webcam support is removed
 
-    const startCamera = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-            }
-            setIsCameraOpen(true);
-        } catch (err) {
-            console.error("Error accessing camera:", err);
-            setMessage({ type: 'error', text: 'Could not access camera' });
-        }
-    };
-
-    const stopCamera = () => {
-        if (videoRef.current && videoRef.current.srcObject) {
-            const stream = videoRef.current.srcObject;
-            const tracks = stream.getTracks();
-            tracks.forEach(track => track.stop());
-            videoRef.current.srcObject = null;
-            setIsCameraOpen(false);
-        }
-    };
-
-    const capturePhoto = () => {
-        const video = videoRef.current;
-        const canvas = canvasRef.current;
-        if (video && canvas) {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const context = canvas.getContext('2d');
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            canvas.toBlob((blob) => {
-                const capturedFile = new File([blob], "webcam-snapshot.jpg", { type: "image/jpeg" });
-                setFile(capturedFile);
-                stopCamera();
-            }, 'image/jpeg');
-        }
-    };
+    // WebCam logic removed in favor of strict file upload or RTSP streams
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -105,13 +65,10 @@ const RegisterForm = ({ onSuccess }) => {
             <div className="input-group">
                 <label className="input-label">Photo</label>
 
-                {!isCameraOpen && !file && (
+                {!file && (
                     <div style={{ display: 'flex', gap: '1rem' }}>
-                        <button type="button" onClick={startCamera} className="btn" style={{ backgroundColor: '#475569' }}>
-                            Take Photo
-                        </button>
                         <div style={{ position: 'relative', overflow: 'hidden', display: 'inline-block', width: '100%' }}>
-                            <button type="button" className="btn" style={{ backgroundColor: '#334155' }}>Upload File</button>
+                            <button type="button" className="btn" style={{ backgroundColor: '#334155' }}>Upload Photo</button>
                             <input
                                 type="file"
                                 accept="image/*"
@@ -119,14 +76,6 @@ const RegisterForm = ({ onSuccess }) => {
                                 style={{ position: 'absolute', left: 0, top: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer' }}
                             />
                         </div>
-                    </div>
-                )}
-
-                {isCameraOpen && (
-                    <div style={{ marginBottom: '1rem' }}>
-                        <video ref={videoRef} autoPlay style={{ width: '100%', borderRadius: '0.5rem', border: '1px solid var(--border-color)' }}></video>
-                        <button type="button" onClick={capturePhoto} className="btn" style={{ marginTop: '0.5rem' }}>Capture</button>
-                        <canvas ref={canvasRef} style={{ display: 'none' }}></canvas>
                     </div>
                 )}
 
