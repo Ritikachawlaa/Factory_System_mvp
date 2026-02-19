@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { API_BASE_URL } from '../config';
+import API_BASE_URL from '../config';
 import camerasApi from '../api/cameras.api';
 
 const VideoFeed = ({ modules }) => {

@@ -112,7 +112,7 @@ export const RealtimeService = {
         // We rely on modulesApi to send PATCH, which triggers WebSocket MODULE_UPDATE
     },
 
-    getModuleStatus: (cameraId, moduleKey) => {
+    getModuleStatus: () => {
         return 'active'; // Default, component should fetch real status via API
     }
 };
