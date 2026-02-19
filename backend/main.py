@@ -144,20 +144,11 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 async def startup_event():
     database.init_db()
     recognition.load_models()
-    # Create valid superadmin. If already exists (maybe as admin), check/update?
-    # For now, just ensure 'admin' exists. The database default for existing was 'admin',
-    # but we want our main admin to be 'superadmin'.
-    # Note: If admin already exists from before migration, it has role='admin' by default.
-    # Ideally we'd manually update it, but let's try to create it with superadmin role.
-    # Since create_user fails if exists, we might need to check role.
+    # Create valid superadmin.
     if database.create_user("admin", get_password_hash("admin123"), role="superadmin"):
         print("Created default superadmin (admin/admin123)")
     
-    # Ensure at least one camera exists for logging
-    cameras = database.get_cameras()
-    if not cameras:
-        print("No cameras found. Creating default 'Main Cam'...")
-        database.add_camera("Main Cam", "0")
+    # REMOVED: Default camera "0" creation. User must add camera via API.
 
 @app.on_event("shutdown")
 def shutdown_event():
@@ -271,11 +262,31 @@ async def update_user_password(username: str, data: UserPasswordUpdate, current_
 
 # --- Camera Endpoints ---
 @app.get("/cameras")
-def get_cameras():
-    return database.get_cameras()
+def get_cameras_enhanced():
+    cameras = database.get_cameras()
+    # Enrich with modules
+    results = []
+    for cam in cameras:
+        mods = database.get_camera_modules(cam['id'])
+        # If no persistence found, maybe return default?
+        # For now, return what is in DB.
+        formatted_mods = []
+        for m in mods:
+            formatted_mods.append({
+                "key": m["key"],
+                "status": m["status"],
+                "config": m["config"] # TODO: Parse JSON if stored as string? Database returns string usually.
+            })
+        
+        # Merge modules
+        cam["modules"] = formatted_mods
+        results.append(cam)
+    return results
 
 @app.post("/cameras")
 def create_camera(cam: CameraCreate, current_user = Depends(get_current_user)):
+    if not cam.source or not cam.source.strip():
+        raise HTTPException(status_code=400, detail="Camera source cannot be empty")
     database.add_camera(cam.name, cam.source)
     return {"message": "Camera added"}
 

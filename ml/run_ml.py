@@ -69,13 +69,15 @@ def run_camera_inference(camera, client):
 
     # --- SAFE CAMERA INIT ---
 
-    # If no RTSP configured yet (default 0), skip safely
-    if str(source) == "0":
-        logger.warning(f"Camera {cam_id}: No RTSP configured yet. Skipping camera.")
+    # If no RTSP configured yet (invalid or empty), skip safely
+    if not source or str(source).strip() == "" or str(source) == "0":
+        logger.warning(f"Camera {cam_id}: Invalid source '{source}'. Skipping camera.")
         return
 
     try:
-        cap = cv2.VideoCapture(int(source) if str(source).isdigit() else source)
+        # Check if source is digit (local webcam) or string (RTSP/File)
+        src_val = int(source) if str(source).isdigit() else source
+        cap = cv2.VideoCapture(src_val)
     except Exception as e:
         logger.error(f"Camera {cam_id}: Exception opening source {source} - {e}")
         return
@@ -89,6 +91,15 @@ def run_camera_inference(camera, client):
         if not ret:
             logger.warning(f"Camera {cam_id}: Failed to read frame. Retrying...")
             time.sleep(1)
+            # Re-try opening? Or just continue loop? 
+            # If stream broke, we might need to release and re-open.
+            # Simple retry logic:
+            cap.release()
+            time.sleep(2)
+            try:
+                cap = cv2.VideoCapture(src_val)
+            except:
+                pass
             continue
 
         # Resize for performance matching backend logic
