@@ -10,7 +10,7 @@ const camerasApi = {
     create: (cameraData) => httpClient.post('/cameras', cameraData),
     update: (id, cameraData) => httpClient.put(`/cameras/${id}`, cameraData),
     delete: (id) => httpClient.delete(`/cameras/${id}`),
-    updateModule: (cameraId, moduleKey, data) => httpClient.post(`/cameras/${cameraId}/modules/${moduleKey}`, data),
+    updateModule: (cameraId, moduleKey, data) => httpClient.patch(`/cameras/${cameraId}/modules/${moduleKey}`, data),
 };
 
 export default camerasApi;
