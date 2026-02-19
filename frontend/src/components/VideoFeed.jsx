@@ -4,6 +4,7 @@ import API_BASE_URL from '../config';
 import camerasApi from '../api/cameras.api';
 
 const VideoFeed = ({ modules }) => {
+    // Force redeploy
     return <VideoFeedContent modules={modules} />;
 };
 
