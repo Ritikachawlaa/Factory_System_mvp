@@ -427,6 +427,7 @@ def get_camera_modules_endpoint(cam_id: int):
 def add_camera_module(cam_id: int, module_key: str, module: ModuleConfig):
     # Enable/Register module
     import json
+    # Force Backend Redeploy
     config_str = json.dumps(module.config) if module.config else "{}"
     database.update_module_status(cam_id, module_key, module.status, config_str)
     return {"message": f"Module {module_key} added/updated"}
