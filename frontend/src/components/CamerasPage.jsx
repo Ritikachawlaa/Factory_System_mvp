@@ -161,7 +161,12 @@ const CamerasPage = () => {
     const openEditModal = (e, cam) => {
         e.stopPropagation(); // Prevent navigation
         setEditingCamera(cam);
-        setNewCamera({ ...cam });
+        // Map backend 'source' to frontend 'rtsp' and ensure modules array exists
+        setNewCamera({
+            ...cam,
+            rtsp: cam.source || cam.rtsp || '',
+            modules: cam.modules || []
+        });
         setShowAddModal(true);
     };
 
@@ -170,31 +175,42 @@ const CamerasPage = () => {
 
         try {
             let savedCam;
+            let targetId;
+
             if (editingCamera) {
                 // Update
-                await camerasApi.update(editingCamera.id, { name: newCamera.name, source: newCamera.rtsp });
-                savedCam = { ...newCamera, id: editingCamera.id };
+                targetId = editingCamera.id;
+                await camerasApi.update(targetId, { name: newCamera.name, source: newCamera.rtsp });
             } else {
                 // Create
                 const res = await camerasApi.create({ name: newCamera.name, source: newCamera.rtsp });
-                // If backend returns the created object with ID, use it. 
-                // Currently backend returns { message: "Camera added" }, so we might need to re-fetch or guess ID.
-                // Ideally backend should return the object.
-                // Re-fetch all to get ID is safest.
+                // Re-fetch all to get ID safely
                 const all = await camerasApi.getAll();
                 const created = all.find(c => c.name === newCamera.name && c.source === newCamera.rtsp);
-                savedCam = { ...newCamera, id: created?.id || Date.now() }; // Fallback ID
+                targetId = created?.id;
             }
 
-            // Update Local State (Merge backend data with local props like modules)
-            let updatedCameras;
-            if (editingCamera) {
-                updatedCameras = cameras.map(c => c.id === editingCamera.id ? savedCam : c);
-            } else {
-                updatedCameras = [...cameras, savedCam];
+            // Save Module Configuration
+            if (targetId) {
+                const allSupportedModules = getAllModules();
+                const activeModuleKeys = new Set((newCamera.modules || []).map(m => m.key));
+
+                // Update status for ALL supported modules (enable active, disable inactive)
+                for (const mod of allSupportedModules) {
+                    const isActive = activeModuleKeys.has(mod.key);
+                    const status = isActive ? 'active' : 'inactive';
+
+                    await camerasApi.updateModule(targetId, mod.key, {
+                        status: status,
+                        enabled: isActive,
+                        config: {}
+                    });
+                }
             }
 
-            setCameras(updatedCameras);
+            // Refresh functionality to see changes
+            const refreshedData = await camerasApi.getAll();
+            setCameras(refreshedData);
             setShowAddModal(false);
         } catch (e) {
             console.error("Failed to save camera", e);
