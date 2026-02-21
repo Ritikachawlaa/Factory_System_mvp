@@ -32,12 +32,12 @@ def load_models():
     logger.warning("ML Separation: load_models called on Backend (Non-ML node). Skipping.")
     pass
 
-def get_embedding(image_data):
+def get_embedding_from_bytes(image_bytes):
     """
-    Generate embedding for a single face image.
+    Generate embedding for a single face image from bytes.
     STUB: Returns None
     """
-    logger.warning("ML Separation: get_embedding called on Backend. ML service required for registration.")
+    logger.warning("ML Separation: get_embedding_from_bytes called on Backend. ML service required for registration.")
     return None
 
 def process_frame(frame, modules=None):

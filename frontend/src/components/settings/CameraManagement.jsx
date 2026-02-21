@@ -26,21 +26,23 @@ const CameraManagement = () => {
     ];
 
     const fetchCameras = async () => {
-        // Mock Data Implementation for MVP
-        // In real backend, this would be a GET request
-        // const res = await fetch(`${API_BASE_URL}/cameras`);
-
-        // Using mock data that matches CamerasPage for consistency
-        const mockCameras = [
-            { id: 101, name: 'Main Entrance', rtsp: 'rtsp://192.168.1.101/stream', models: ['Face Recognition', 'People Counting'], status: 'Online' },
-            { id: 102, name: 'Warehouse A', rtsp: 'rtsp://192.168.1.102/stream', models: ['PPE Detection'], status: 'Recording' },
-            { id: 103, name: 'Perimeter Fence', rtsp: 'rtsp://192.168.1.103/stream', models: ['Intrusion Detection', 'Animal Detection'], status: 'Offline' }
-        ];
-
-        // Simulate merge with existing state if needed, or just set from "backend"
-        // For this demo, we'll initialize if empty, otherwise keep state (simulating persistence)
-        if (cameras.length === 0) {
-            setCameras(mockCameras);
+        try {
+            const res = await fetch(`${API_BASE_URL}/cameras`);
+            if (res.ok) {
+                const data = await res.json();
+                // Map the backend structure to the frontend state structure
+                const formattedCameras = data.map(cam => ({
+                    id: cam.id,
+                    name: cam.name,
+                    rtsp: cam.source,
+                    // If modules exist, map their keys out to match the ui labels
+                    models: cam.modules ? cam.modules.map(m => m.key) : [],
+                    status: 'Online' // Basic status mapping for MVP
+                }));
+                setCameras(formattedCameras);
+            }
+        } catch (error) {
+            console.error('Failed to fetch cameras:', error);
         }
     };
 
@@ -61,21 +63,47 @@ const CameraManagement = () => {
         setShowEditModal(true);
     };
 
-    const handleSave = () => {
-        if (editingCamera) {
-            // Edit Mode
-            setCameras(cameras.map(c => c.id === editingCamera.id ? { ...formData, id: c.id } : c));
-        } else {
-            // Add Mode
-            const newId = Math.max(...cameras.map(c => c.id), 100) + 1;
-            setCameras([...cameras, { ...formData, id: newId }]);
+    const handleSave = async () => {
+        try {
+            const payload = {
+                name: formData.name,
+                source: formData.rtsp,
+                enabled_models: formData.models
+            };
+
+            const method = editingCamera ? 'PUT' : 'POST';
+            const url = editingCamera
+                ? `${API_BASE_URL}/cameras/${editingCamera.id}`
+                : `${API_BASE_URL}/cameras`;
+
+            const res = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                await fetchCameras(); // Refresh the list from the backend
+                setShowEditModal(false);
+            } else {
+                console.error('Failed to save camera', await res.text());
+                alert('Failed to save camera. Ensure all fields are valid.');
+            }
+        } catch (error) {
+            console.error('Network error saving camera:', error);
         }
-        setShowEditModal(false);
     };
 
-    const handleDelete = (id) => {
+    const handleDelete = async (id) => {
         if (window.confirm('Are you sure you want to delete this camera? This action cannot be undone.')) {
-            setCameras(cameras.filter(c => c.id !== id));
+            try {
+                const res = await fetch(`${API_BASE_URL}/cameras/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    await fetchCameras();
+                }
+            } catch (error) {
+                console.error('Failed to delete camera:', error);
+            }
         }
     };
 

@@ -71,7 +71,7 @@ const ManageCameras = () => {
                         </div>
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
                             <a
-                                href={`${API_BASE_URL}/video_feed?camera_id=${cam.id}`}
+                                href={`/cameras/${cam.id}`}
                                 target="_blank"
                                 rel="noreferrer"
                                 style={{

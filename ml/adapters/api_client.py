@@ -56,6 +56,13 @@ class APIClient:
         }
         return self._post(f"/api/modules/{module_key}/heartbeat", payload)
 
+    def send_metrics(self, camera_id, inference_avg_ms):
+        payload = {
+            "camera_id": camera_id,
+            "inference_avg_ms": inference_avg_ms
+        }
+        return self._post("/api/metrics/ml", payload)
+
     def get_cameras(self):
         url = f"{self.base_url}/cameras"
         try:

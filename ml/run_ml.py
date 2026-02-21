@@ -4,6 +4,7 @@ import cv2
 import logging
 from dotenv import load_dotenv
 import threading
+from collections import deque
 from adapters.api_client import APIClient
 #testing ci/cd
 # Import Modules
@@ -61,10 +62,6 @@ def run_camera_inference(camera, client):
     # Filter active modules for this camera
     active_keys = [m['key'] for m in modules if m['status'] == 'active']
     
-    if not active_keys:
-        logger.info(f"Camera {cam_id}: No active modules in DB. Forcing 'face_rec' for verification.")
-        active_keys = ['face_rec']
-
     logger.info(f"Camera {cam_id}: Starting inference for {active_keys} on source {source}")
 
     # --- SAFE CAMERA INIT ---
@@ -86,7 +83,36 @@ def run_camera_inference(camera, client):
         logger.warning(f"Camera {cam_id}: Cannot open source {source}. Skipping.")
         return
 
+    inference_times = deque(maxlen=100)
+    last_metrics_send = time.time()
+    last_config_check = time.time()
+
     while True:
+        now = time.time()
+        
+        # Periodic DB sync: allow UI toggles to resume inference without restarting thread
+        if now - last_config_check >= 5.0:
+            try:
+                cams = client.get_cameras()
+                for c in cams:
+                    if c['id'] == cam_id:
+                        active_keys = [m['key'] for m in c.get('modules', []) if m['status'] == 'active']
+                        break
+            except Exception:
+                pass
+            last_config_check = now
+
+        if not active_keys:
+            logger.info(f"ML Idle: No active models for Camera {cam_id}.")
+            if now - last_metrics_send >= 5.0:
+                client.send_metrics(cam_id, 0.0) # Zero out frontend average
+                last_metrics_send = now
+            time.sleep(0.5)
+            # Rapidly drop frames via grab() to prevent RTSP backend buffer bloat
+            if cap:
+                cap.grab()
+            continue
+
         ret, frame = cap.read()
         if not ret:
             logger.warning(f"Camera {cam_id}: Failed to read frame. Retrying...")
@@ -105,6 +131,8 @@ def run_camera_inference(camera, client):
         # Resize for performance matching backend logic
         frame = cv2.resize(frame, (320, 240))
 
+        start_time = time.time()
+
         for key in active_keys:
             service = SERVICES.get(key)
             if service:
@@ -120,6 +148,16 @@ def run_camera_inference(camera, client):
                             client.send_detection(event)
                 except Exception as e:
                     logger.error(f"Camera {cam_id}: Error running {key}: {e}")
+
+        # Metrics Tracking
+        inference_time_ms = (time.time() - start_time) * 1000
+        inference_times.append(inference_time_ms)
+        
+        now = time.time()
+        if now - last_metrics_send >= 5.0 and len(inference_times) > 0:
+            avg_ms = sum(inference_times) / len(inference_times)
+            client.send_metrics(cam_id, avg_ms)
+            last_metrics_send = now
 
         # Basic throttle
         time.sleep(0.03) # ~30 FPS max
