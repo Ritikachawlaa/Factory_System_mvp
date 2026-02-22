@@ -110,7 +110,8 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                 pc.addTransceiver('video', { direction: 'recvonly' });
                 // pc.addTransceiver('audio', { direction: 'recvonly' });
 
-                const WHEP_URL = "http://98.88.233.228:8889/camera1/whep";
+                const STREAM_BASE_URL = "https://stream.camai.in";
+                const WHEP_URL = `${STREAM_BASE_URL}/camera${cameraId}/whep`;
 
                 // 1. Create WebRTC Offer
                 const offer = await pc.createOffer();
