@@ -108,33 +108,16 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
 
                 // Add transceivers to receive video
                 pc.addTransceiver('video', { direction: 'recvonly' });
-                // If you also stream audio, add an audio transceiver
                 // pc.addTransceiver('audio', { direction: 'recvonly' });
 
-                // 1. Fetch SDP Offer from MediaMTX backend
-                const offerRes = await fetch(`${API_BASE_URL}/webrtc/offer?camera_id=${cameraId}`, {
-                    signal,
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const WHEP_URL = "http://98.88.233.228:8889/camera1/whep";
 
-                if (!offerRes.ok) {
-                    if (offerRes.status === 401 || offerRes.status === 403) {
-                        setAuthError(true);
-                        setStatus('error');
-                        return;
-                    }
-                    throw new Error(`Failed to fetch offer: ${offerRes.status}`);
-                }
+                // 1. Create WebRTC Offer
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
 
-                const offerData = await offerRes.json();
-                await pc.setRemoteDescription({ type: 'offer', sdp: offerData.sdp });
-
-                // 2. Generate our SDP Answer
-                const answer = await pc.createAnswer();
-                await pc.setLocalDescription(answer);
-
-                // Wait for ICE gathering to complete before sending the answer back
-                // (MediaMTX might expect ICE candidates inline in the SDP depending on configuration)
+                // Wait for ICE gathering to complete before sending the offer out
+                // MediaMTX WHEP often expects candidates inline
                 await new Promise((resolve) => {
                     if (pc.iceGatheringState === 'complete') {
                         resolve();
@@ -151,32 +134,24 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                     }
                 });
 
-                // 3. Send SDP Answer to backend
-                const answerPayload = {
-                    camera_id: parseInt(cameraId, 10),
-                    sdp: pc.localDescription.sdp,
-                    type: pc.localDescription.type || 'answer'
-                };
-
-                const answerRes = await fetch(`${API_BASE_URL}/webrtc/answer`, {
+                // 2. Send SDP Offer directly to MediaMTX WHEP endpoint
+                const whepRes = await fetch(WHEP_URL, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(answerPayload),
+                    headers: { 'Content-Type': 'application/sdp' },
+                    body: pc.localDescription.sdp,
                     signal
                 });
 
-                if (!answerRes.ok) {
-                    if (answerRes.status === 401 || answerRes.status === 403) {
-                        setAuthError(true);
-                        setStatus('error');
-                        return;
-                    }
-                    throw new Error(`Failed to send answer: ${answerRes.status}`);
+                if (!whepRes.ok) {
+                    throw new Error(`Failed to negotiate WHEP connection: ${whepRes.status} ${whepRes.statusText}`);
                 }
-                console.log('[WebRTC] Signaling complete');
+
+                const answerSdp = await whepRes.text();
+
+                // 3. Set remote description with the answer received
+                await pc.setRemoteDescription({ type: 'answer', sdp: answerSdp });
+
+                console.log('[WebRTC] Direct WHEP Signaling complete');
 
             } catch (error) {
                 if (error.name === 'AbortError') {
