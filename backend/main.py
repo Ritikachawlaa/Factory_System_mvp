@@ -82,6 +82,7 @@ class Token(BaseModel):
 class CameraCreate(BaseModel):
     name: str
     source: str
+    stream_path: str = "camera1"
     enabled_models: List[str] = []
 
 class EmployeeUpdate(BaseModel):
@@ -282,7 +283,7 @@ def get_cameras_enhanced():
 def create_camera(cam: CameraCreate, current_user = Depends(get_current_user)):
     if not cam.source or not cam.source.strip():
         raise HTTPException(status_code=400, detail="Camera source cannot be empty")
-    database.add_camera(cam.name, cam.source)
+    database.add_camera(cam.name, cam.source, cam.stream_path)
     return {"message": "Camera added"}
 
 @app.delete("/cameras/{cam_id}")
@@ -292,7 +293,7 @@ def delete_camera(cam_id: int, current_user = Depends(get_current_user)):
 
 @app.put("/cameras/{cam_id}")
 def update_camera(cam_id: int, cam: CameraCreate, current_user = Depends(get_current_user)):
-    database.update_camera(cam_id, cam.name, cam.source)
+    database.update_camera(cam_id, cam.name, cam.source, cam.stream_path)
     return {"message": "Camera updated"}
 
 

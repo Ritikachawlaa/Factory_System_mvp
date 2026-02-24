@@ -191,10 +191,10 @@ def update_employee(emp_id: int, name: str):
         conn.close()
 
 # --- Cameras ---
-def add_camera(name: str, source: str):
+def add_camera(name: str, source: str, stream_path: str):
     conn = get_connection()
     try:
-        conn.execute(text("INSERT INTO cameras (name, source) VALUES (:name, :source)"), {"name": name, "source": source})
+        conn.execute(text("INSERT INTO cameras (name, source, stream_path) VALUES (:name, :source, :sp)"), {"name": name, "source": source, "sp": stream_path})
         conn.commit()
     finally:
         conn.close()
@@ -202,17 +202,17 @@ def add_camera(name: str, source: str):
 def get_cameras():
     conn = get_connection()
     try:
-        rows = conn.execute(text("SELECT id, name, source FROM cameras")).fetchall()
-        return [{"id": r[0], "name": r[1], "source": r[2]} for r in rows]
+        rows = conn.execute(text("SELECT id, name, source, stream_path FROM cameras")).fetchall()
+        return [{"id": r[0], "name": r[1], "source": r[2], "stream_path": r[3]} for r in rows]
     finally:
         conn.close()
 
 def get_camera_by_id(cam_id: int):
     conn = get_connection()
     try:
-        row = conn.execute(text("SELECT id, name, source FROM cameras WHERE id = :id"), {"id": cam_id}).fetchone()
+        row = conn.execute(text("SELECT id, name, source, stream_path FROM cameras WHERE id = :id"), {"id": cam_id}).fetchone()
         if row:
-            return {"id": row[0], "name": row[1], "source": row[2]}
+            return {"id": row[0], "name": row[1], "source": row[2], "stream_path": row[3]}
         return None
     finally:
         conn.close()
@@ -225,10 +225,10 @@ def delete_camera(cam_id: int):
     finally:
         conn.close()
 
-def update_camera(cam_id: int, name: str, source: str):
+def update_camera(cam_id: int, name: str, source: str, stream_path: str):
     conn = get_connection()
     try:
-        conn.execute(text("UPDATE cameras SET name = :name, source = :source WHERE id = :id"), {"name": name, "source": source, "id": cam_id})
+        conn.execute(text("UPDATE cameras SET name = :name, source = :source, stream_path = :sp WHERE id = :id"), {"name": name, "source": source, "sp": stream_path, "id": cam_id})
         conn.commit()
     finally:
         conn.close()
