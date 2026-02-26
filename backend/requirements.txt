@@ -8,4 +8,6 @@ python-jose[cryptography]
 passlib[bcrypt]
 psycopg2-binary>=2.9
 dotenv
-
+requests
+psutil
+httpx
