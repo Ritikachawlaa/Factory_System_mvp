@@ -35,20 +35,18 @@ logger = logging.getLogger("ml_service")
 
 # Services Map
 SERVICES = {
-    "intrusion": IntrusionService(),
-    "loitering": LoiteringService(),
-    "line_crossing": LineCrossingService(),
-    "region_entrance": RegionEntranceService(),
+    "intrusion-detection": IntrusionService(),
+    "loitering-detection": LoiteringService(),
+    "line-crossing": LineCrossingService(),
+    "entry-exit": EntryExitService(),
     "heatmap": HeatmapService(),
-    "face_rec": FaceRecognitionService(),
-    "face_recognition": FaceRecognitionService(), # Alias
-    "people_count": PeopleCountService(),
-    "entry_exit": EntryExitService(),
-    "human_detection": HumanDetectionService(),
-    "face_detection": FaceDetectionService(),
-    "crowd_density": CrowdDensityService(),
-    "auto_tracking": AutoTrackingService(),
-    "labour_counting": LabourCountingService()
+    "face-recognition": FaceRecognitionService(),
+    "people-count": PeopleCountService(),
+    "human-detection": HumanDetectionService(),
+    "face-detection": FaceDetectionService(),
+    "crowd-density": CrowdDensityService(),
+    "auto-tracking": AutoTrackingService(),
+    "labour-counting": LabourCountingService()
 }
 
 def run_camera_inference(camera, client):
@@ -129,6 +127,7 @@ def run_camera_inference(camera, client):
             # Re-try opening? Or just continue loop? 
             # If stream broke, we might need to release and re-open.
             # Simple retry logic:
+            logger.warning(f"Camera {cam_id}: Failed to read frame from {src_val}. Retrying in 2s...")
             cap.release()
             time.sleep(2)
             try:
@@ -145,6 +144,9 @@ def run_camera_inference(camera, client):
         for key in active_keys:
             service = SERVICES.get(key)
             if service:
+                # Add a debug print every 100 frames to avoid log spam
+                if hasattr(service, 'last_count') and int(time.time() * 10) % 50 == 0:
+                     logger.debug(f"Camera {cam_id}: Processing frame for {key}")
                 try:
                     # Run Inference
                     # Service now returns (frame, events)
