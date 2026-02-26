@@ -16,6 +16,7 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
     const canvasRef = useRef(null);
     const pcRef = useRef(null);
     const wsRef = useRef(null);
+    const detectionWsRef = useRef(null);
     const [status, setStatus] = useState('connecting'); // connecting, connected, error
     const [detections, setDetections] = useState([]);
     const [authError, setAuthError] = useState(false);
@@ -197,6 +198,10 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
             if (wsRef.current) {
                 wsRef.current.close();
             }
+            if (detectionWsRef.current) {
+                detectionWsRef.current.close();
+                detectionWsRef.current = null;
+            }
             if (alertTimeoutRef.current) {
                 clearTimeout(alertTimeoutRef.current);
             }
@@ -210,8 +215,8 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
         const connectWS = () => {
             if (!cameraId || !active || authError) return; // Don't connect if authError is true
             // Clean up existing WS before creating a new one
-            if (wsRef.current) {
-                wsRef.current.close();
+            if (detectionWsRef.current) {
+                detectionWsRef.current.close();
             }
 
             // Derive WS URL assuming HTTP/HTTPS base URL protocol
@@ -221,7 +226,7 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
             const wsUrl = `${protocol}//${apiHost}/ws/detections?camera_id=${cameraId}&token=${token}`;
 
             const ws = new WebSocket(wsUrl);
-            wsRef.current = ws;
+            detectionWsRef.current = ws;
 
             ws.onopen = () => {
                 console.log(`[WebSocket] Connected for detections overlay (Camera: ${cameraId})`);
