@@ -14,6 +14,8 @@ import os
 import shutil
 import asyncio
 import requests
+import database
+import recognition
 
 # --- Auth Config ---
 SECRET_KEY = "supersecretkey" # In production, use environment variable

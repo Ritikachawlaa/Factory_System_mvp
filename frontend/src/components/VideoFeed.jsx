@@ -30,7 +30,13 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
     const alertTimeoutRef = useRef(null);
 
     // Auth & Modules
-    const isMlDisabled = !modules || modules.filter(m => m.enabled || m.status === 'active').length === 0;
+    // modules prop can be a comma-separated string or an array of objects
+    const isMlDisabled = (() => {
+        if (!modules) return true;
+        if (typeof modules === 'string') return modules.trim().length === 0;
+        if (Array.isArray(modules)) return modules.filter(m => m.enabled || m.status === 'active').length === 0;
+        return true;
+    })();
 
     // WebRTC Connection Logic
     const attemptCountRef = useRef(0);
