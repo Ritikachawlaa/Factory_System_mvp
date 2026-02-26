@@ -21,7 +21,6 @@ import LineCrossing from './components/modules/LineCrossing'
 import CamerasPage from './components/CamerasPage'
 import Login from './components/Login'
 import AttendancePage from './components/AttendancePage'
-import SubscriptionPage from './components/SubscriptionPage'
 import EvidencePage from './components/EvidencePage'
 import AuditLogsPage from './components/AuditLogsPage'
 import PrivacyPolicy from './components/PrivacyPolicy'
@@ -73,14 +72,11 @@ function AppRoutes() {
       <Route path="/labour-counting" element={<ProtectedRoute><LabourCounting /></ProtectedRoute>} />
       <Route path="/people-count" element={<ProtectedRoute><PeopleCount /></ProtectedRoute>} />
       <Route path="/entry-exit" element={<ProtectedRoute><EntryExitCount /></ProtectedRoute>} />
-      <Route path="/entry-exit" element={<ProtectedRoute><EntryExitCount /></ProtectedRoute>} />
       <Route path="/intrusion-detection" element={<ProtectedRoute><IntrusionDetection /></ProtectedRoute>} />
       <Route path="/attendance" element={<ProtectedRoute><AttendancePage /></ProtectedRoute>} />
-      <Route path="/subscription" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
       <Route path="/evidence" element={<ProtectedRoute><EvidencePage /></ProtectedRoute>} />
       <Route path="/loitering-detection" element={<ProtectedRoute><LoiteringDetection /></ProtectedRoute>} />
       <Route path="/line-crossing" element={<ProtectedRoute><LineCrossing /></ProtectedRoute>} />
-      <Route path="/evidence" element={<ProtectedRoute><EvidencePage /></ProtectedRoute>} />
       <Route path="/audit-logs" element={<ProtectedRoute><AuditLogsPage /></ProtectedRoute>} />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       <Route path="/terms-of-service" element={<TermsOfService />} />

@@ -9,6 +9,7 @@ import LabourCountingPanel from '../components/panels/LabourCountingPanel';
 import LoiteringDetectionPanel from '../components/panels/LoiteringDetectionPanel';
 import IntrusionDetectionPanel from '../components/panels/IntrusionDetectionPanel';
 import HeatMapPanel from '../components/panels/HeatMapPanel';
+import FallDetectionPanel from '../components/panels/FallDetectionPanel';
 
 // Single source of truth for AI Modules
 export const MODULE_REGISTRY = {

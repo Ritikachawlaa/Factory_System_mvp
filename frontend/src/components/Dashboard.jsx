@@ -114,19 +114,28 @@ const Dashboard = () => {
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem', marginBottom: '2.5rem' }}>
                         {[
                             { label: "Today's Alerts", value: stats.totalAlerts, icon: '🚨', bg: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '#ef4444' },
-                            { label: 'Attendance', value: `${stats.attendance}%`, icon: '📋', bg: 'rgba(6, 182, 212, 0.1)', color: 'var(--accent-cyan)', border: 'var(--accent-cyan)' },
-                            { label: 'Active Cameras', value: `${stats.activeCameras}/${stats.totalCameras}`, icon: '📹', bg: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '#10b981' },
+                            { label: 'Attendance', value: `${stats.attendance}%`, icon: '📋', bg: 'rgba(6, 182, 212, 0.1)', color: 'var(--accent-cyan)', border: 'var(--accent-cyan)', path: '/attendance' },
+                            { label: 'Active Cameras', value: `${stats.activeCameras}/${stats.totalCameras}`, icon: '📹', bg: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '#10b981', path: '/cameras' },
                             { label: 'Critical Alerts', value: '3', icon: '🔥', bg: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '#ef4444' }
                         ].map((item, idx) => (
-                            <div key={idx} className="glass-panel" style={{
-                                padding: '1.5rem',
-                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                borderBottom: `2px solid ${item.border}`,
-                                transition: 'transform 0.2s',
-                                cursor: 'default'
-                            }}
-                                onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-                                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                            <div key={idx} className="glass-panel"
+                                onClick={() => item.path && navigate(item.path)}
+                                style={{
+                                    padding: '1.5rem',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                    borderBottom: `2px solid ${item.border}`,
+                                    transition: 'transform 0.2s',
+                                    cursor: item.path ? 'pointer' : 'default'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.transform = 'translateY(-2px)';
+                                    if (item.path) e.currentTarget.style.borderColor = 'var(--accent-cyan)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.transform = 'translateY(0)';
+                                    e.currentTarget.style.borderColor = 'transparent'; // Reset border if needed or keep original
+                                    // Actually, border is set via styled component or inline. Let's be careful.
+                                }}
                             >
                                 <div>
                                     <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{item.label}</div>

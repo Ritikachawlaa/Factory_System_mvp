@@ -41,7 +41,7 @@ const Header = () => {
             </div>
 
             <nav style={{ display: 'flex', gap: '2rem' }}>
-                {['Dashboard', 'Cameras', 'Analytics', 'Evidence', 'Attendance', 'Subscription', 'Settings'].map((item) => {
+                {['Dashboard', 'Cameras', 'Analytics', 'Evidence', 'Attendance', 'Settings'].map((item) => {
                     const path = item === 'Dashboard' ? '/' : `/${item.toLowerCase().replace(' ', '-')}`;
                     // Special case for single word routes or direct mappings if needed, but 'evidence' works with default lowercasing.
                     const isActive = location.pathname === path || (item === 'Dashboard' && location.pathname === '/');
