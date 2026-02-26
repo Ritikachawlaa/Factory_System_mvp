@@ -2,35 +2,58 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
+import analyticsApi from '../api/analytics.api';
 
 const Dashboard = () => {
     const navigate = useNavigate();
     const [currentTime, setCurrentTime] = useState(new Date());
+
+    const [stats, setStats] = useState({
+        totalAlerts: 0,
+        attendance: 100,
+        activeCameras: 0,
+        totalCameras: 0,
+        systemStatus: 'Healthy'
+    });
+
+    const [liveAlerts, setLiveAlerts] = useState([]);
+    const [lateArrivals, setLateArrivals] = useState([]);
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 60000); // Update every minute
         return () => clearInterval(timer);
     }, []);
 
-    // Mock Data for Dashboard
-    const stats = {
-        totalAlerts: 42,
-        attendance: 94,
-        activeCameras: 12,
-        totalCameras: 14,
-        systemStatus: 'Healthy'
-    };
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                // Fetch aggregate stats
+                const statsRes = await analyticsApi.getDashboardStats();
+                if (statsRes.data) {
+                    setStats(statsRes.data);
+                }
 
-    const liveAlerts = [
-        { id: 1, type: 'PPE Violation', location: 'Construction Site B', time: '10:45 AM', message: 'Worker detected without helmet', severity: 'high' },
-        { id: 2, type: 'Intrusion', location: 'Perimeter Fence', time: '10:42 AM', message: 'Unauthorized entry detected', severity: 'high' },
-        { id: 3, type: 'Face Recognition', location: 'Main Entrance', time: '10:40 AM', message: 'Identified: John Doe (Manager)', severity: 'low' },
-    ];
-
-    const lateArrivals = [
-        { name: 'Alice Smith', time: '09:02 AM', dept: 'Marketing' },
-        { name: 'Clara Oswald', time: '09:10 AM', dept: 'HR' },
-    ];
+                // Fetch recent events to populate intelligence feed
+                const eventsRes = await analyticsApi.getEvents();
+                if (eventsRes.data) {
+                    const mappedEvents = eventsRes.data.slice(0, 5).map((e, index) => ({
+                        id: index,
+                        type: e.type === 'violation' ? 'Violation' : e.type === 'alert' ? 'Threat' : e.type || e.module_key || 'Event',
+                        location: e.camera || 'System',
+                        time: e.timestamp ? e.timestamp.split(' ')[1] : 'Just now',
+                        message: e.label || 'Detection logged',
+                        severity: e.severity || 'info'
+                    }));
+                    setLiveAlerts(mappedEvents);
+                }
+            } catch (err) {
+                console.error("Dashboard failed to fetch live data:", err);
+            }
+        };
+        fetchData();
+        const dataInterval = setInterval(fetchData, 10000); // Poll every 10s
+        return () => clearInterval(dataInterval);
+    }, []);
 
     const getSeverityColor = (severity) => {
         switch (severity) {

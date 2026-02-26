@@ -529,6 +529,10 @@ def get_trends_stats():
 def get_compliance_stats():
     return {"compliance_rate": database.get_compliance_stats()}
 
+@app.get("/stats/dashboard")
+def get_dashboard_stats():
+    return database.get_dashboard_stats()
+
 @app.get("/stats/system")
 def get_system_stats():
     # Real Disk Usage
