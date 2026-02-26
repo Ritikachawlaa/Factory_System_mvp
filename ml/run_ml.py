@@ -156,6 +156,7 @@ def run_camera_inference(camera, client):
         scale_y = orig_h / 240.0
 
         start_time = time.time()
+        last_boxes_count = getattr(run_camera_inference, f"last_boxes_{cam_id}", 0)
 
         for key in active_keys:
             service = SERVICES.get(key)
@@ -182,9 +183,12 @@ def run_camera_inference(camera, client):
                                 })
                             # Stream live bounding boxes to frontend
                             client.send_detection_stream(cam_id, scaled_boxes)
+                            last_boxes_count = len(scaled_boxes)
                         else:
-                            # Send empty boxes array to clear the UI
-                            client.send_detection_stream(cam_id, [])
+                            # Send empty boxes array to clear the UI ONCE
+                            if last_boxes_count > 0:
+                                client.send_detection_stream(cam_id, [])
+                                last_boxes_count = 0
                     else:
                         _, events = result
                     
@@ -204,6 +208,8 @@ def run_camera_inference(camera, client):
             avg_ms = sum(inference_times) / len(inference_times)
             client.send_metrics(cam_id, avg_ms)
             last_metrics_send = now
+        
+        setattr(run_camera_inference, f"last_boxes_{cam_id}", last_boxes_count)
 
         # Basic throttle
         time.sleep(0.03) # ~30 FPS max

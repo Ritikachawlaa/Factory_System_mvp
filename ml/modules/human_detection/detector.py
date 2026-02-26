@@ -22,7 +22,7 @@ def _resolve_model():
 
 
 class HumanDetector:
-    def __init__(self, conf=0.4):
+    def __init__(self, conf=0.25):
         self.model = YOLO(_resolve_model())
         self.conf = conf
 

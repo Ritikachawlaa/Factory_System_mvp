@@ -65,14 +65,20 @@ class APIClient:
 
     def send_detection_stream(self, camera_id: int, detections: list):
         """
-        Send raw bounding boxes to the WebSocket broadcast endpoint.
-        format: {"camera_id": 1, "detections": [{"class": "person", "x": 10, "y": 10, "w": 50, "h": 100, "confidence": 0.85}]}
+        Send raw bounding boxes to the WebSocket broadcast endpoint non-blocking.
         """
         payload = {
             "camera_id": camera_id,
             "detections": detections
         }
-        return self._post("/api/detections/stream", payload)
+        import threading
+        def _async_stream():
+            try:
+                self.session.post(f"{self.base_url}/api/detections/stream", json=payload, timeout=2)
+            except:
+                pass
+        threading.Thread(target=_async_stream, daemon=True).start()
+        return True
 
     def get_cameras(self):
         url = f"{self.base_url}/cameras"
