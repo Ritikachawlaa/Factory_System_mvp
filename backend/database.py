@@ -373,13 +373,70 @@ def get_recent_events(limit=10):
         
         events = []
         for r in rows:
-            time_str = r[0].split(' ')[1] if ' ' in r[0] and isinstance(r[0], str) else str(r[0])
+            # Safe parsing for both string and datetime timestamps
+            val = r[0]
+            if isinstance(val, str) and ' ' in val:
+                time_str = val.split(' ')[1]
+            elif hasattr(val, 'strftime'):
+                time_str = val.strftime("%H:%M:%S")
+            else:
+                time_str = str(val)
+
             cam_name = r[2] if r[2] else "System"
             msg = f"{cam_name}: {r[1]} detected"
             events.append({"message": msg, "time": time_str})
         return events
     finally:
         conn.close()
+
+def get_violations(limit=20):
+    conn = get_connection()
+    try:
+        stmt = text("SELECT id, timestamp, module_key, label FROM events WHERE type = 'violation' ORDER BY id DESC LIMIT :lim")
+        rows = conn.execute(stmt, {"lim": limit}).fetchall()
+        return [{
+            "id": r[0],
+            "timestamp": str(r[1]),
+            "type": r[2],
+            "description": r[3]
+        } for r in rows]
+    finally:
+        conn.close()
+
+def clear_violations():
+    conn = get_connection()
+    try:
+        conn.execute(text("DELETE FROM events WHERE type = 'violation'"))
+        conn.commit()
+    finally:
+        conn.close()
+
+def get_recent_detections(type_=None, limit=20):
+    conn = get_connection()
+    try:
+        query = "SELECT timestamp, label, confidence, camera_id FROM events WHERE type = 'detection'"
+        params = {"lim": limit}
+        if type_:
+            query += " AND module_key = :t"
+            params["t"] = type_
+        query += " ORDER BY id DESC LIMIT :lim"
+        rows = conn.execute(text(query), params).fetchall()
+        return [{"timestamp": str(r[0]), "label": r[1], "confidence": r[2], "camera_id": r[3]} for r in rows]
+    finally:
+        conn.close()
+
+def get_detection_stats_by_type():
+    conn = get_connection()
+    try:
+        stmt = text("SELECT label, COUNT(*) as count FROM events GROUP BY label ORDER BY count DESC LIMIT 10")
+        rows = conn.execute(stmt).fetchall()
+        return [{"label": r[0], "count": r[1]} for r in rows]
+    finally:
+        conn.close()
+
+def get_detection_history_last_7_days():
+    # Return mock/simple trend for the chart
+    return [120, 150, 180, 110, 90, 200, 170]
 
 def get_module_stats(camera_id: int, module_key: str):
     conn = get_connection()

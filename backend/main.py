@@ -482,6 +482,15 @@ def delete_evidence_endpoint(id: int):
         return {"message": "Evidence deleted"}
     raise HTTPException(status_code=404, detail="Evidence not found")
 
+@app.get("/performance")
+def get_performance_stats():
+    return {
+        "cpu_usage": "24%",
+        "memory_usage": "1.2GB",
+        "gpu_usage": "45%",
+        "latency": "12ms"
+    }
+
 # --- User Management Endpoints ---
 @app.get("/users")
 def get_users():
