@@ -57,6 +57,13 @@ class LineCrossingService:
         
         current_centroids = objects
         events = []
+        bounding_boxes = []
+        
+        for (x1, y1, x2, y2) in boxes:
+            bounding_boxes.append({
+                "class": "Person",
+                "x": int(x1), "y": int(y1), "w": int(x2 - x1), "h": int(y2 - y1), "confidence": 1.0
+            })
         
         # Check crossings
         for obj_id, (cx, cy) in current_centroids.items():
@@ -76,7 +83,7 @@ class LineCrossingService:
                     # Log Event
                     event = {
                         "camera_id": camera_id,
-                        "module_key": "line_crossing",
+                        "module_key": "line-crossing",
                         "label": label,
                         "confidence": 1.0,
                         "meta": f"Total: Up={self.count_up}, Down={self.count_down}"
@@ -101,4 +108,4 @@ class LineCrossingService:
         # Overlay Stats
         cv2.putText(frame, f"Up: {self.count_up} Down: {self.count_down}", (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
             
-        return frame, events
+        return frame, events, bounding_boxes

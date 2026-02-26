@@ -4,6 +4,7 @@ import AutoTrackingPanel from '../components/panels/AutoTrackingPanel';
 import FaceDetectionPanel from '../components/panels/FaceDetectionPanel';
 import CrowdDensityPanel from '../components/panels/CrowdDensityPanel';
 import EntryExitPanel from '../components/panels/EntryExitPanel';
+import LineCrossingPanel from '../components/panels/LineCrossingPanel';
 
 // Single source of truth for AI Modules
 export const MODULE_REGISTRY = {
@@ -86,7 +87,7 @@ export const MODULE_REGISTRY = {
         key: 'line-crossing',
         label: 'Line Crossing',
         icon: '🚧',
-        panelComponent: null,
+        panelComponent: LineCrossingPanel,
         description: 'Detect crossing of virtual tripwires.',
         supportsAlerts: true,
         supportsStats: true
