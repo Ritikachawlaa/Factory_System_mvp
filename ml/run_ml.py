@@ -161,9 +161,15 @@ def run_camera_inference(camera, client):
                      logger.debug(f"Camera {cam_id}: Processing frame for {key}")
                 try:
                     # Run Inference
-                    # Service now returns (frame, events)
-                    # We discard the frame (no stream output from here yet)
-                    _, events = service.process_frame(frame, camera_id=cam_id)
+                    result = service.process_frame(frame, camera_id=cam_id)
+                    
+                    if len(result) == 3:
+                        _, events, boxes = result
+                        if boxes:
+                            # Stream live bounding boxes to frontend
+                            client.send_detection_stream(cam_id, boxes)
+                    else:
+                        _, events = result
                     
                     if events:
                         for event in events:

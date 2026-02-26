@@ -39,11 +39,20 @@ class HumanDetectionService:
         count = len(detections)
         events = []
 
+        boxes = []
         # Draw boxes
         for (x1, y1, x2, y2, conf) in detections:
             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
             cv2.putText(frame, f"Human {conf:.0%}", (x1, y1 - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+            boxes.append({
+                "class": "person",
+                "x": int(x1),
+                "y": int(y1),
+                "w": int(x2 - x1),
+                "h": int(y2 - y1),
+                "confidence": float(conf)
+            })
 
         cv2.putText(frame, f"Humans: {count}", (20, 40),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
@@ -65,4 +74,4 @@ class HumanDetectionService:
             self.last_count = count
             self.last_log_time = now
 
-        return frame, events
+        return frame, events, boxes

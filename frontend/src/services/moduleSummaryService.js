@@ -6,8 +6,7 @@ import httpClient from '../api/httpClient';
  */
 export const getModuleSummary = async (cameraId, moduleKey) => {
     try {
-        const response = await httpClient.get(`/stats/camera/${cameraId}/module/${moduleKey}`);
-        const data = response.data;
+        const data = await httpClient.get(`/stats/camera/${cameraId}/module/${moduleKey}`);
 
         if (!data || typeof data !== 'object') {
             return {
