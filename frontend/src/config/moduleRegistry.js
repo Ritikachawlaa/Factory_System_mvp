@@ -6,6 +6,7 @@ import CrowdDensityPanel from '../components/panels/CrowdDensityPanel';
 import EntryExitPanel from '../components/panels/EntryExitPanel';
 import LineCrossingPanel from '../components/panels/LineCrossingPanel';
 import LabourCountingPanel from '../components/panels/LabourCountingPanel';
+import LoiteringDetectionPanel from '../components/panels/LoiteringDetectionPanel';
 
 // Single source of truth for AI Modules
 export const MODULE_REGISTRY = {
@@ -70,7 +71,7 @@ export const MODULE_REGISTRY = {
         key: 'loitering-detection',
         label: 'Loitering Detection',
         icon: '🚶',
-        panelComponent: null,
+        panelComponent: LoiteringDetectionPanel,
         description: 'Alert when persons linger in a zone too long.',
         supportsAlerts: true,
         supportsStats: true

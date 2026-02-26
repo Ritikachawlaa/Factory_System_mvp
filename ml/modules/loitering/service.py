@@ -68,20 +68,25 @@ class LoiteringService:
              
              event = {
                 "camera_id": camera_id,
-                "module_key": "loitering",
+                "module_key": "loitering-detection",
                 "label": "Crowd Loitering",
                 "confidence": 1.0,
                 "meta": f"Count: {person_count}, Duration: {int(duration)}s"
              }
              events.append(event)
         
+        bounding_boxes = []
         # Draw
         for (x1, y1, x2, y2) in boxes:
             cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 255, 0), 2)
+            bounding_boxes.append({
+                "class": "Person",
+                "x": int(x1), "y": int(y1), "w": int(x2 - x1), "h": int(y2 - y1), "confidence": 1.0
+            })
             
         # Overlay
         cv2.putText(frame, f"Count: {person_count}", (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
         if alert:
             cv2.putText(frame, f"LOITERING ({int(duration)}s)", (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3)
             
-        return frame, events
+        return frame, events, bounding_boxes
