@@ -32,3 +32,7 @@ else:
 # Model Configuration (Example)
 MODEL_NAME = os.getenv("MODEL_NAME", "Facenet")
 
+# MediaMTX RTSP Configuration
+# The ML engine connects to the MediaMTX RTSP stream (not the camera directly)
+# Camera source goes: Camera -> MediaMTX -> RTSP -> ML Engine
+MEDIAMTX_RTSP_URL = os.getenv("MEDIAMTX_RTSP_URL", "rtsp://stream.camai.in:8554").rstrip('/')

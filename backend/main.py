@@ -675,6 +675,10 @@ def get_performance_stats():
 
 # --- Performance Metrics & Health Monitoring ---
 import psutil
+import httpx
+
+# MediaMTX API URL for health checks (defaults to stream.camai.in)
+MEDIAMTX_API_URL = os.getenv("MEDIAMTX_API_URL", "https://stream.camai.in")
 
 # In-Memory Metric Caches
 ml_metrics = {} # {camera_id: {"inference_avg_ms": 0, "last_update": 0}}

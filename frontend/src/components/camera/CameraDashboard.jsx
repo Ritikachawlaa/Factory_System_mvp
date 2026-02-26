@@ -211,6 +211,7 @@ const CameraDashboard = () => {
                                 <h3 style={{ color: '#fff', marginBottom: '1rem' }}>Enabled AI Modules</h3>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1rem' }}>
                                     {activeModules
+                                        .filter(mod => mod.status === 'active')
                                         .filter(mod => {
                                             const config = getModuleConfig(mod.key);
                                             // If no permissions defined, default to visible. If defined, check role.

@@ -56,11 +56,20 @@ def run_camera_inference(camera, client):
     Thread function to handle a single camera stream.
     """
     cam_id = camera['id']
-    source = camera['source'] # "0", "rtsp://...", etc
+    source = camera['source'] # Original source (may be local IP)
+    stream_path = camera.get('stream_path', '').strip() if camera.get('stream_path') else ''
     modules = camera.get('modules', [])
 
     # Filter active modules for this camera
     active_keys = [m['key'] for m in modules if m['status'] == 'active']
+    
+    # --- Resolve video source ---
+    # Priority: Use MediaMTX RTSP stream if stream_path is set (published via MediaMTX)
+    # Fallback: Use direct source (for local/dev testing)
+    from config import MEDIAMTX_RTSP_URL
+    if stream_path:
+        source = f"{MEDIAMTX_RTSP_URL}/{stream_path}"
+        logger.info(f"Camera {cam_id}: Using MediaMTX RTSP stream: {source}")
     
     logger.info(f"Camera {cam_id}: Starting inference for {active_keys} on source {source}")
 

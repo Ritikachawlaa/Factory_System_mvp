@@ -298,7 +298,7 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                 const sysRes = await fetch(`${API_BASE_URL}/metrics/system`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-                const healthRes = await fetch(`${API_BASE_URL}/health/system`, {
+                const healthRes = await fetch(`${API_BASE_URL}/health/system?camera_id=${cameraId}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
