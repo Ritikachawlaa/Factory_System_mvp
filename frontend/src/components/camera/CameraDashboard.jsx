@@ -46,10 +46,12 @@ const CameraDashboard = () => {
                     const stats = {};
                     if (camData.modules) {
                         for (const mod of camData.modules) {
-                            try {
-                                stats[mod.key] = await getModuleSummary(found.id, mod.key);
-                            } catch (e) {
-                                console.warn(`Failed to fetch stats for ${mod.key}`);
+                            if (mod.status === 'active') {
+                                try {
+                                    stats[mod.key] = await getModuleSummary(found.id, mod.key);
+                                } catch (e) {
+                                    console.warn(`Failed to fetch stats for ${mod.key}`);
+                                }
                             }
                         }
                     }

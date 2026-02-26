@@ -9,7 +9,14 @@ export const getModuleSummary = async (cameraId, moduleKey) => {
         const response = await httpClient.get(`/stats/camera/${cameraId}/module/${moduleKey}`);
         const data = response.data;
 
-        // { event_count: 0, last_event: null, status: 'active' }
+        if (!data || typeof data !== 'object') {
+            return {
+                primary: { label: 'Events Today', value: 0 },
+                secondary: { label: 'Status', value: 'Unknown' },
+                status: 'unknown',
+                lastEvent: 'None'
+            };
+        }
 
         return {
             primary: { label: 'Events Today', value: data.event_count || 0 },
@@ -18,11 +25,11 @@ export const getModuleSummary = async (cameraId, moduleKey) => {
             lastEvent: data.last_event ? new Date(data.last_event).toLocaleTimeString() : 'None'
         };
     } catch (error) {
-        console.warn(`Failed to fetch stats for ${moduleKey}:`, error);
+        // Silently handle — modules without stats are normal
         return {
             primary: { label: 'Events', value: '-' },
-            secondary: { label: 'Status', value: 'Error' },
-            status: 'error',
+            secondary: { label: 'Status', value: '-' },
+            status: 'unknown',
             lastEvent: '-'
         };
     }
