@@ -32,11 +32,12 @@ class AutoTrackingService:
     def process_frame(self, frame, camera_id=0):
         self._load()
         if self.detector is None:
-            return frame, []
+            return frame, [], []
 
         tracks = self.detector.track(frame)
         events = []
         current_ids = set()
+        boxes = []
 
         for (x1, y1, x2, y2, track_id, conf) in tracks:
             current_ids.add(track_id)
@@ -45,6 +46,11 @@ class AutoTrackingService:
             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
             cv2.putText(frame, f"ID {track_id}", (x1, y1 - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+            
+            boxes.append({
+                "class": f"Track ID {track_id}",
+                "x": x1, "y": y1, "w": x2-x1, "h": y2-y1, "confidence": conf
+            })
 
         cv2.putText(frame, f"Tracking: {len(tracks)}", (20, 40),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
@@ -57,7 +63,7 @@ class AutoTrackingService:
         if new_ids and now - self.last_log_time > self.LOG_INTERVAL:
             events.append({
                 "camera_id": camera_id,
-                "module_key": "auto_tracking",
+                "module_key": "auto-tracking",
                 "label": "New Track(s)",
                 "confidence": 1.0,
                 "timestamp": now,
@@ -68,7 +74,7 @@ class AutoTrackingService:
         if lost_ids and now - self.last_log_time > self.LOG_INTERVAL:
             events.append({
                 "camera_id": camera_id,
-                "module_key": "auto_tracking",
+                "module_key": "auto-tracking",
                 "label": "Track(s) Lost",
                 "confidence": 1.0,
                 "timestamp": now,
@@ -77,4 +83,4 @@ class AutoTrackingService:
             self.last_log_time = now
 
         self.known_ids = current_ids
-        return frame, events
+        return frame, events, boxes

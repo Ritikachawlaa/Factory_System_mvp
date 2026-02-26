@@ -1,5 +1,6 @@
 import FaceRecognitionPanel from '../components/panels/FaceRecognitionPanel';
 import PPECompliancePanel from '../components/panels/PPECompliancePanel';
+import AutoTrackingPanel from '../components/panels/AutoTrackingPanel';
 
 // Single source of truth for AI Modules
 export const MODULE_REGISTRY = {
@@ -127,7 +128,7 @@ export const MODULE_REGISTRY = {
         key: 'auto-tracking',
         label: 'Auto Tracking',
         icon: '🎯',
-        panelComponent: null,
+        panelComponent: AutoTrackingPanel,
         description: 'Automatically track and follow objects or persons.',
         supportsAlerts: false,
         supportsStats: true
