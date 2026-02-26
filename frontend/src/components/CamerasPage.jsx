@@ -161,11 +161,11 @@ const CamerasPage = () => {
     const openEditModal = (e, cam) => {
         e.stopPropagation(); // Prevent navigation
         setEditingCamera(cam);
-        // Map backend 'source' to frontend 'rtsp' and ensure modules array exists
+        // Map backend 'source' to frontend 'rtsp' and ensure modules array only contains ACTIVE modules
         setNewCamera({
             ...cam,
             rtsp: cam.source || cam.rtsp || '',
-            modules: cam.modules || []
+            modules: (cam.modules || []).filter(m => m.status === 'active')
         });
         setShowAddModal(true);
     };
