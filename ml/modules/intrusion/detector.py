@@ -5,7 +5,7 @@ class YOLODetector:
         self.model = YOLO(model_path)
 
     def detect(self, frame):
-        results = self.model(frame, conf=0.4, verbose=False)[0]
+        results = self.model(frame, conf=0.25, verbose=False)[0]
 
         boxes = []
         for box in results.boxes:

@@ -59,6 +59,7 @@ class IntrusionService:
         boxes = self.detector.detect(frame)
         objects = self.tracker.update(boxes)
         events = []
+        bounding_boxes = []
         
         for obj_id, (cx, cy) in objects.items():
             # Map object ID back to box?
@@ -121,7 +122,7 @@ class IntrusionService:
                     # Generate Event
                     event = {
                         "camera_id": camera_id,
-                        "module_key": "intrusion",
+                        "module_key": "intrusion-detection",
                         "label": "Unauthorized Entry",
                         "confidence": 1.0, 
                         "meta": f"Person: {name}"
@@ -134,5 +135,10 @@ class IntrusionService:
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
             cv2.putText(frame, name, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
             
-        return frame, events
+            bounding_boxes.append({
+                "class": name if name != "Unknown" else "Unauthorized",
+                "x": int(x1), "y": int(y1), "w": int(x2 - x1), "h": int(y2 - y1), "confidence": 1.0
+            })
+            
+        return frame, events, bounding_boxes
 

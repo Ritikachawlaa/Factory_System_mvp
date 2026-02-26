@@ -7,6 +7,7 @@ import EntryExitPanel from '../components/panels/EntryExitPanel';
 import LineCrossingPanel from '../components/panels/LineCrossingPanel';
 import LabourCountingPanel from '../components/panels/LabourCountingPanel';
 import LoiteringDetectionPanel from '../components/panels/LoiteringDetectionPanel';
+import IntrusionDetectionPanel from '../components/panels/IntrusionDetectionPanel';
 
 // Single source of truth for AI Modules
 export const MODULE_REGISTRY = {
@@ -49,7 +50,7 @@ export const MODULE_REGISTRY = {
         key: 'intrusion-detection',
         label: 'Intrusion Detection',
         icon: '🚨',
-        panelComponent: null,
+        panelComponent: IntrusionDetectionPanel,
         description: 'Monitor prohibited areas for unauthorized movement.',
         supportsAlerts: true,
         supportsStats: true,
