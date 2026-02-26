@@ -16,6 +16,7 @@ class FaceRecognitionService:
         # detection: (name, score, (x, y, w, h))
         detection_results = recognition.identify_faces(frame)
         events = []
+        bounding_boxes = []
         current_time = time.time()
 
         for name, score, (x, y, w, h) in detection_results:
@@ -23,6 +24,11 @@ class FaceRecognitionService:
             color = (0, 255, 0) if name != "Unknown" else (0, 0, 255)
             cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
             cv2.putText(frame, f"{name} ({score:.2f})", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+            
+            bounding_boxes.append({
+                "class": name,
+                "x": int(x), "y": int(y), "w": int(w), "h": int(h), "confidence": float(score)
+            })
 
             # Determine Event Logic
             should_send = False
@@ -36,7 +42,7 @@ class FaceRecognitionService:
                 
                 event = {
                     "camera_id": camera_id,
-                    "module_key": "face_rec", 
+                    "module_key": "face-recognition", 
                     "label": label,
                     "confidence": float(score),
                     "timestamp": current_time,
@@ -45,4 +51,4 @@ class FaceRecognitionService:
                 events.append(event)
                 self.last_events[name] = current_time
 
-        return frame, events
+        return frame, events, bounding_boxes
