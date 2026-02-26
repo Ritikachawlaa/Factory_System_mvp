@@ -3,6 +3,7 @@ import PPECompliancePanel from '../components/panels/PPECompliancePanel';
 import AutoTrackingPanel from '../components/panels/AutoTrackingPanel';
 import FaceDetectionPanel from '../components/panels/FaceDetectionPanel';
 import CrowdDensityPanel from '../components/panels/CrowdDensityPanel';
+import EntryExitPanel from '../components/panels/EntryExitPanel';
 
 // Single source of truth for AI Modules
 export const MODULE_REGISTRY = {
@@ -94,7 +95,7 @@ export const MODULE_REGISTRY = {
         key: 'entry-exit',
         label: 'Entry/Exit',
         icon: '🚪',
-        panelComponent: null,
+        panelComponent: EntryExitPanel,
         description: 'Monitor entry and exit points.',
         supportsAlerts: true,
         supportsStats: true
