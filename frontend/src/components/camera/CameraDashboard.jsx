@@ -156,6 +156,16 @@ const CameraDashboard = () => {
         }
     };
 
+    const toggleFullscreen = () => {
+        const videoElement = document.getElementById('camera-feed-container');
+        if (!document.fullscreenElement) {
+            videoElement?.requestFullscreen?.().catch(err => {
+                console.error(`Error attempting to enable fullscreen mode: ${err.message}`);
+            });
+        } else {
+            document.exitFullscreen?.();
+        }
+    };
 
     if (loading) return <div style={{ color: '#fff', padding: '2rem' }}>Loading Camera...</div>;
     if (!camera) return <div style={{ color: '#fff', padding: '2rem' }}>Camera not found</div>;
@@ -166,7 +176,6 @@ const CameraDashboard = () => {
         <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-dark)' }}>
             <Header />
             <main style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-                <Sidebar />
                 <div style={{
                     flex: 1,
                     padding: '2rem',
@@ -198,13 +207,13 @@ const CameraDashboard = () => {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                             {/* Live Feed */}
                             <div className="glass-panel" style={{ padding: '0', overflow: 'hidden' }}>
-                                <div style={{ aspectRatio: '16/9', background: '#000', position: 'relative' }}>
+                                <div id="camera-feed-container" style={{ aspectRatio: '16/9', background: '#000', position: 'relative' }}>
                                     <VideoFeed modules={activeModules.filter(m => m.status === 'active').map(m => m.key).join(',')} />
                                     <div style={{ position: 'absolute', top: '1rem', right: '1rem', background: '#ef4444', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' }}>LIVE</div>
                                 </div>
                                 <div style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <span style={{ color: 'var(--text-secondary)' }}>{camera.rtsp}</span>
-                                    <button style={{ background: 'var(--accent-cyan)', color: '#000', border: 'none', padding: '0.5rem 1rem', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>View Fullscreen</button>
+                                    <button onClick={toggleFullscreen} style={{ background: 'var(--accent-cyan)', color: '#000', border: 'none', padding: '0.5rem 1rem', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>View Fullscreen</button>
                                 </div>
                             </div>
 

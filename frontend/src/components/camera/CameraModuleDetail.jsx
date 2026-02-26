@@ -97,6 +97,17 @@ const CameraModuleDetail = () => {
         return <div style={{ color: '#fff', padding: '2rem' }}>Panel for {config ? config.label : moduleType} under construction.</div>;
     };
 
+    const toggleFullscreen = () => {
+        const videoElement = document.getElementById('camera-feed-container');
+        if (!document.fullscreenElement) {
+            videoElement?.requestFullscreen?.().catch(err => {
+                console.error(`Error attempting to enable fullscreen mode: ${err.message}`);
+            });
+        } else {
+            document.exitFullscreen?.();
+        }
+    };
+
     if (!camera) return null;
     if (!config) return <div style={{ color: '#fff', padding: '2rem' }}>Module not found</div>;
 
@@ -104,7 +115,6 @@ const CameraModuleDetail = () => {
         <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-dark)' }}>
             <Header />
             <main style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-                <Sidebar />
                 <div style={{
                     flex: 1,
                     padding: '1.5rem',
@@ -149,12 +159,15 @@ const CameraModuleDetail = () => {
                         </div>
 
                         {/* Video Feed (Module Specific) */}
-                        <div style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--panel-border)', background: '#000', aspectRatio: '16/9', position: 'relative' }}>
+                        <div id="camera-feed-container" style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--panel-border)', background: '#000', aspectRatio: '16/9', position: 'relative' }}>
                             {/* Pass specific module key to video feed for overlays */}
                             <VideoFeed modules={moduleType} />
                             <div style={{ position: 'absolute', top: '1rem', left: '1rem', background: 'rgba(0,0,0,0.6)', color: '#fff', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem' }}>
                                 {camera.name} • {config.label}
                             </div>
+                            <button onClick={toggleFullscreen} style={{ position: 'absolute', bottom: '1rem', right: '1rem', background: 'var(--accent-cyan)', color: '#000', border: 'none', padding: '4px 12px', borderRadius: '4px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 'bold' }}>
+                                ⤢ Fullscreen
+                            </button>
                         </div>
 
                         <div className="glass-panel" style={{ padding: '1.5rem' }}>

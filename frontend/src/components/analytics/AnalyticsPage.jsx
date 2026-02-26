@@ -12,10 +12,6 @@ const AnalyticsPage = () => {
             <Header />
 
             <main style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-                <div>
-                    <Sidebar />
-                </div>
-
                 <div style={{
                     flex: 1,
                     display: 'flex',
@@ -43,7 +39,7 @@ const AnalyticsPage = () => {
             </main>
 
             <Footer />
-        </div>
+        </div >
     );
 };
 
