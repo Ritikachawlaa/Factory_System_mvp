@@ -7,7 +7,7 @@ import cv2
 
 
 class FaceDetector:
-    def __init__(self, scale_factor=1.3, min_neighbors=5, min_size=(30, 30)):
+    def __init__(self, scale_factor=1.1, min_neighbors=4, min_size=(30, 30)):
         self.cascade = cv2.CascadeClassifier(
             cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
         )

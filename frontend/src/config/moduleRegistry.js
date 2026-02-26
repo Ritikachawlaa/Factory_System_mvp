@@ -1,6 +1,7 @@
 import FaceRecognitionPanel from '../components/panels/FaceRecognitionPanel';
 import PPECompliancePanel from '../components/panels/PPECompliancePanel';
 import AutoTrackingPanel from '../components/panels/AutoTrackingPanel';
+import FaceDetectionPanel from '../components/panels/FaceDetectionPanel';
 
 // Single source of truth for AI Modules
 export const MODULE_REGISTRY = {
@@ -110,7 +111,7 @@ export const MODULE_REGISTRY = {
         key: 'face-detection',
         label: 'Face Detection',
         icon: '😊',
-        panelComponent: null,
+        panelComponent: FaceDetectionPanel,
         description: 'Detect and locate faces in camera feeds.',
         supportsAlerts: true,
         supportsStats: true

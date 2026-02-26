@@ -21,12 +21,17 @@ class FaceDetectionService:
         faces = self.detector.detect(frame)
         count = len(faces)
         events = []
+        boxes = []
 
         # Draw rectangles
         for (x, y, w, h) in faces:
             cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 255), 2)
             cv2.putText(frame, "Face", (x, y - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 255), 2)
+            boxes.append({
+                "class": "Face",
+                "x": int(x), "y": int(y), "w": int(w), "h": int(h), "confidence": 1.0
+            })
 
         cv2.putText(frame, f"Faces: {count}", (20, 40),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 255), 2)
@@ -39,7 +44,7 @@ class FaceDetectionService:
         if count > 0 and (changed or timed):
             events.append({
                 "camera_id": camera_id,
-                "module_key": "face_detection",
+                "module_key": "face-detection",
                 "label": "Face Detected",
                 "confidence": 1.0,
                 "timestamp": now,
@@ -48,4 +53,4 @@ class FaceDetectionService:
             self.last_count = count
             self.last_log_time = now
 
-        return frame, events
+        return frame, events, boxes
