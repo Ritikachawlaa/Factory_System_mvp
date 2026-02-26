@@ -29,7 +29,7 @@ GRID_SIZE = 4          # 4×4 grid – same as Phase-1 repo
 
 
 class CrowdDensityDetector:
-    def __init__(self, conf=0.4):
+    def __init__(self, conf=0.25):
         self.model = YOLO(_resolve_model())
         self.conf = conf
 

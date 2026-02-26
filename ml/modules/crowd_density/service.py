@@ -41,11 +41,16 @@ class CrowdDensityService:
         boxes, grid, density = self.detector.detect(frame)
         count = len(boxes)
         events = []
+        bounding_boxes = []
         h, w = frame.shape[:2]
 
         # Draw person boxes
         for (x1, y1, x2, y2) in boxes:
             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 255), 2)
+            bounding_boxes.append({
+                "class": "Crowd",
+                "x": int(x1), "y": int(y1), "w": int(x2 - x1), "h": int(y2 - y1), "confidence": 1.0
+            })
 
         # Draw grid overlay (same style as Phase-1 repo)
         cell_w = int(w / GRID_SIZE)
@@ -75,7 +80,7 @@ class CrowdDensityService:
             label = "High Crowd Density" if hot_cells > 0 else "Crowd Density Update"
             events.append({
                 "camera_id": camera_id,
-                "module_key": "crowd_density",
+                "module_key": "crowd-density",
                 "label": label,
                 "confidence": 1.0,
                 "timestamp": now,
@@ -84,4 +89,4 @@ class CrowdDensityService:
             self.last_count = count
             self.last_log_time = now
 
-        return frame, events
+        return frame, events, bounding_boxes

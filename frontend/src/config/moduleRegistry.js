@@ -2,6 +2,7 @@ import FaceRecognitionPanel from '../components/panels/FaceRecognitionPanel';
 import PPECompliancePanel from '../components/panels/PPECompliancePanel';
 import AutoTrackingPanel from '../components/panels/AutoTrackingPanel';
 import FaceDetectionPanel from '../components/panels/FaceDetectionPanel';
+import CrowdDensityPanel from '../components/panels/CrowdDensityPanel';
 
 // Single source of truth for AI Modules
 export const MODULE_REGISTRY = {
@@ -120,7 +121,7 @@ export const MODULE_REGISTRY = {
         key: 'crowd-density',
         label: 'Crowd Density',
         icon: '👨‍👩‍👧‍👦',
-        panelComponent: null,
+        panelComponent: CrowdDensityPanel,
         description: 'Analyze crowd density and congestion levels.',
         supportsAlerts: true,
         supportsStats: true
