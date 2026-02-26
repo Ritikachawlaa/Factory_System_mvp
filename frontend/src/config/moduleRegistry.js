@@ -5,6 +5,7 @@ import FaceDetectionPanel from '../components/panels/FaceDetectionPanel';
 import CrowdDensityPanel from '../components/panels/CrowdDensityPanel';
 import EntryExitPanel from '../components/panels/EntryExitPanel';
 import LineCrossingPanel from '../components/panels/LineCrossingPanel';
+import LabourCountingPanel from '../components/panels/LabourCountingPanel';
 
 // Single source of truth for AI Modules
 export const MODULE_REGISTRY = {
@@ -141,7 +142,7 @@ export const MODULE_REGISTRY = {
         key: 'labour-counting',
         label: 'Labour Counting',
         icon: '👷',
-        panelComponent: null,
+        panelComponent: LabourCountingPanel,
         description: 'Count and monitor workforce on site.',
         supportsAlerts: false,
         supportsStats: true

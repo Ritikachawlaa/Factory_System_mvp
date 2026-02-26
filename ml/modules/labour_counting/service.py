@@ -37,10 +37,15 @@ class LabourCountingService:
         boxes = self.detector.detect(frame)
         count = len(boxes)
         events = []
+        bounding_boxes = []
 
         # Draw boxes
         for (x1, y1, x2, y2) in boxes:
             cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 165, 0), 2)
+            bounding_boxes.append({
+                "class": "Worker",
+                "x": int(x1), "y": int(y1), "w": int(x2 - x1), "h": int(y2 - y1), "confidence": 1.0
+            })
 
         cv2.putText(frame, f"Workers: {count}", (20, 40),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 165, 0), 2)
@@ -53,7 +58,7 @@ class LabourCountingService:
         if count > 0 and (changed or timed):
             events.append({
                 "camera_id": camera_id,
-                "module_key": "labour_counting",
+                "module_key": "labour-counting",
                 "label": "Workforce Count",
                 "confidence": 1.0,
                 "timestamp": now,
@@ -62,4 +67,4 @@ class LabourCountingService:
             self.last_count = count
             self.last_log_time = now
 
-        return frame, events
+        return frame, events, bounding_boxes
