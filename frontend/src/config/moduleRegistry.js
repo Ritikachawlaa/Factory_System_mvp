@@ -8,6 +8,7 @@ import LineCrossingPanel from '../components/panels/LineCrossingPanel';
 import LabourCountingPanel from '../components/panels/LabourCountingPanel';
 import LoiteringDetectionPanel from '../components/panels/LoiteringDetectionPanel';
 import IntrusionDetectionPanel from '../components/panels/IntrusionDetectionPanel';
+import HeatMapPanel from '../components/panels/HeatMapPanel';
 
 // Single source of truth for AI Modules
 export const MODULE_REGISTRY = {
@@ -104,6 +105,15 @@ export const MODULE_REGISTRY = {
         supportsAlerts: true,
         supportsStats: true
     },
+    'fall-detection': {
+        key: 'fall-detection',
+        label: 'Fall Detection',
+        icon: '⚠️',
+        panelComponent: FallDetectionPanel,
+        description: 'Detect persons falling to send instantaneous medical alerts.',
+        supportsAlerts: true,
+        supportsStats: true
+    },
     'human-detection': {
         key: 'human-detection',
         label: 'Human Detection',
@@ -153,7 +163,7 @@ export const MODULE_REGISTRY = {
         key: 'heatmap',
         label: 'Crowd Heatmap',
         icon: '🔥',
-        panelComponent: null, // Todo: Add panel
+        panelComponent: HeatMapPanel,
         description: 'Visualize crowd density and movement patterns.',
         supportsAlerts: false,
         supportsStats: false,

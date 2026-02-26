@@ -43,8 +43,11 @@ class HeatmapService:
         
         heatmap_img = self.engine.render()
         
-        # Overlay with transparency
-        alpha = 0.6
-        overlay = cv2.addWeighted(frame, 1-alpha, heatmap_img, alpha, 0)
-        
-        return overlay, []
+        bounding_boxes = []
+        for (x1, y1, x2, y2) in boxes:
+            bounding_boxes.append({
+                "class": "Person",
+                "x": int(x1), "y": int(y1), "w": int(x2 - x1), "h": int(y2 - y1), "confidence": 1.0
+            })
+            
+        return overlay, [], bounding_boxes
