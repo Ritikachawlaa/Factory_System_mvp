@@ -25,8 +25,8 @@ const CameraManagement = () => {
                     id: cam.id,
                     name: cam.name,
                     rtsp: cam.source,
-                    // If modules exist, map their keys out to match the ui labels
-                    models: cam.modules ? cam.modules.map(m => m.key) : [],
+                    // If modules exist, map their keys out to match the ui labels (only active ones)
+                    models: cam.modules ? cam.modules.filter(m => m.status === 'active').map(m => m.key) : [],
                     status: 'Online' // Basic status mapping for MVP
                 }));
                 setCameras(formattedCameras);
