@@ -198,6 +198,9 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
         };
 
         // === WEBSOCKET CONNECTION (Detections) ===
+        let wsAttemptCount = 0;
+        const MAX_WS_RETRIES = 10;
+
         const connectWS = () => {
             if (!cameraId || !active || authError) return; // Don't connect if authError is true
             // Clean up existing WS before creating a new one
@@ -216,6 +219,7 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
 
             ws.onopen = () => {
                 console.log(`[WebSocket] Connected for detections overlay (Camera: ${cameraId})`);
+                wsAttemptCount = 0; // Reset on successful connection
             };
 
             ws.onmessage = (event) => {
@@ -245,10 +249,16 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                 }
                 // If WebRTC is still connected and no auth error, try to regain WS specifically
                 if (active && !authError && pcRef.current && pcRef.current.iceConnectionState === 'connected') {
+                    if (wsAttemptCount >= MAX_WS_RETRIES) {
+                        console.error('[WebSocket] Max retries reached for detection stream. Stopping reconnect.');
+                        return;
+                    }
+                    wsAttemptCount++;
+                    const backoffMs = Math.min(3000 * Math.pow(1.5, wsAttemptCount), 30000);
+                    console.log(`[WebSocket] Reconnecting in ${(backoffMs / 1000).toFixed(1)}s (attempt ${wsAttemptCount}/${MAX_WS_RETRIES})...`);
                     wsReconnectTimer = setTimeout(() => {
-                        console.log('[WebSocket] Attempting to reconnect detection stream...');
                         connectWS();
-                    }, 3000);
+                    }, backoffMs);
                 }
             };
 

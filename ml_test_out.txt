@@ -1,0 +1,16 @@
+Starting Isolated ML Test Script on Image...
+Loading ML Services...
+Reading image...
+Processing image through HumanDetection GPU pipeline...
+
+[SUCCESS] Detected 1 humans in image:
+  {
+  "camera_id": 999,
+  "module_key": "human_detection",
+  "label": "Human Detected",
+  "confidence": 0.88330078125,
+  "timestamp": 1772043496.0405548,
+  "meta": "Count: 1"
+}
+
+[VERIFIED] Successfully proved GPU Models run and generate correct bounding box JSON arrays for the frontend.

@@ -833,9 +833,13 @@ class DetectionConnectionManager:
             self.connections[camera_id] = {}
             
         if username in self.connections[camera_id]:
-            logger.warning(f"WS Duplicate connection denied: User '{username}' Camera {camera_id}")
-            await websocket.close(code=1008, reason="Duplicate connection limit reached")
-            return False
+            # Replace stale connection instead of rejecting the new one
+            old_ws = self.connections[camera_id][username]
+            logger.info(f"WS Replacing stale connection for User '{username}' Camera {camera_id}")
+            try:
+                await old_ws.close(code=1000, reason="Replaced by new connection")
+            except Exception:
+                pass  # Old connection may already be dead
             
         await websocket.accept()
         self.connections[camera_id][username] = websocket
@@ -912,6 +916,9 @@ async def websocket_detections(websocket: WebSocket, camera_id: int = 1, token: 
             await websocket.receive_text()
     except WebSocketDisconnect:
         logger.info(f"WS Client '{username}' disconnected from detection stream for camera {camera_id}")
+        detection_manager.disconnect(username, camera_id)
+    except Exception as e:
+        logger.warning(f"WS Client '{username}' connection error for camera {camera_id}: {e}")
         detection_manager.disconnect(username, camera_id)
 
 class DetectionStreamPayload(BaseModel):
