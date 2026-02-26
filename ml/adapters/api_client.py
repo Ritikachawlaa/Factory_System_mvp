@@ -40,7 +40,7 @@ class APIClient:
             "module_key": event.get("module_key"),
             "label": event.get("label"),
             "confidence": event.get("confidence", 1.0),
-            "timestamp": event.get("timestamp"),
+            "timestamp": str(event.get("timestamp")) if event.get("timestamp") else None,
             "metadata": {"meta": event.get("meta")} if event.get("meta") else None 
             # Note: The backend schema expects `metadata: dict`. 
             # Our event logic might have `meta` as a string. Let's wrap it if needed or adjust.

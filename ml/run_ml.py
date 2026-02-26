@@ -81,7 +81,14 @@ def run_camera_inference(camera, client):
     try:
         # Check if source is digit (local webcam) or string (RTSP/File)
         src_val = int(source) if str(source).isdigit() else source
-        cap = cv2.VideoCapture(src_val)
+        
+        if isinstance(src_val, str) and src_val.startswith("rtsp://"):
+            import os
+            os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|analyzeduration;1000000|probesize;1000000|timeout;5000000"
+            cap = cv2.VideoCapture(src_val, cv2.CAP_FFMPEG)
+        else:
+            cap = cv2.VideoCapture(src_val)
+            
     except Exception as e:
         logger.error(f"Camera {cam_id}: Exception opening source {source} - {e}")
         return
@@ -131,7 +138,12 @@ def run_camera_inference(camera, client):
             cap.release()
             time.sleep(2)
             try:
-                cap = cv2.VideoCapture(src_val)
+                if isinstance(src_val, str) and src_val.startswith("rtsp://"):
+                    import os
+                    os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|analyzeduration;1000000|probesize;1000000|timeout;5000000"
+                    cap = cv2.VideoCapture(src_val, cv2.CAP_FFMPEG)
+                else:
+                    cap = cv2.VideoCapture(src_val)
             except:
                 pass
             continue

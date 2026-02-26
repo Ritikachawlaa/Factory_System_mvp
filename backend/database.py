@@ -269,6 +269,13 @@ def log_external_detection(camera_id: int, module_key: str, label: str, confiden
     conn = get_connection()
     if not timestamp:
         timestamp = get_db_timestamp()
+    else:
+        # ML Engine sends Unix epoch floats as strings. Postgres needs 'YYYY-MM-DD HH:MM:SS'
+        try:
+            import datetime
+            timestamp = datetime.datetime.fromtimestamp(float(timestamp)).strftime("%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            pass # Fallback: leave as-is if it's already a formatted string
     
     type_ = 'detection' 
     severity = 'info'
