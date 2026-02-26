@@ -364,6 +364,7 @@ def get_compliance_stats():
     # Helper for dashboard widgets
     return 100 # Placeholder as per previous logic (mostly mocked before)
 
+def get_recent_events(limit=10):
     # Legacy event fetcher, now maps to 'events' table
     conn = get_connection()
     try:
@@ -372,7 +373,7 @@ def get_compliance_stats():
         
         events = []
         for r in rows:
-            time_str = r[0].split(' ')[1] if ' ' in r[0] else r[0]
+            time_str = r[0].split(' ')[1] if ' ' in r[0] and isinstance(r[0], str) else str(r[0])
             cam_name = r[2] if r[2] else "System"
             msg = f"{cam_name}: {r[1]} detected"
             events.append({"message": msg, "time": time_str})

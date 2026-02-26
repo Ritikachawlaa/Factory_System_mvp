@@ -29,7 +29,12 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://www.camai.in",
+        "https://camai.in",
+        "http://localhost:3000",
+        "http://localhost:5173"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -476,26 +481,6 @@ def delete_evidence_endpoint(id: int):
     if database.delete_evidence(id):
         return {"message": "Evidence deleted"}
     raise HTTPException(status_code=404, detail="Evidence not found")
-
-# --- Events Generic ---
-@app.get("/events")
-def get_all_events():
-    # Merge violations with system events? 
-    # For now, reuse get_recent_events (which pulls from detections) 
-    # AND maybe also violations?
-    # Let's keep it simple: return violations as 'events' for now as they are the main 'alerts'
-    violations = database.get_violations(limit=50)
-    # Map to generic event format
-    events = []
-    for v in violations:
-        events.append({
-            "id": v['id'],
-            "timestamp": v['timestamp'],
-            "type": v['type'],
-            "message": v['description'],
-            "severity": "high" if "Missing" in v['description'] else "info"
-        })
-    return events
 
 # --- User Management Endpoints ---
 @app.get("/users")
