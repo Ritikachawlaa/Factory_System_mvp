@@ -336,7 +336,7 @@ const CameraDashboard = () => {
                             <div className="glass-panel" style={{ padding: '1.5rem' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                                     <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0, letterSpacing: '1px' }}>EVIDENCE</h3>
-                                    <button style={{ background: 'none', border: 'none', color: 'var(--accent-cyan)', fontSize: '0.8rem', cursor: 'pointer' }}>View All</button>
+                                    <button onClick={() => navigate('/evidence')} style={{ background: 'none', border: 'none', color: 'var(--accent-cyan)', fontSize: '0.8rem', cursor: 'pointer' }}>View All</button>
                                 </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
                                     {[1, 2, 3, 4].map(i => (
