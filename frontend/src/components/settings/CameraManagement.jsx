@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import API_BASE_URL from '../../config';
+import { MODULE_REGISTRY } from '../../config/moduleRegistry';
 
 const CameraManagement = () => {
     const [cameras, setCameras] = useState([]);
@@ -12,18 +13,7 @@ const CameraManagement = () => {
     const [formData, setFormData] = useState({ name: '', rtsp: '', models: [], status: 'Online' });
 
     // Available Models
-    const aiModels = [
-        'PPE Detection',
-        'Fault Detection',
-        'Fight Detection',
-        'Camera Tampering',
-        'Box Production',
-        'People Counting',
-        'Entry/Exit Count',
-        'Intrusion Detection',
-        'Animal Detection',
-        'Face Recognition'
-    ];
+    const aiModels = Object.values(MODULE_REGISTRY);
 
     const fetchCameras = async () => {
         try {
@@ -157,7 +147,7 @@ const CameraManagement = () => {
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                                         {cam.models.length > 0 ? cam.models.map(m => (
                                             <span key={m} style={{ fontSize: '0.75rem', background: 'rgba(255,255,255,0.05)', color: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
-                                                {m}
+                                                {MODULE_REGISTRY[m] ? MODULE_REGISTRY[m].label : m}
                                             </span>
                                         )) : <span style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>None</span>}
                                     </div>
@@ -217,14 +207,14 @@ const CameraManagement = () => {
                             <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Assigned AI Models</label>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem', maxHeight: '200px', overflowY: 'auto', background: 'rgba(255,255,255,0.05)', padding: '1rem', borderRadius: '6px', border: '1px solid var(--panel-border)' }}>
                                 {aiModels.map(m => (
-                                    <label key={m} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem', cursor: 'pointer', borderRadius: '4px', background: formData.models.includes(m) ? 'rgba(6, 182, 212, 0.1)' : 'transparent', border: formData.models.includes(m) ? '1px solid rgba(6, 182, 212, 0.3)' : '1px solid transparent' }}>
+                                    <label key={m.key} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem', cursor: 'pointer', borderRadius: '4px', background: formData.models.includes(m.key) ? 'rgba(6, 182, 212, 0.1)' : 'transparent', border: formData.models.includes(m.key) ? '1px solid rgba(6, 182, 212, 0.3)' : '1px solid transparent' }}>
                                         <input
                                             type="checkbox"
-                                            checked={formData.models.includes(m)}
-                                            onChange={() => toggleModel(m)}
+                                            checked={formData.models.includes(m.key)}
+                                            onChange={() => toggleModel(m.key)}
                                             style={{ accentColor: 'var(--accent-cyan)', width: '16px', height: '16px' }}
                                         />
-                                        <span style={{ color: formData.models.includes(m) ? '#fff' : 'var(--text-secondary)', fontSize: '0.9rem' }}>{m}</span>
+                                        <span style={{ color: formData.models.includes(m.key) ? '#fff' : 'var(--text-secondary)', fontSize: '0.9rem' }}>{m.label}</span>
                                     </label>
                                 ))}
                             </div>
