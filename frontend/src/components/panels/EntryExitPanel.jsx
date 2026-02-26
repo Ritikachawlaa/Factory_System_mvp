@@ -13,7 +13,7 @@ const EntryExitPanel = ({ cameraId }) => {
                 const res = await httpClient.get('/events', {
                     params: { camera_id: cameraId, module_key: 'entry-exit' }
                 });
-                setEvents(res.data || []);
+                setEvents(res || []);
             } catch (e) {
                 console.error("Failed to fetch Entry/Exit logs", e);
             }

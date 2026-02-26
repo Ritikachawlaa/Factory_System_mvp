@@ -13,7 +13,7 @@ const LabourCountingPanel = ({ cameraId }) => {
                 const res = await httpClient.get('/events', {
                     params: { camera_id: cameraId, module_key: 'labour-counting' }
                 });
-                setEvents(res.data || []);
+                setEvents(res || []);
             } catch (e) {
                 console.error("Failed to fetch Labour Counting logs", e);
             }

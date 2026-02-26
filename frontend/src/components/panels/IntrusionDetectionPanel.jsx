@@ -13,7 +13,7 @@ const IntrusionDetectionPanel = ({ cameraId }) => {
                 const res = await httpClient.get('/events', {
                     params: { camera_id: cameraId, module_key: 'intrusion-detection' }
                 });
-                setEvents(res.data || []);
+                setEvents(res || []);
             } catch (e) {
                 console.error("Failed to fetch Intrusion Detection logs", e);
             }

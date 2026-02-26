@@ -13,7 +13,7 @@ const FaceDetectionPanel = ({ cameraId }) => {
                 const res = await httpClient.get('/events', {
                     params: { camera_id: cameraId, module_key: 'face-detection' }
                 });
-                setEvents(res.data || []);
+                setEvents(res || []);
             } catch (e) {
                 console.error("Failed to fetch Face Detection logs", e);
             }

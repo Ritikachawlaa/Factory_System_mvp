@@ -13,7 +13,7 @@ const LineCrossingPanel = ({ cameraId }) => {
                 const res = await httpClient.get('/events', {
                     params: { camera_id: cameraId, module_key: 'line-crossing' }
                 });
-                setEvents(res.data || []);
+                setEvents(res || []);
             } catch (e) {
                 console.error("Failed to fetch Line Crossing logs", e);
             }

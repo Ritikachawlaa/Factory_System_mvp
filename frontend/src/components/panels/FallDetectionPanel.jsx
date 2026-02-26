@@ -13,7 +13,7 @@ const FallDetectionPanel = ({ cameraId }) => {
                 const res = await httpClient.get('/events', {
                     params: { camera_id: cameraId, module_key: 'fall-detection' }
                 });
-                setAlerts(res.data || []);
+                setAlerts(res || []);
             } catch (e) {
                 console.error("Failed to fetch Fall Detection logs", e);
             }

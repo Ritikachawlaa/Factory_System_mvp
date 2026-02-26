@@ -15,7 +15,7 @@ const FaceRecognitionPanel = ({ cameraId }) => {
                     params: { camera_id: cameraId, module_key: 'face-recognition' }
                 });
 
-                const events = res.data || [];
+                const events = res || [];
                 setFaces(events);
 
                 // Calculate simple stats from the fetched batch

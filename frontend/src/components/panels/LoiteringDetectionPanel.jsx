@@ -13,7 +13,7 @@ const LoiteringDetectionPanel = ({ cameraId }) => {
                 const res = await httpClient.get('/events', {
                     params: { camera_id: cameraId, module_key: 'loitering-detection' }
                 });
-                setEvents(res.data || []);
+                setEvents(res || []);
             } catch (e) {
                 console.error("Failed to fetch Loitering Detection logs", e);
             }

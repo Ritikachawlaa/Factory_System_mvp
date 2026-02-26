@@ -7,31 +7,24 @@ import camerasApi from './cameras.api';
 
 const modulesApi = {
     // Get enabled modules for a camera
-    getForCamera: async (cameraId) => {
-        const response = await httpClient.get(`/cameras/${cameraId}/modules`);
-        return response.data || [];
-    },
+    getForCamera: (cameraId) => httpClient.get(`/cameras/${cameraId}/modules`),
 
     // Enable/Disable a module
-    toggleModule: async (cameraId, moduleKey, active) => {
-        // Backend strictly controls state
+    toggleModule: (cameraId, moduleKey, active) => {
         const status = active ? 'active' : 'paused';
-        const response = await httpClient.patch(`/cameras/${cameraId}/modules/${moduleKey}`, {
+        return httpClient.patch(`/cameras/${cameraId}/modules/${moduleKey}`, {
             enabled: active,
             status: status
         });
-        return response.data;
     },
 
     // Update module config
-    updateConfig: async (cameraId, moduleKey, config) => {
-        // We can reuse the PATCH endpoint, or if we need a specific config endpoint, defaulting to PATCH
-        const response = await httpClient.patch(`/cameras/${cameraId}/modules/${moduleKey}`, {
-            enabled: true, // Config update usually implies active, or we check current?
-            status: 'active', // For now, assume active if configuring
+    updateConfig: (cameraId, moduleKey, config) => {
+        return httpClient.patch(`/cameras/${cameraId}/modules/${moduleKey}`, {
+            enabled: true,
+            status: 'active',
             config: config
         });
-        return response.data;
     }
 };
 

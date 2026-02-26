@@ -13,7 +13,7 @@ const PPECompliancePanel = ({ cameraId }) => {
                 const res = await httpClient.get('/events', {
                     params: { camera_id: cameraId, module_key: 'ppe-detection' }
                 });
-                setViolations(res.data || []);
+                setViolations(res || []);
             } catch (e) {
                 console.error("Failed to fetch PPE logs", e);
             }

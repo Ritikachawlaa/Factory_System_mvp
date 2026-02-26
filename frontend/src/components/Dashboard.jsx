@@ -29,18 +29,18 @@ const Dashboard = () => {
             try {
                 // Fetch aggregate stats
                 const statsRes = await analyticsApi.getDashboardStats();
-                if (statsRes.data) {
-                    setStats(statsRes.data);
+                if (statsRes) {
+                    setStats(statsRes);
                 }
 
                 // Fetch recent events to populate intelligence feed
                 const eventsRes = await analyticsApi.getEvents();
-                if (eventsRes.data) {
-                    const mappedEvents = eventsRes.data.slice(0, 5).map((e, index) => ({
+                if (eventsRes) {
+                    const mappedEvents = eventsRes.slice(0, 5).map((e, index) => ({
                         id: index,
                         type: e.type === 'violation' ? 'Violation' : e.type === 'alert' ? 'Threat' : e.type || e.module_key || 'Event',
                         location: e.camera || 'System',
-                        time: e.timestamp ? e.timestamp.split(' ')[1] : 'Just now',
+                        time: e.timestamp ? (typeof e.timestamp === 'string' && e.timestamp.includes(' ') ? e.timestamp.split(' ')[1] : String(e.timestamp)) : 'Just now',
                         message: e.label || 'Detection logged',
                         severity: e.severity || 'info'
                     }));

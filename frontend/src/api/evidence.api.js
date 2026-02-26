@@ -1,14 +1,8 @@
 import httpClient from './httpClient';
 
 const evidenceApi = {
-    getAll: async () => {
-        const response = await httpClient.get('/evidence');
-        return response.data;
-    },
-    delete: async (id) => {
-        const response = await httpClient.delete(`/evidence/${id}`);
-        return response.data;
-    },
+    getAll: () => httpClient.get('/evidence'),
+    delete: (id) => httpClient.delete(`/evidence/${id}`),
     // Optional: If we had an upload, create method here
 };
 

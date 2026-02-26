@@ -435,8 +435,11 @@ def get_detection_stats_by_type():
         conn.close()
 
 def get_detection_history_last_7_days():
-    # Return mock/simple trend for the chart
-    return [120, 150, 180, 110, 90, 200, 170]
+    # Return mock/simple trend for the chart matching frontend expected format
+    return {
+        "labels": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+        "data": [120, 150, 180, 110, 90, 200, 170]
+    }
 
 def get_module_stats(camera_id: int, module_key: str):
     conn = get_connection()
