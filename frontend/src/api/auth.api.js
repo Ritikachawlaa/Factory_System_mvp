@@ -11,7 +11,7 @@ const authApi = {
         });
     },
     getCurrentUser: () => httpClient.get('/users/me'),
-    getUsers: () => httpClient.get('/users'),
+    getAllUsers: () => httpClient.get('/users'),
     createUser: (userData) => httpClient.post('/users', userData),
     deleteUser: (username) => httpClient.delete(`/users/${username}`),
     updatePassword: (username, newPassword) => httpClient.put(`/users/${username}/password`, { new_password: newPassword }),

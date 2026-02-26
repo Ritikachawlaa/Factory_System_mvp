@@ -491,11 +491,6 @@ def get_performance_stats():
         "latency": "12ms"
     }
 
-# --- User Management Endpoints ---
-@app.get("/users")
-def get_users():
-    return database.get_all_users()
-
 # --- Violation Endpoints ---
 @app.get("/violations")
 def get_violations():
@@ -664,11 +659,6 @@ def get_ml_initial_state():
     # Also return module configs?
     return {
         "employees": clean_employees
-    }
-def get_performance_stats():
-    return {
-        "accuracy": f"{recognition.latest_accuracy:.2f}%",
-        "latency": f"{recognition.latest_latency:.1f}ms"
     }
 
 # --- Performance Metrics & Health Monitoring ---
