@@ -10,7 +10,8 @@ const AnalyticsRightPanel = () => {
             flexDirection: 'column',
             gap: '1.5rem',
             borderLeft: '1px solid var(--panel-border)',
-            background: 'rgba(5, 11, 20, 0.2)'
+            background: 'rgba(5, 11, 20, 0.2)',
+            overflowY: 'auto'
         }}>
 
             {/* System Uptime & Stability */}

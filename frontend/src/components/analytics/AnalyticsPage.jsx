@@ -11,10 +11,11 @@ const AnalyticsPage = () => {
         <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-dark)' }}>
             <Header />
 
-            <main style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+            <main style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
                 <div style={{
                     flex: 1,
                     display: 'flex',
+                    minHeight: 0,
                     background: 'radial-gradient(circle at center, rgba(30,58,138,0.1) 0%, transparent 70%)'
                 }}>
                     {/* Center Content */}
