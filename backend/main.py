@@ -545,6 +545,10 @@ def get_system_stats():
 def get_face_stats_endpoint():
     return database.get_face_stats()
 
+@app.get("/events/today")
+def get_today_events_endpoint(limit: int = 100):
+    return database.get_today_events(limit)
+
 @app.get("/events")
 def get_events_endpoint(camera_id: int = None, module_key: str = None):
     if camera_id or module_key:

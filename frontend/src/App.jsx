@@ -28,6 +28,7 @@ import TermsOfService from './components/TermsOfService'
 
 import CameraDashboard from './components/camera/CameraDashboard';
 import CameraModuleDetail from './components/camera/CameraModuleDetail';
+import TodayAlertsPage from './components/TodayAlertsPage';
 import ErrorBoundary from './components/common/ErrorBoundary';
 
 // --- Protected Route Wrapper ---
@@ -74,6 +75,7 @@ function AppRoutes() {
       <Route path="/entry-exit" element={<ProtectedRoute><EntryExitCount /></ProtectedRoute>} />
       <Route path="/intrusion-detection" element={<ProtectedRoute><IntrusionDetection /></ProtectedRoute>} />
       <Route path="/attendance" element={<ProtectedRoute><AttendancePage /></ProtectedRoute>} />
+      <Route path="/today-alerts" element={<ProtectedRoute><TodayAlertsPage /></ProtectedRoute>} />
       <Route path="/evidence" element={<ProtectedRoute><EvidencePage /></ProtectedRoute>} />
       <Route path="/loitering-detection" element={<ProtectedRoute><LoiteringDetection /></ProtectedRoute>} />
       <Route path="/line-crossing" element={<ProtectedRoute><LineCrossing /></ProtectedRoute>} />

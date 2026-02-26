@@ -338,6 +338,40 @@ def get_events_filtered(camera_id: int = None, module_key: str = None, limit=50)
     finally:
         conn.close()
 
+def get_today_events(limit=100):
+    conn = get_connection()
+    # Postgres syntax for comparing date of timestamp with current date
+    query = """
+        SELECT e.timestamp, e.label, c.name as camera_name, e.type, e.confidence, e.metadata, e.severity, e.id
+        FROM events e 
+        LEFT JOIN cameras c ON e.camera_id = c.id 
+        WHERE date(e.timestamp) = CURRENT_DATE
+        ORDER BY e.id DESC 
+        LIMIT :lim
+    """
+    params = {"lim": limit}
+    
+    try:
+        rows = conn.execute(text(query), params).fetchall()
+        events = []
+        for r in rows:
+            events.append({
+                "timestamp": str(r[0]),
+                "label": r[1],
+                "camera": r[2],
+                "type": r[3],
+                "confidence": r[4],
+                "metadata": r[5],
+                "severity": r[6],
+                "id": r[7]
+            })
+        return events
+    except Exception as e:
+        print(f"Fetch Today Events Error: {e}")
+        return []
+    finally:
+        conn.close()
+
 def get_face_stats():
     # Helper for dashboard widgets
     conn = get_connection()
