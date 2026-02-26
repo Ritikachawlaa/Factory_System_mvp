@@ -148,8 +148,12 @@ def run_camera_inference(camera, client):
                 pass
             continue
 
+        orig_h, orig_w = frame.shape[:2]
+
         # Resize for performance matching backend logic
         frame = cv2.resize(frame, (320, 240))
+        scale_x = orig_w / 320.0
+        scale_y = orig_h / 240.0
 
         start_time = time.time()
 
@@ -166,8 +170,21 @@ def run_camera_inference(camera, client):
                     if len(result) == 3:
                         _, events, boxes = result
                         if boxes:
+                            scaled_boxes = []
+                            for b in boxes:
+                                scaled_boxes.append({
+                                    "class": b.get("class", "person"),
+                                    "x": int(b["x"] * scale_x),
+                                    "y": int(b["y"] * scale_y),
+                                    "w": int(b["w"] * scale_x),
+                                    "h": int(b["h"] * scale_y),
+                                    "confidence": b.get("confidence", 1.0)
+                                })
                             # Stream live bounding boxes to frontend
-                            client.send_detection_stream(cam_id, boxes)
+                            client.send_detection_stream(cam_id, scaled_boxes)
+                        else:
+                            # Send empty boxes array to clear the UI
+                            client.send_detection_stream(cam_id, [])
                     else:
                         _, events = result
                     

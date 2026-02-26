@@ -274,6 +274,7 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
         };
 
         connectWebRTC();
+        connectWS();
 
         return () => {
             active = false;
