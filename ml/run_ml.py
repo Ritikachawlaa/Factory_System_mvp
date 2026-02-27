@@ -49,6 +49,76 @@ SERVICES = {
     "labour-counting": LabourCountingService()
 }
 
+class SafeCapture:
+    """
+    Background thread to continually 'grab' frames from a cv2.VideoCapture.
+    This prevents the internal OS/OpenCV buffer from accumulating old frames,
+    ensuring we always get the 'Latest' frame when requested.
+    """
+    def __init__(self, src):
+        self.src = src
+        # Determine if source is webcam or stream
+        self.src_val = int(src) if str(src).isdigit() else src
+        
+        self.cap = None
+        self._open_cap()
+        
+        self.frame = None
+        self.running = True
+        self.lock = threading.Lock()
+        self.thread = threading.Thread(target=self._update, daemon=True)
+        self.thread.start()
+        logger.info(f"SafeCapture background thread started for {self.src_val}")
+
+    def _open_cap(self):
+        try:
+            if isinstance(self.src_val, str) and self.src_val.startswith("rtsp://"):
+                os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|analyzeduration;1000000|probesize;1000000|timeout;5000000"
+                self.cap = cv2.VideoCapture(self.src_val, cv2.CAP_FFMPEG)
+            else:
+                self.cap = cv2.VideoCapture(self.src_val)
+        except Exception as e:
+            logger.error(f"SafeCapture: Error opening {self.src_val}: {e}")
+
+    def _update(self):
+        while self.running:
+            if self.cap is None or not self.cap.isOpened():
+                self._open_cap()
+                if self.cap is None or not self.cap.isOpened():
+                    time.sleep(5)
+                    continue
+
+            try:
+                # grab() skips the decoding step for older frames in the buffer
+                if not self.cap.grab():
+                    time.sleep(0.1)
+                    continue
+                
+                # retrieve() gets the latest grabbed frame
+                ret, frame = self.cap.retrieve()
+                if ret:
+                    with self.lock:
+                        self.frame = frame
+                else:
+                    time.sleep(0.1)
+            except Exception as e:
+                logger.debug(f"SafeCapture update loop error: {e}")
+                time.sleep(1)
+
+    def read(self):
+        with self.lock:
+            if self.frame is None:
+                return False, None
+            # Return a copy to avoid thread interference during processing
+            return True, self.frame.copy()
+
+    def release(self):
+        self.running = False
+        if self.thread.is_alive():
+            self.thread.join(timeout=1)
+        if self.cap:
+            self.cap.release()
+
 def run_camera_inference(camera, client):
     """
     Thread function to handle a single camera stream.
@@ -78,25 +148,22 @@ def run_camera_inference(camera, client):
         logger.warning(f"Camera {cam_id}: Invalid source '{source}'. Skipping camera.")
         return
 
-    try:
-        # Check if source is digit (local webcam) or string (RTSP/File)
-        src_val = int(source) if str(source).isdigit() else source
-        
-        if isinstance(src_val, str) and src_val.startswith("rtsp://"):
-            import os
-            os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|analyzeduration;1000000|probesize;1000000|timeout;5000000"
-            cap = cv2.VideoCapture(src_val, cv2.CAP_FFMPEG)
-        else:
-            cap = cv2.VideoCapture(src_val)
-            
-    except Exception as e:
-        logger.error(f"Camera {cam_id}: Exception opening source {source} - {e}")
-        return
+    # Determine src_val for SafeCapture
+    src_val = int(source) if str(source).isdigit() else source
 
-    if not cap.isOpened():
-        logger.warning(f"Camera {cam_id}: Cannot open source {source}. Skipping.")
-        return
+    client = APIClient() # Client instantiated per thread
 
+    sc = None
+    while sc is None or not sc.cap.isOpened():
+        try:
+            sc = SafeCapture(src_val)
+            if not sc.cap.isOpened():
+                logger.warning(f"Camera {cam_id}: Cannot open source {src_val} with SafeCapture. Retrying in 5s...")
+                time.sleep(5)
+        except Exception as e:
+            logger.error(f"Camera {cam_id}: Exception initializing SafeCapture for {src_val} - {e}. Retrying in 5s...")
+            time.sleep(5)
+    
     inference_times = deque(maxlen=100)
     last_metrics_send = time.time()
     last_config_check = 0 # Force immediate initial check
@@ -138,22 +205,13 @@ def run_camera_inference(camera, client):
                 client.send_metrics(cam_id, 0.0) 
                 last_metrics_send = now
             time.sleep(1.0)
-            if cap: cap.grab()
+            # SafeCapture handles frame grabbing in background
             continue
 
-        ret, frame = cap.read()
+        ret, frame = sc.read()
         if not ret:
-            logger.warning(f"Camera {cam_id}: Failed to read frame. Reconnecting in 2s...")
-            cap.release()
-            time.sleep(2)
-            try:
-                if isinstance(src_val, str) and src_val.startswith("rtsp://"):
-                    os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|analyzeduration;1000000|probesize;1000000|timeout;5000000"
-                    cap = cv2.VideoCapture(src_val, cv2.CAP_FFMPEG)
-                else:
-                    cap = cv2.VideoCapture(src_val)
-            except:
-                pass
+            # If no frame yet, just wait a bit. SafeCapture handles reconnects.
+            time.sleep(0.1)
             continue
 
         orig_h, orig_w = frame.shape[:2]

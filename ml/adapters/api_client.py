@@ -29,14 +29,25 @@ class APIClient:
         """Persistent worker to send detection frames without spawning threads."""
         while self._streaming_active:
             try:
-                # Get the latest payload, skip if queue backed up
+                # 1. Wait for at least one item
                 payload = self._stream_queue.get(timeout=1.0)
+                
+                # 2. Optimization: Drain the queue to only send the LATEST frame
+                # This prevents "box lag" if the network or backend is momentarily slow
+                while not self._stream_queue.empty():
+                    try:
+                        payload = self._stream_queue.get_nowait()
+                        self._stream_queue.task_done()
+                    except Empty:
+                        break
+                
                 try:
-                    res = self.session.post(f"{self.base_url}/api/detections/stream", json=payload, timeout=2.0)
+                    res = self.session.post(f"{self.base_url}/api/detections/stream", json=payload, timeout=1.5)
                     if not res.ok:
                         logger.warning(f"Stream POST failed: {res.status_code}")
                 except Exception as e:
                     logger.debug(f"Stream worker transient error: {e}")
+                
                 self._stream_queue.task_done()
             except Empty:
                 continue
