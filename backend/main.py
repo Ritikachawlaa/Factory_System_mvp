@@ -1,4 +1,18 @@
 # test deploy 
+import io
+import os
+import shutil
+import asyncio
+import logging
+import time
+import random
+import urllib.parse
+from typing import Optional, List, Dict
+from datetime import datetime, timedelta
+
+import requests
+import httpx
+import psutil
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Depends, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,25 +21,49 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from passlib.context import CryptContext
 from jose import JWTError, jwt
-from datetime import datetime, timedelta
-from typing import Optional, List
-import io
-import os
-import shutil
-import asyncio
-import requests
+from starlette.requests import Request
+
 import database
 import recognition
+try:
+    from services.inference_adapter import InferenceAdapter # ML Interface
+except ImportError:
+    # Fallback for environments without the services module
+    class InferenceAdapter:
+        @staticmethod
+        def start_module(*args, **kwargs): pass
+        @staticmethod
+        def stop_module(*args, **kwargs): pass
+        @staticmethod
+        def process_frame(*args, **kwargs): pass
 
-# --- Auth Config ---
-SECRET_KEY = "supersecretkey" # In production, use environment variable
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 300
+# --- Global Configuration ---
+SECRET_KEY = os.getenv("SECRET_KEY", "supersecretkey")
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 300))
+MEDIAMTX_API_URL = os.getenv("MEDIAMTX_API_URL", "https://stream.camai.in")
 
+# --- Auth Configuration ---
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
+# --- Logging & Observability ---
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    filename='access.log'
+)
+logger = logging.getLogger("api")
+
 app = FastAPI()
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = (time.time() - start_time) * 1000
+    logger.info(f"Method={request.method} Path={request.url.path} Status={response.status_code} Duration={process_time:.2f}ms")
+    return response
 
 app.add_middleware(
     CORSMiddleware,
@@ -39,6 +77,74 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- WebSocket & Connection Managers ---
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: dict):
+        import json
+        dead_connections = []
+        for connection in self.active_connections:
+            try:
+                await connection.send_text(json.dumps(message))
+            except Exception:
+                dead_connections.append(connection)
+                
+        for dead in dead_connections:
+            self.disconnect(dead)
+
+class DetectionConnectionManager:
+    def __init__(self):
+        # camera_id -> {username: WebSocket}
+        self.connections: Dict[int, Dict[str, WebSocket]] = {}
+
+    async def connect(self, websocket: WebSocket, username: str, camera_id: int) -> bool:
+        if camera_id not in self.connections:
+            self.connections[camera_id] = {}
+            
+        if username in self.connections[camera_id]:
+            old_ws = self.connections[camera_id][username]
+            try:
+                await old_ws.close(code=1000, reason="Replaced by new connection")
+            except:
+                pass
+            
+        await websocket.accept()
+        self.connections[camera_id][username] = websocket
+        return True
+
+    def disconnect(self, username: str, camera_id: int):
+        if camera_id in self.connections and username in self.connections[camera_id]:
+            del self.connections[camera_id][username]
+
+    async def broadcast(self, message: dict):
+        import json
+        camera_id = message.get("camera_id")
+        if not camera_id or camera_id not in self.connections:
+            return
+            
+        dead_users = []
+        for username, connection in self.connections[camera_id].items():
+            try:
+                await connection.send_text(json.dumps(message))
+            except Exception:
+                dead_users.append(username)
+                
+        for dead in dead_users:
+            self.disconnect(dead, camera_id)
+
+manager = ConnectionManager()
+detection_manager = DetectionConnectionManager()
 
 
 # --- System Settings Routes (Top Level for Resilience) ---
@@ -69,38 +175,12 @@ async def update_system_setting_endpoint(key: str, setting: SystemSettingUpdate,
         raise HTTPException(status_code=500, detail="Failed to update setting")
     return {"message": f"Setting {key} updated successfully"}
 
-# --- Phase 12: Observability ---
-import logging
-import time
-from starlette.requests import Request
-
-# Configure Logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    filename='access.log'
-)
-logger = logging.getLogger("api")
-
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-    start_time = time.time()
-    response = await call_next(request)
-    process_time = (time.time() - start_time) * 1000
-    
-    logger.info(
-        f"Method={request.method} Path={request.url.path} "
-        f"Status={response.status_code} Duration={process_time:.2f}ms"
-    )
-    return response
-
 # Mount Visitors directory
 VISITORS_DIR = os.path.join(os.path.dirname(__file__), "visitors")
 if not os.path.exists(VISITORS_DIR):
     os.makedirs(VISITORS_DIR)
 app.mount("/visitors", StaticFiles(directory=VISITORS_DIR), name="visitors")
 
-# --- Models ---
 # --- Models ---
 class UserCreate(BaseModel):
     username: str
@@ -711,11 +791,6 @@ def get_ml_initial_state():
     }
 
 # --- Performance Metrics & Health Monitoring ---
-import psutil
-import httpx
-
-# MediaMTX API URL for health checks (defaults to stream.camai.in)
-MEDIAMTX_API_URL = os.getenv("MEDIAMTX_API_URL", "https://stream.camai.in")
 
 # In-Memory Metric Caches
 ml_metrics = {} # {camera_id: {"inference_avg_ms": 0, "last_update": 0}}
@@ -824,149 +899,6 @@ async def get_system_health(camera_id: int = 1):
         "last_detection_timestamp": last_det 
     }
 
-# --- WebSocket Streaming ---
-from fastapi import WebSocket, WebSocketDisconnect, Query
-import time
-
-# Rate Limiter for WebRTC Signaling
-webrtc_rate_limits = {}
-RATE_LIMIT_SECONDS = 1.0
-
-def check_rate_limit(username: str):
-    now = time.time()
-    last_req = webrtc_rate_limits.get(username, 0)
-    if now - last_req < RATE_LIMIT_SECONDS:
-        logger.warning(f"Rate limit exceeded for user: {username}")
-        raise HTTPException(status_code=429, detail="Too many WebRTC requests")
-    webrtc_rate_limits[username] = now
-
-# --- WebSocket Signaling ---
-from typing import List, Dict
-
-class ConnectionManager:
-    def __init__(self):
-        self.active_connections: List[WebSocket] = []
-
-    async def connect(self, websocket: WebSocket):
-        await websocket.accept()
-        self.active_connections.append(websocket)
-
-    def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
-
-    async def broadcast(self, message: dict):
-        import json
-        dead_connections = []
-        for connection in self.active_connections:
-            try:
-                await connection.send_text(json.dumps(message))
-            except Exception:
-                dead_connections.append(connection)
-                
-        for dead in dead_connections:
-            self.disconnect(dead)
-
-class DetectionConnectionManager:
-    def __init__(self):
-        # camera_id -> {username: WebSocket}
-        self.connections: Dict[int, Dict[str, WebSocket]] = {}
-
-    async def connect(self, websocket: WebSocket, username: str, camera_id: int) -> bool:
-        if camera_id not in self.connections:
-            self.connections[camera_id] = {}
-            
-        if username in self.connections[camera_id]:
-            # Replace stale connection instead of rejecting the new one
-            old_ws = self.connections[camera_id][username]
-            logger.info(f"WS Replacing stale connection for User '{username}' Camera {camera_id}")
-            try:
-                await old_ws.close(code=1000, reason="Replaced by new connection")
-            except Exception:
-                pass  # Old connection may already be dead
-            
-        await websocket.accept()
-        self.connections[camera_id][username] = websocket
-        return True
-
-    def disconnect(self, username: str, camera_id: int):
-        if camera_id in self.connections and username in self.connections[camera_id]:
-            del self.connections[camera_id][username]
-
-    async def broadcast(self, message: dict):
-        import json
-        camera_id = message.get("camera_id")
-        if not camera_id or camera_id not in self.connections:
-            return
-            
-        dead_users = []
-        for username, connection in self.connections[camera_id].items():
-            try:
-                await connection.send_text(json.dumps(message))
-            except Exception:
-                dead_users.append(username)
-                
-        for dead in dead_users:
-            self.disconnect(dead, camera_id)
-
-manager = ConnectionManager()
-detection_manager = DetectionConnectionManager()  # Secure manager for detection stream
-
-@app.websocket("/ws/events")
-async def websocket_events(websocket: WebSocket):
-    await manager.connect(websocket)
-    try:
-        while True:
-            # Keep alive / listen for client messages (e.g. subscribes)
-            data = await websocket.receive_text()
-    except WebSocketDisconnect:
-        manager.disconnect(websocket)
-
-@app.websocket("/ws/detections")
-async def websocket_detections(websocket: WebSocket, camera_id: int = 1, token: str = Query(None)):
-    """
-    WebSocket endpoint for realtime detection overlays.
-    Enforces JWT validation, Role Auth, Connection Limits.
-    """
-    if not token:
-        logger.warning("WS connection rejected: Missing token")
-        await websocket.close(code=1008, reason="Missing token")
-        return
-
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        role: str = payload.get("role", "viewer")
-        if username is None:
-            raise JWTError()
-    except JWTError:
-        logger.warning("WS connection rejected: Invalid token")
-        await websocket.close(code=1008, reason="Invalid token")
-        return
-
-    if role not in ["admin", "superadmin"]:
-        logger.warning(f"WS connection rejected: Unauthorized role '{role}' for user '{username}'")
-        await websocket.close(code=1008, reason="Unauthorized role for camera access")
-        return
-
-    accepted = await detection_manager.connect(websocket, username, camera_id)
-    if not accepted:
-        return
-
-    logger.info(f"WS Client '{username}' connected to detection stream for camera {camera_id}")
-    try:
-        while True:
-            # Keep connection alive / Ping Pong
-            await websocket.receive_text()
-    except WebSocketDisconnect:
-        logger.info(f"WS Client '{username}' disconnected from detection stream for camera {camera_id}")
-        detection_manager.disconnect(username, camera_id)
-    except Exception as e:
-        logger.warning(f"WS Client '{username}' connection error for camera {camera_id}: {e}")
-        detection_manager.disconnect(username, camera_id)
-
-class DetectionStreamPayload(BaseModel):
-    camera_id: int
-    detections: List[dict]
 
 @app.post("/api/detections/stream")
 async def broadcast_detection_stream(payload: DetectionStreamPayload):
@@ -1080,28 +1012,8 @@ def update_module_status_endpoint(camera_id: int, module_key: str, update: Modul
     return {"status": "success", "module": module_key, "new_status": new_status}
 
 
-# --- System Settings ---
 
-@app.get("/settings/{key}")
-async def get_system_setting(key: str, current_user = Depends(get_current_user)):
-    # Use defaults if not found to avoid 404 breaking frontend
-    defaults = {
-        "critical_modules": '["ppe-compliance", "intrusion-detection"]'
-    }
-    value = database.get_system_setting(key, default=defaults.get(key))
-    return {"key": key, "value": value}
-
-@app.post("/settings/{key}")
-async def update_system_setting(key: str, setting: SystemSettingUpdate, current_user = Depends(get_current_user)):
-    # current_user is a tuple (username, hash, role)
-    if current_user[2] != "superadmin":
-        raise HTTPException(status_code=403, detail="Only superadmins can change system settings")
-        
-    success = database.update_system_setting(key, setting.value)
-    if not success:
-        raise HTTPException(status_code=500, detail="Failed to update setting")
-    return {"message": f"Setting {key} updated successfully"}
-
+# --- Final Startup ---
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
