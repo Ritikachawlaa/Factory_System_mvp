@@ -157,10 +157,10 @@ def run_camera_inference(camera, client):
         orig_h, orig_w = frame.shape[:2]
 
         # Resize for performance matching backend logic
-        # Increasing resolution from 320x240 to 640x480 for much better accuracy
-        frame = cv2.resize(frame, (640, 480))
+        # Pro Integration: Standardizing on 640x640 for maximum accuracy
+        frame = cv2.resize(frame, (640, 640))
         scale_x = orig_w / 640.0
-        scale_y = orig_h / 480.0
+        scale_y = orig_h / 640.0
 
         start_time = time.time()
         last_boxes_count = getattr(run_camera_inference, f"last_boxes_{cam_id}", 0)
