@@ -10,6 +10,7 @@ import LoiteringDetectionPanel from '../components/panels/LoiteringDetectionPane
 import IntrusionDetectionPanel from '../components/panels/IntrusionDetectionPanel';
 import HeatMapPanel from '../components/panels/HeatMapPanel';
 import FallDetectionPanel from '../components/panels/FallDetectionPanel';
+import HumanDetectionPanel from '../components/panels/HumanDetectionPanel';
 
 // Single source of truth for AI Modules
 export const MODULE_REGISTRY = {
@@ -119,7 +120,7 @@ export const MODULE_REGISTRY = {
         key: 'human-detection',
         label: 'Human Detection',
         icon: '🧍',
-        panelComponent: null,
+        panelComponent: HumanDetectionPanel,
         description: 'Detect and track human presence in camera feeds.',
         supportsAlerts: true,
         supportsStats: true

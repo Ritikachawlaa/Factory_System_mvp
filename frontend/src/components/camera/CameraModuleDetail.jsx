@@ -5,6 +5,8 @@ import Footer from '../Footer';
 import Sidebar from '../Sidebar';
 import VideoFeed from '../VideoFeed';
 import API_BASE_URL from '../../config';
+import HumanDetectionTrend from './modules/HumanDetectionTrend';
+import modulesApi from '../../api/modules.api';
 
 
 // Import Panels (we will create these next)
@@ -173,9 +175,13 @@ const CameraModuleDetail = () => {
                         <div className="glass-panel" style={{ padding: '1.5rem' }}>
                             <h3 style={{ color: '#fff' }}>Analytics & Trends</h3>
                             <p style={{ color: 'var(--text-secondary)' }}>Historical data for {config.label} on this camera.</p>
-                            <div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed var(--panel-border)', borderRadius: '8px', marginTop: '1rem' }}>
-                                <span style={{ color: 'var(--text-secondary)' }}>Chart Placeholder - {config.label} Trends</span>
-                            </div>
+                            {moduleType === 'human-detection' ? (
+                                <HumanDetectionTrend cameraId={cameraId} />
+                            ) : (
+                                <div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed var(--panel-border)', borderRadius: '8px', marginTop: '1rem' }}>
+                                    <span style={{ color: 'var(--text-secondary)' }}>Chart Placeholder - {config.label} Trends</span>
+                                </div>
+                            )}
                         </div>
                     </div>
 
