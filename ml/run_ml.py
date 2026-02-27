@@ -99,53 +99,55 @@ def run_camera_inference(camera, client):
 
     inference_times = deque(maxlen=100)
     last_metrics_send = time.time()
-    last_config_check = time.time()
-    last_heartbeat = time.time()
+    last_config_check = 0 # Force immediate initial check
+    last_heartbeat_send = 0
+    engine_start_time = time.time()
 
     while True:
         now = time.time()
         
-        # Diagnostic Heartbeat: Print every 30s to show engine is Alive
-        if now - last_heartbeat >= 30.0:
-            logger.info(f"--- ML ENGINE HEARTBEAT: Camera {cam_id} Active ---")
-            last_heartbeat = now
-        
-        # Periodic DB sync: allow UI toggles to resume inference without restarting thread
+        # 1. Periodic DB sync: allow UI toggles to resume inference without restarting thread
         if now - last_config_check >= 5.0:
             try:
                 cams = client.get_cameras()
                 for c in cams:
                     if c['id'] == cam_id:
-                        active_keys = [m['key'] for m in c.get('modules', []) if m['status'] == 'active']
+                        # Be flexible with status: 'active' or 'running' or 'enabled'
+                        active_keys = [
+                            m['key'] for m in c.get('modules', []) 
+                            if m.get('status', '').lower() in ['active', 'running'] or m.get('enabled', False)
+                        ]
                         break
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Config sync failed for camera {cam_id}: {e}")
             last_config_check = now
 
+        # 2. Module Heartbeats: Tell backend/dashboard we are alive even if nothing detected
+        if now - last_heartbeat_send >= 10.0:
+            for key in active_keys:
+                client.send_heartbeat(cam_id, key, "running")
+            # Also log for console debugging
+            if active_keys:
+                logger.info(f"--- HEARTBEAT: Camera {cam_id} active modules: {active_keys} ---")
+            else:
+                logger.info(f"--- HEARTBEAT: Camera {cam_id} has NO active modules ---")
+            last_heartbeat_send = now
+
         if not active_keys:
-            logger.info(f"ML Idle: No active models for Camera {cam_id}.")
             if now - last_metrics_send >= 5.0:
-                client.send_metrics(cam_id, 0.0) # Zero out frontend average
+                client.send_metrics(cam_id, 0.0) 
                 last_metrics_send = now
-            time.sleep(0.5)
-            # Rapidly drop frames via grab() to prevent RTSP backend buffer bloat
-            if cap:
-                cap.grab()
+            time.sleep(1.0)
+            if cap: cap.grab()
             continue
 
         ret, frame = cap.read()
         if not ret:
-            logger.warning(f"Camera {cam_id}: Failed to read frame. Retrying...")
-            time.sleep(1)
-            # Re-try opening? Or just continue loop? 
-            # If stream broke, we might need to release and re-open.
-            # Simple retry logic:
-            logger.warning(f"Camera {cam_id}: Failed to read frame from {src_val}. Retrying in 2s...")
+            logger.warning(f"Camera {cam_id}: Failed to read frame. Reconnecting in 2s...")
             cap.release()
             time.sleep(2)
             try:
                 if isinstance(src_val, str) and src_val.startswith("rtsp://"):
-                    import os
                     os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|analyzeduration;1000000|probesize;1000000|timeout;5000000"
                     cap = cv2.VideoCapture(src_val, cv2.CAP_FFMPEG)
                 else:
@@ -155,72 +157,73 @@ def run_camera_inference(camera, client):
             continue
 
         orig_h, orig_w = frame.shape[:2]
-
-        # Resize for performance matching backend logic
-        # Pro Integration: Standardizing on 640x640 for maximum accuracy
-        frame = cv2.resize(frame, (640, 640))
+        # Standardizing on 640x640 for Pro Accuracy
+        frame_resized = cv2.resize(frame, (640, 640))
         scale_x = orig_w / 640.0
         scale_y = orig_h / 640.0
 
         start_time = time.time()
-        last_boxes_count = getattr(run_camera_inference, f"last_boxes_{cam_id}", 0)
+        
+        aggregated_boxes = []
+        any_module_had_boxes = False
 
         for key in active_keys:
             service = SERVICES.get(key)
             if service:
-                # Add a debug print every 100 frames to avoid log spam
-                if hasattr(service, 'last_count') and int(time.time() * 10) % 50 == 0:
-                     logger.debug(f"Camera {cam_id}: Processing frame for {key}")
                 try:
                     # Run Inference
-                    result = service.process_frame(frame, camera_id=cam_id)
+                    result = service.process_frame(frame_resized, camera_id=cam_id)
                     
                     if len(result) == 3:
                         _, events, boxes = result
                         if boxes:
-                            scaled_boxes = []
+                            any_module_had_boxes = True
                             for b in boxes:
-                                scaled_boxes.append({
-                                    "class": b.get("class", "person"),
+                                aggregated_boxes.append({
+                                    "class": b.get("class", "object"),
                                     "x": int(b["x"] * scale_x),
                                     "y": int(b["y"] * scale_y),
                                     "w": int(b["w"] * scale_x),
                                     "h": int(b["h"] * scale_y),
                                     "confidence": b.get("confidence", 1.0)
                                 })
-                            # Stream live bounding boxes to frontend
-                            client.send_detection_stream(cam_id, scaled_boxes)
-                            # Update persist state on service instance instead of thread attribute
-                            service.last_boxes_found = True
-                        else:
-                            # Send empty boxes array to clear the UI ONCE
-                            if getattr(service, 'last_boxes_found', False):
-                                client.send_detection_stream(cam_id, [])
-                                service.last_boxes_found = False
+                        
+                        # Set individual service state for local tracking if needed
+                        service.last_boxes_found = len(boxes) > 0
                     else:
                         _, events = result
                     
                     if events:
                         for event in events:
-                            logger.info(f"Camera {cam_id} [{key}]: Event {event['label']}")
                             client.send_detection(event)
                 except Exception as e:
                     logger.error(f"Camera {cam_id}: Error running {key}: {e}")
+
+        # Live Streaming logic - AGGREGATED
+        # We send MUST send something if EITHER:
+        # A) We have boxes now
+        # B) We HAD boxes last frame and now have none (to clear UI)
+        last_frame_had_any_boxes = getattr(run_camera_inference, f"last_any_boxes_{cam_id}", False)
+        
+        if aggregated_boxes:
+            client.send_detection_stream(cam_id, aggregated_boxes)
+            setattr(run_camera_inference, f"last_any_boxes_{cam_id}", True)
+        elif last_frame_had_any_boxes:
+            # Clear UI exactly once
+            client.send_detection_stream(cam_id, [])
+            setattr(run_camera_inference, f"last_any_boxes_{cam_id}", False)
 
         # Metrics Tracking
         inference_time_ms = (time.time() - start_time) * 1000
         inference_times.append(inference_time_ms)
         
-        now = time.time()
         if now - last_metrics_send >= 5.0 and len(inference_times) > 0:
             avg_ms = sum(inference_times) / len(inference_times)
             client.send_metrics(cam_id, avg_ms)
             last_metrics_send = now
         
-        setattr(run_camera_inference, f"last_boxes_{cam_id}", last_boxes_count)
-
         # Basic throttle
-        time.sleep(0.03) # ~30 FPS max
+        time.sleep(0.01) # Faster loop for better real-time feel
 
 def main():
     logger.info("Starting ML Service...")

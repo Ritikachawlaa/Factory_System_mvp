@@ -12,12 +12,28 @@ logger = logging.getLogger("face_detection")
 
 class FaceDetectionService:
     def __init__(self):
-        self.detector = FaceDetector()
+        self.detector = None
+        self.model_loaded = False
         self.last_count = 0
         self.last_log_time = 0
         self.LOG_INTERVAL = 5
+        self.last_boxes_found = False
+
+    def _load(self):
+        if not self.model_loaded:
+            logger.info("Loading YOLO-Face model...")
+            try:
+                self.detector = FaceDetector(conf=0.4)
+                self.model_loaded = True
+                logger.info("YOLO-Face model loaded.")
+            except Exception as e:
+                logger.error(f"YOLO-Face load failed: {e}")
 
     def process_frame(self, frame, camera_id=0):
+        self._load()
+        if self.detector is None:
+            return frame, [], []
+            
         # detection: (x, y, w, h, conf)
         faces = self.detector.detect(frame)
         count = len(faces)

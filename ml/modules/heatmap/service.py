@@ -50,4 +50,4 @@ class HeatmapService:
                 "x": int(x1), "y": int(y1), "w": int(x2 - x1), "h": int(y2 - y1), "confidence": 1.0
             })
             
-        return overlay, [], bounding_boxes
+        return heatmap_img, [], bounding_boxes
