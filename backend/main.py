@@ -351,12 +351,25 @@ async def get_system_setting(key: str, current_user = Depends(get_current_user_d
 
 @app.post("/settings/{key}")
 async def update_system_setting_endpoint(key: str, setting: SystemSettingUpdate, current_user = Depends(get_current_user)):
-    if current_user[2] != "superadmin":
+    try:
+        username, _, role = current_user
+    except Exception as e:
+        logger.error(f"Settings POST: Failed to unpack current_user: {current_user}, error: {e}")
+        raise HTTPException(status_code=500, detail=f"Auth error: {e}")
+    
+    if role != "superadmin":
         raise HTTPException(status_code=403, detail="Only superadmins can change system settings")
-    success = database.update_system_setting(key, setting.value)
-    if not success:
-        raise HTTPException(status_code=500, detail="Failed to update setting")
-    return {"message": f"Setting {key} updated successfully"}
+    
+    try:
+        success = database.update_system_setting(key, setting.value)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to update setting")
+        return {"message": f"Setting {key} updated successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Settings POST: Failed to update {key}: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {e}")
 
 @app.post("/users", response_model=dict)
 async def create_new_user(user: UserCreate, current_user = Depends(get_current_user)):
