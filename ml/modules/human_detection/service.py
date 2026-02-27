@@ -41,11 +41,18 @@ class HumanDetectionService:
 
         boxes = []
         # Draw boxes
-        for (x1, y1, x2, y2, conf) in detections:
+        for i, (x1, y1, x2, y2, conf) in enumerate(detections):
+            # Use a slightly different color or thickness if needed, but keeping green for consistency
             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            cv2.putText(frame, f"Human {conf:.0%}", (x1, y1 - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+            # Label with ID and confidence
+            label = f"P{i+1}: {conf:.0%}"
+            (w, h), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+            cv2.rectangle(frame, (x1, y1 - 20), (x1 + w, y1), (0, 255, 0), -1)
+            cv2.putText(frame, label, (x1, y1 - 5),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
+            
             boxes.append({
+                "id": i + 1,
                 "class": "person",
                 "x": int(x1),
                 "y": int(y1),
@@ -54,12 +61,13 @@ class HumanDetectionService:
                 "confidence": float(conf)
             })
 
-        cv2.putText(frame, f"Humans: {count}", (20, 40),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+        cv2.putText(frame, f"Total Humans: {count}", (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
 
         # Event logic
         now = time.time()
-        changed = abs(count - self.last_count) >= 1
+        # Log if count changed or interval passed
+        changed = count != self.last_count
         timed = now - self.last_log_time > self.LOG_INTERVAL
 
         if count > 0 and (changed or timed):
@@ -69,9 +77,21 @@ class HumanDetectionService:
                 "label": "Human Detected",
                 "confidence": max((d[4] for d in detections), default=0),
                 "timestamp": now,
-                "meta": f"Count: {count}"
+                "meta": f"Count: {count}" # This will be stored in metadata column
             })
             self.last_count = count
+            self.last_log_time = now
+        elif count == 0 and self.last_count > 0:
+            # Explicitly log when 0 humans are detected to mark the end of a presence period
+            events.append({
+                "camera_id": camera_id,
+                "module_key": "human_detection",
+                "label": "No Humans",
+                "confidence": 0.0,
+                "timestamp": now,
+                "meta": "Count: 0"
+            })
+            self.last_count = 0
             self.last_log_time = now
 
         return frame, events, boxes

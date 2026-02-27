@@ -710,3 +710,141 @@ def update_system_setting(key: str, value: str):
     data = _load_file_settings()
     data[key] = value
     return _save_file_settings(data)
+
+# --- Human Detection Analytics ---
+
+def get_human_analytics(camera_id: int):
+    conn = get_connection()
+    try:
+        # 1. Total Detections (Today)
+        stmt_total = text("""
+            SELECT SUM(CAST(substring(metadata from 'Count: ([0-9]+)') AS INTEGER))
+            FROM events 
+            WHERE camera_id = :cid 
+              AND module_key = 'human_detection' 
+              AND date(timestamp) = CURRENT_DATE
+              AND label = 'Human Detected'
+        """)
+        total_row = conn.execute(stmt_total, {"cid": camera_id}).fetchone()
+        total_humans = total_row[0] if total_row and total_row[0] else 0
+
+        # 2. Total Events (Today)
+        stmt_events = text("""
+            SELECT COUNT(*) 
+            FROM events 
+            WHERE camera_id = :cid 
+              AND module_key = 'human_detection' 
+              AND date(timestamp) = CURRENT_DATE
+              AND label = 'Human Detected'
+        """)
+        events_row = conn.execute(stmt_events, {"cid": camera_id}).fetchone()
+        total_events = events_row[0] if events_row else 0
+
+        # 3. Peak Detection Hour (Today)
+        stmt_peak = text("""
+            SELECT extract(hour from timestamp) as hr, COUNT(*) as cnt
+            FROM events
+            WHERE camera_id = :cid 
+              AND module_key = 'human_detection'
+              AND date(timestamp) = CURRENT_DATE
+              AND label = 'Human Detected'
+            GROUP BY hr
+            ORDER BY cnt DESC
+            LIMIT 1
+        """)
+        peak_row = conn.execute(stmt_peak, {"cid": camera_id}).fetchone()
+        peak_hour = int(peak_row[0]) if peak_row else None
+
+        # 4. Average Presence Duration (Today)
+        # Logic: Find 'Human Detected' vs 'No Humans' pairs or use 5s chunks
+        # Simple approximation: Events * 5s (LOG_INTERVAL) / 60
+        avg_duration = round((total_events * 5) / 60, 1) if total_events > 0 else 0
+
+        return {
+            "total_humans": total_humans,
+            "total_events": total_events,
+            "peak_hour": peak_hour,
+            "avg_duration": avg_duration
+        }
+    finally:
+        conn.close()
+
+def get_human_trend(camera_id: int):
+    conn = get_connection()
+    try:
+        # Hourly Trend (Today vs Yesterday)
+        # Today
+        stmt_today = text("""
+            SELECT extract(hour from timestamp) as hr, COUNT(*)
+            FROM events
+            WHERE camera_id = :cid 
+              AND module_key = 'human_detection' 
+              AND date(timestamp) = CURRENT_DATE
+              AND label = 'Human Detected'
+            GROUP BY hr ORDER BY hr
+        """)
+        today_rows = conn.execute(stmt_today, {"cid": camera_id}).fetchall()
+        
+        # Yesterday
+        stmt_yest = text("""
+            SELECT extract(hour from timestamp) as hr, COUNT(*)
+            FROM events
+            WHERE camera_id = :cid 
+              AND module_key = 'human_detection' 
+              AND date(timestamp) = CURRENT_DATE - 1
+              AND label = 'Human Detected'
+            GROUP BY hr ORDER BY hr
+        """)
+        yest_rows = conn.execute(stmt_yest, {"cid": camera_id}).fetchall()
+
+        # Map to 24-hour array
+        today_data = [0] * 24
+        for hr, count in today_rows:
+            today_data[int(hr)] = count
+            
+        yest_data = [0] * 24
+        for hr, count in yest_rows:
+            yest_data[int(hr)] = count
+
+        return {
+            "labels": [f"{h:02}:00" for h in range(24)],
+            "today": today_data,
+            "yesterday": yest_data
+        }
+    finally:
+        conn.close()
+
+def get_human_timeline(camera_id: int, limit=50):
+    conn = get_connection()
+    try:
+        stmt = text("""
+            SELECT timestamp, label, confidence, metadata
+            FROM events
+            WHERE camera_id = :cid 
+              AND module_key = 'human_detection'
+            ORDER BY id DESC
+            LIMIT :lim
+        """)
+        rows = conn.execute(stmt, {"cid": camera_id, "lim": limit}).fetchall()
+        
+        timeline = []
+        for r in rows:
+            # Format: 09:12 - 1 human, 95% confidence
+            ts = r[0]
+            if hasattr(ts, 'strftime'):
+                time_str = ts.strftime("%H:%M")
+            else:
+                time_str = str(ts)
+                
+            count_match = r[3] if r[3] else "Count: 0"
+            count = count_match.replace("Count: ", "")
+            
+            timeline.append({
+                "time": time_str,
+                "label": f"{count} humans" if int(count) > 1 else f"{count} human",
+                "confidence": f"{r[2]*100:.0f}%",
+                "raw_timestamp": str(ts)
+            })
+        return timeline
+    finally:
+        conn.close()

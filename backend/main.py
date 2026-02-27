@@ -1129,3 +1129,20 @@ def update_module_status_endpoint(camera_id: int, module_key: str, update: Modul
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+# --- Human Detection Analytics Endpoints ---
+
+@app.get("/api/cameras/{camera_id}/human-stats")
+async def get_human_stats(camera_id: int, current_user = Depends(get_current_user_debug_optional)):
+    stats = database.get_human_analytics(camera_id)
+    return stats
+
+@app.get("/api/cameras/{camera_id}/human-trend")
+async def get_human_trend(camera_id: int, current_user = Depends(get_current_user_debug_optional)):
+    trend = database.get_human_trend(camera_id)
+    return trend
+
+@app.get("/api/cameras/{camera_id}/human-timeline")
+async def get_human_timeline(camera_id: int, limit: int = 50, current_user = Depends(get_current_user_debug_optional)):
+    timeline = database.get_human_timeline(camera_id, limit)
+    return timeline
