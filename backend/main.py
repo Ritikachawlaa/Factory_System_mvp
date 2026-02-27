@@ -248,6 +248,7 @@ class EmployeeUpdate(BaseModel):
 class ModuleConfig(BaseModel):
     enabled: bool
     status: str
+    config: Optional[dict] = {}
 
 class EvidenceCreate(BaseModel):
     camera_id: int
@@ -689,10 +690,13 @@ def add_camera_module(cam_id: int, module_key: str, module: ModuleConfig):
     return {"message": f"Module {module_key} added/updated"}
 
 @app.patch("/cameras/{cam_id}/modules/{module_key}")
-async def update_module_state(cam_id: int, module_key: str, config: ModuleConfig):
+async def update_module_state(cam_id: int, module_key: str, update: ModuleConfig):
     import json
-    config_str = json.dumps(config.config) if config.config else "{}"
-    database.update_module_status(cam_id, module_key, config.status, config_str)
+    # Use the status from the request, fallback to existing logic if needed
+    new_status = update.status if update.status else ('active' if update.enabled else 'paused')
+    config_str = json.dumps(update.config) if update.config else "{}"
+    
+    database.update_module_status(cam_id, module_key, new_status, config_str)
     
     # Broadcast Event via WS
     await manager.broadcast({
@@ -700,12 +704,12 @@ async def update_module_state(cam_id: int, module_key: str, config: ModuleConfig
         "data": {
             "cameraId": cam_id,
             "moduleKey": module_key,
-            "status": config.status,
+            "status": new_status,
             "timestamp": datetime.now().isoformat()
         }
     })
     
-    return {"message": f"Module {module_key} updated", "status": config.status}
+    return {"message": f"Module {module_key} updated", "status": new_status, "config": update.config}
 
 # --- Evidence Management ---
 
@@ -1104,24 +1108,7 @@ async def post_webrtc_candidate(candidate: WebRTCCandidate, current_user = Depen
         return {"status": "ignored"}
 
 # --- Module Management ---
-class ModuleUpdate(BaseModel):
-    enabled: bool
-    status: Optional[str] = None
-    config: Optional[dict] = None
-
-@app.patch("/cameras/{camera_id}/modules/{module_key}")
-def update_module_status_endpoint(camera_id: int, module_key: str, update: ModuleUpdate):
-    # Check if camera exists
-    cam = database.get_camera_by_id(camera_id)
-    if not cam:
-        raise HTTPException(status_code=404, detail="Camera not found")
-        
-    new_status = 'active' if update.enabled else 'paused'
-    
-    # Update DB
-    database.update_module_status(camera_id, module_key, new_status)
-    
-    return {"status": "success", "module": module_key, "new_status": new_status}
+# Duplicate Endpoint Removed
 
 
 

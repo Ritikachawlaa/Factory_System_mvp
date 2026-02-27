@@ -73,7 +73,7 @@ class HumanDetectionService:
         if count > 0 and (changed or timed):
             events.append({
                 "camera_id": camera_id,
-                "module_key": "human_detection",
+                "module_key": "human-detection",
                 "label": "Human Detected",
                 "confidence": max((d[4] for d in detections), default=0),
                 "timestamp": now,
@@ -85,7 +85,7 @@ class HumanDetectionService:
             # Explicitly log when 0 humans are detected to mark the end of a presence period
             events.append({
                 "camera_id": camera_id,
-                "module_key": "human_detection",
+                "module_key": "human-detection",
                 "label": "No Humans",
                 "confidence": 0.0,
                 "timestamp": now,

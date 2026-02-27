@@ -1,7 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import API_BASE_URL from '../../../config';
+import httpClient from '../../../api/httpClient';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
@@ -15,11 +13,11 @@ const HumanDetectionTrend = ({ cameraId }) => {
         const fetchAnalytics = async () => {
             try {
                 const [statsRes, trendRes] = await Promise.all([
-                    axios.get(`${API_BASE_URL}/api/cameras/${cameraId}/human-stats`),
-                    axios.get(`${API_BASE_URL}/api/cameras/${cameraId}/human-trend`)
+                    httpClient.get(`/api/cameras/${cameraId}/human-stats`),
+                    httpClient.get(`/api/cameras/${cameraId}/human-trend`)
                 ]);
-                setStats(statsRes.data);
-                setTrend(trendRes.data);
+                setStats(statsRes);
+                setTrend(trendRes);
             } catch (err) {
                 console.error("Error fetching human analytics trend:", err);
             } finally {

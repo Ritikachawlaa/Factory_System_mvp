@@ -721,7 +721,7 @@ def get_human_analytics(camera_id: int):
             SELECT SUM(CAST(substring(metadata from 'Count: ([0-9]+)') AS INTEGER))
             FROM events 
             WHERE camera_id = :cid 
-              AND module_key = 'human_detection' 
+              AND module_key = 'human-detection' 
               AND date(timestamp) = CURRENT_DATE
               AND label = 'Human Detected'
         """)
@@ -733,7 +733,7 @@ def get_human_analytics(camera_id: int):
             SELECT COUNT(*) 
             FROM events 
             WHERE camera_id = :cid 
-              AND module_key = 'human_detection' 
+              AND module_key = 'human-detection' 
               AND date(timestamp) = CURRENT_DATE
               AND label = 'Human Detected'
         """)
@@ -745,7 +745,7 @@ def get_human_analytics(camera_id: int):
             SELECT extract(hour from timestamp) as hr, COUNT(*) as cnt
             FROM events
             WHERE camera_id = :cid 
-              AND module_key = 'human_detection'
+              AND module_key = 'human-detection'
               AND date(timestamp) = CURRENT_DATE
               AND label = 'Human Detected'
             GROUP BY hr
@@ -778,7 +778,7 @@ def get_human_trend(camera_id: int):
             SELECT extract(hour from timestamp) as hr, COUNT(*)
             FROM events
             WHERE camera_id = :cid 
-              AND module_key = 'human_detection' 
+              AND module_key = 'human-detection' 
               AND date(timestamp) = CURRENT_DATE
               AND label = 'Human Detected'
             GROUP BY hr ORDER BY hr
@@ -790,7 +790,7 @@ def get_human_trend(camera_id: int):
             SELECT extract(hour from timestamp) as hr, COUNT(*)
             FROM events
             WHERE camera_id = :cid 
-              AND module_key = 'human_detection' 
+              AND module_key = 'human-detection' 
               AND date(timestamp) = CURRENT_DATE - 1
               AND label = 'Human Detected'
             GROUP BY hr ORDER BY hr
@@ -821,7 +821,7 @@ def get_human_timeline(camera_id: int, limit=50):
             SELECT timestamp, label, confidence, metadata
             FROM events
             WHERE camera_id = :cid 
-              AND module_key = 'human_detection'
+              AND module_key = 'human-detection'
             ORDER BY id DESC
             LIMIT :lim
         """)
@@ -837,12 +837,22 @@ def get_human_timeline(camera_id: int, limit=50):
                 time_str = str(ts)
                 
             count_match = r[3] if r[3] else "Count: 0"
-            count = count_match.replace("Count: ", "")
+            try:
+                # Handle "Count: X" format
+                if isinstance(count_match, str) and "Count: " in count_match:
+                    count = count_match.replace("Count: ", "")
+                    # Ensure it's a number
+                    if not count.isdigit():
+                        count = "0"
+                else:
+                    count = "1" # Fallback to 1 if human detected but metadata missing
+            except Exception:
+                count = "0"
             
             timeline.append({
                 "time": time_str,
                 "label": f"{count} humans" if int(count) > 1 else f"{count} human",
-                "confidence": f"{r[2]*100:.0f}%",
+                "confidence": f"{float(r[2])*100:.0f}%",
                 "raw_timestamp": str(ts)
             })
         return timeline

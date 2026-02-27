@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import API_BASE_URL from '../../config';
+import httpClient from '../../api/httpClient';
 
 const HumanDetectionPanel = ({ cameraId }) => {
     const [timeline, setTimeline] = useState([]);
@@ -10,8 +9,8 @@ const HumanDetectionPanel = ({ cameraId }) => {
     useEffect(() => {
         const fetchTimeline = async () => {
             try {
-                const res = await axios.get(`${API_BASE_URL}/api/cameras/${cameraId}/human-timeline`);
-                setTimeline(res.data);
+                const res = await httpClient.get(`/api/cameras/${cameraId}/human-timeline`);
+                setTimeline(res);
             } catch (err) {
                 console.error("Error fetching human timeline panel:", err);
             } finally {
