@@ -39,7 +39,7 @@ class HumanDetector:
         for box in results.boxes:
             cls = int(box.cls[0])
             if cls == 0:                           # person
-                x1, y1, x2, y2 = map(int, box.xyxy[0])
+                x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
                 conf = float(box.conf[0])
                 detections.append((x1, y1, x2, y2, conf))
         return detections

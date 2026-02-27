@@ -1,6 +1,6 @@
 # test deploy 
-import io
 import os
+import json
 import shutil
 import asyncio
 import logging
@@ -128,20 +128,32 @@ class DetectionConnectionManager:
             del self.connections[camera_id][username]
 
     async def broadcast(self, message: dict):
-        import json
         camera_id = message.get("camera_id")
         if not camera_id or camera_id not in self.connections:
             return
             
+        payload = json.dumps(message)
         dead_users = []
         for username, connection in self.connections[camera_id].items():
             try:
-                await connection.send_text(json.dumps(message))
+                await connection.send_text(payload)
             except Exception:
                 dead_users.append(username)
                 
         for dead in dead_users:
             self.disconnect(dead, camera_id)
+
+    async def heartbeat_worker(self):
+        """Send periodic pings to all active WS clients to prevent timeouts."""
+        while True:
+            await asyncio.sleep(20)
+            heartbeat = json.dumps({"type": "HEARTBEAT", "timestamp": time.time()})
+            for cam_id in list(self.connections.keys()):
+                for username, connection in list(self.connections[cam_id].items()):
+                    try:
+                        await connection.send_text(heartbeat)
+                    except Exception:
+                        pass
 
 manager = ConnectionManager()
 detection_manager = DetectionConnectionManager()
@@ -202,8 +214,12 @@ async def websocket_detections(websocket: WebSocket, camera_id: int = 1, token: 
     logger.info(f"WS Client '{username}' connected to detection stream for camera {camera_id}")
     try:
         while True:
-            # Keep connection alive / Ping Pong
-            await websocket.receive_text()
+            # Block and wait for client messages (like pings) or disconnect
+            # We use a timeout to ensure we can check for heartbeat if needed,
+            # though broadcast handles outgoing data.
+            msg = await websocket.receive_text()
+            if msg == "ping":
+                await websocket.send_text("pong")
     except WebSocketDisconnect:
         logger.info(f"WS Client '{username}' disconnected from detection stream for camera {camera_id}")
         detection_manager.disconnect(username, camera_id)
@@ -326,6 +342,8 @@ async def startup_event():
     database.init_db()
     print("Startup: Database initialized. Settings use file-based fallback if DB table unavailable.")
     recognition.load_models()
+    # Start WS Heartbeat
+    asyncio.create_task(detection_manager.heartbeat_worker())
 
 @app.on_event("shutdown")
 def shutdown_event():
