@@ -30,16 +30,11 @@ const UserManagement = () => {
 
     useEffect(() => { fetchUsers(); }, [token]);
 
-    const generateCredentials = () => {
-        const randomId = Math.floor(1000 + Math.random() * 9000); // 4-digit ID
-        const genUsername = newUser.name ? `${newUser.name.split(' ')[0].toLowerCase()}${randomId}` : `user${randomId}`;
-        const genPassword = Math.random().toString(36).slice(-8); // 8-char random string
-        setNewUser(prev => ({ ...prev, username: genUsername, password: genPassword }));
-    };
+
 
     const handleAddUser = async () => {
         if (!newUser.username || !newUser.password) {
-            alert("Please generate credentials first.");
+            alert("Please enter a username and password.");
             return;
         }
 
@@ -132,7 +127,6 @@ const UserManagement = () => {
                         <div style={{ marginBottom: '1.5rem' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                                 <label style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Credentials</label>
-                                <button type="button" onClick={generateCredentials} style={{ color: 'var(--accent-cyan)', background: 'transparent', border: 'none', fontSize: '0.8rem', cursor: 'pointer', textDecoration: 'underline' }}>Auto-Generate</button>
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                                 <input type="text" value={newUser.username} onChange={e => setNewUser({ ...newUser, username: e.target.value })} placeholder="User ID" style={{ width: '100%', padding: '0.75rem', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--panel-border)', borderRadius: '6px', color: '#fff' }} />
