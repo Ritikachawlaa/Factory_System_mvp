@@ -146,6 +146,71 @@ class DetectionConnectionManager:
 manager = ConnectionManager()
 detection_manager = DetectionConnectionManager()
 
+# Rate Limiter for WebRTC Signaling
+webrtc_rate_limits = {}
+RATE_LIMIT_SECONDS = 1.0
+
+def check_rate_limit(username: str):
+    now = time.time()
+    last_req = webrtc_rate_limits.get(username, 0)
+    if now - last_req < RATE_LIMIT_SECONDS:
+        logger.warning(f"Rate limit exceeded for user: {username}")
+        raise HTTPException(status_code=429, detail="Too many WebRTC requests")
+    webrtc_rate_limits[username] = now
+
+@app.websocket("/ws/events")
+async def websocket_events(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            # Keep alive / listen for client messages (e.g. subscribes)
+            data = await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+
+@app.websocket("/ws/detections")
+async def websocket_detections(websocket: WebSocket, camera_id: int = 1, token: str = Query(None)):
+    """
+    WebSocket endpoint for realtime detection overlays.
+    Enforces JWT validation, Role Auth, Connection Limits.
+    """
+    if not token:
+        logger.warning("WS connection rejected: Missing token")
+        await websocket.close(code=1008, reason="Missing token")
+        return
+
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        role: str = payload.get("role", "viewer")
+        if username is None:
+            raise JWTError()
+    except JWTError:
+        logger.warning("WS connection rejected: Invalid token")
+        await websocket.close(code=1008, reason="Invalid token")
+        return
+
+    if role not in ["admin", "superadmin"]:
+        logger.warning(f"WS connection rejected: Unauthorized role '{role}' for user '{username}'")
+        await websocket.close(code=1008, reason="Unauthorized role for camera access")
+        return
+
+    accepted = await detection_manager.connect(websocket, username, camera_id)
+    if not accepted:
+        return
+
+    logger.info(f"WS Client '{username}' connected to detection stream for camera {camera_id}")
+    try:
+        while True:
+            # Keep connection alive / Ping Pong
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        logger.info(f"WS Client '{username}' disconnected from detection stream for camera {camera_id}")
+        detection_manager.disconnect(username, camera_id)
+    except Exception as e:
+        logger.warning(f"WS Client '{username}' connection error for camera {camera_id}: {e}")
+        detection_manager.disconnect(username, camera_id)
+
 
 # --- System Settings Routes (Top Level for Resilience) ---
 class SystemSettingUpdate(BaseModel):
