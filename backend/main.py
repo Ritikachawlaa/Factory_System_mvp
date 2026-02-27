@@ -184,6 +184,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 
 # --- Startup ---
 @app.on_event("startup")
+async def startup_event():
     database.init_db()
     
     # Initialize system settings table
