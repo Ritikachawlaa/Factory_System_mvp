@@ -184,17 +184,17 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 
 # --- Startup ---
 @app.on_event("startup")
-async def startup_event():
+    database.init_db()
+    
     # Initialize system settings table
+    print("Pre-startup: Initializing system settings table...")
     try:
         database._exec_query('CREATE TABLE IF NOT EXISTS system_settings (key VARCHAR(100) PRIMARY KEY, value TEXT)', commit=True)
         database._exec_query('INSERT INTO system_settings (key, value) VALUES (:key, :val) ON CONFLICT (key) DO NOTHING', 
                               {"key": "critical_modules", "val": '["ppe-compliance", "intrusion-detection"]'}, commit=True)
-        print("System settings initialized via _exec_query")
+        print("System settings successfully initialized")
     except Exception as e:
-        print(f"Failed to initialize system settings: {e}")
-
-    database.init_db()
+        print(f"CRITICAL: Failed to initialize system settings: {e}")
 
     recognition.load_models()
 

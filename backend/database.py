@@ -548,18 +548,18 @@ def update_module_heartbeat(camera_id: int, module_key: str, actual_status: str)
         conn.close()
 
 def get_dashboard_stats():
+    # Fetch critical modules config with safe fallback
+    import json
+    critical_modules = ["ppe-compliance", "intrusion-detection"]
+    try:
+        settings_val = get_system_setting('critical_modules')
+        if settings_val:
+            critical_modules = json.loads(settings_val)
+    except Exception as e:
+        print(f"Non-fatal error fetching critical modules for dashboard: {e}")
+
     conn = get_connection()
     try:
-        # Fetch critical modules config
-        stmt_settings = text("SELECT value FROM system_settings WHERE key = 'critical_modules'")
-        settings_row = conn.execute(stmt_settings).fetchone()
-        import json
-        critical_modules = ["ppe-compliance", "intrusion-detection"]
-        if settings_row and settings_row[0]:
-            try:
-                critical_modules = json.loads(settings_row[0])
-            except:
-                pass
 
         # Total Alerts (last 24h)
         stmt_alerts = text("SELECT COUNT(*) FROM events WHERE timestamp >= (CURRENT_TIMESTAMP - INTERVAL '24 hours')")
