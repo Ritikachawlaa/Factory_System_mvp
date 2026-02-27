@@ -674,8 +674,21 @@ def get_system_setting(key: str, default: str = None):
 
 def update_system_setting(key: str, value: str):
     try:
-        stmt = "INSERT INTO system_settings (key, value) VALUES (:key, :value) ON CONFLICT (key) DO UPDATE SET value = :value"
-        return _exec_query(stmt, {"key": key, "value": value}, commit=True)
+        # Ensure table exists
+        _exec_query('CREATE TABLE IF NOT EXISTS system_settings (key VARCHAR(100) PRIMARY KEY, value TEXT)', commit=True)
+        
+        # Try update first
+        update_stmt = "UPDATE system_settings SET value = :value WHERE key = :key"
+        result = _exec_query(update_stmt, {"key": key, "value": value}, commit=True)
+        
+        # If no row was updated, insert
+        try:
+            insert_stmt = "INSERT INTO system_settings (key, value) VALUES (:key, :value)"
+            _exec_query(insert_stmt, {"key": key, "value": value}, commit=True)
+        except:
+            pass  # Row already exists, update was successful
+        
+        return True
     except Exception as e:
         print(f"Error updating setting {key}: {e}")
         return False
