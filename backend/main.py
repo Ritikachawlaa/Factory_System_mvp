@@ -98,6 +98,9 @@ class EmployeeUpdate(BaseModel):
 class ModuleConfig(BaseModel):
     enabled: bool
     status: str # 'active', 'paused'
+
+class SystemSettingUpdate(BaseModel):
+    value: str
     config: Optional[dict] = {}
 
 class EvidenceCreate(BaseModel):
@@ -1037,3 +1040,22 @@ def update_module_status_endpoint(camera_id: int, module_key: str, update: Modul
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+# --- System Settings ---
+
+@app.get("/settings/{key}")
+async def get_system_setting(key: str, current_user: dict = Depends(get_current_user)):
+    value = database.get_system_setting(key)
+    if value is None:
+        raise HTTPException(status_code=404, detail="Setting not found")
+    return {"key": key, "value": value}
+
+@app.post("/settings/{key}")
+async def update_system_setting(key: str, setting: SystemSettingUpdate, current_user: dict = Depends(get_current_user)):
+    if current_user.get("role") != "superadmin":
+        raise HTTPException(status_code=403, detail="Only superadmins can change system settings")
+        
+    success = database.update_system_setting(key, setting.value)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to update setting")
+    return {"message": f"Setting {key} updated successfully"}

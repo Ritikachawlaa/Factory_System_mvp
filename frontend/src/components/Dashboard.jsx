@@ -116,7 +116,7 @@ const Dashboard = () => {
                             { label: "Alerts", value: stats.totalAlerts, icon: '🚨', bg: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '#ef4444', path: '/alerts' },
                             { label: 'Attendance', value: `${stats.attendance}%`, icon: '📋', bg: 'rgba(6, 182, 212, 0.1)', color: 'var(--accent-cyan)', border: 'var(--accent-cyan)', path: '/attendance' },
                             { label: 'Active Cameras', value: `${stats.activeCameras}/${stats.totalCameras}`, icon: '📹', bg: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '#10b981', path: '/cameras' },
-                            { label: 'Critical Alerts', value: '3', icon: '🔥', bg: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '#ef4444', path: '/alerts' }
+                            { label: 'Critical Alerts', value: stats.criticalAlerts || 0, icon: '🔥', bg: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '#ef4444', path: '/alerts' }
                         ].map((item, idx) => (
                             <div key={idx} className="glass-panel"
                                 onClick={() => item.path && navigate(item.path)}

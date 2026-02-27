@@ -15,10 +15,10 @@ try:
         pool_pre_ping=True, 
         pool_recycle=3600
     )
-    print(f"✅ Database Engine Configured: {config.DATABASE_URL.split('://')[0]}...")
+    print(f"Database Engine Configured: {config.DATABASE_URL.split('://')[0]}...")
 except Exception as e:
-    print(f"❌ Failed to configure Database Engine: {e}")
-    print(f"⚠️  Please ensure DATABASE_URL is set to a valid PostgreSQL connection string.")
+    print(f"Failed to configure Database Engine: {e}")
+    print(f"Please ensure DATABASE_URL is set to a valid PostgreSQL connection string.")
     engine = None
 
 def get_connection():
@@ -31,10 +31,10 @@ def init_db():
     try:
         conn = get_connection()
         conn.execute(text("SELECT 1"))
-        print("✅ Database Connection Verified")
+        print("Database Connection Verified")
         conn.close()
     except Exception as e:
-        print(f"❌ Database Connectivity Check Failed: {e}")
+        print(f"Database Connectivity Check Failed: {e}")
         # We generally want to fail hard if DB is down at startup, 
         # but let's allow retry or logging.
 
@@ -342,7 +342,7 @@ def get_today_events(limit=100):
     conn = get_connection()
     # Postgres syntax for comparing date of timestamp with current date
     query = """
-        SELECT e.timestamp, e.label, c.name as camera_name, e.type, e.confidence, e.metadata, e.severity, e.id
+        SELECT e.timestamp, e.label, c.name as camera_name, e.type, e.confidence, e.metadata, e.severity, e.id, e.module_key
         FROM events e 
         LEFT JOIN cameras c ON e.camera_id = c.id 
         WHERE date(e.timestamp) = CURRENT_DATE
@@ -363,7 +363,8 @@ def get_today_events(limit=100):
                 "confidence": r[4],
                 "metadata": r[5],
                 "severity": r[6],
-                "id": r[7]
+                "id": r[7],
+                "module_key": r[8]
             })
         return events
     except Exception as e:
@@ -376,7 +377,7 @@ def get_recent_events_by_range(days: int = 1, limit: int = 200):
     conn = get_connection()
     # Postgres syntax for comparing date range
     query = """
-        SELECT e.timestamp, e.label, c.name as camera_name, e.type, e.confidence, e.metadata, e.severity, e.id
+        SELECT e.timestamp, e.label, c.name as camera_name, e.type, e.confidence, e.metadata, e.severity, e.id, e.module_key
         FROM events e 
         LEFT JOIN cameras c ON e.camera_id = c.id 
         WHERE e.timestamp >= (CURRENT_DATE - (:days - 1) * INTERVAL '1 day')
@@ -397,7 +398,8 @@ def get_recent_events_by_range(days: int = 1, limit: int = 200):
                 "confidence": r[4],
                 "metadata": r[5],
                 "severity": r[6],
-                "id": r[7]
+                "id": r[7],
+                "module_key": r[8]
             })
         return events
     except Exception as e:
@@ -548,11 +550,30 @@ def update_module_heartbeat(camera_id: int, module_key: str, actual_status: str)
 def get_dashboard_stats():
     conn = get_connection()
     try:
-        # Total Alerts from events where type='alert' or severity in ('high','critical')
-        stmt_alerts = text("SELECT COUNT(*) FROM events WHERE severity IN ('high', 'critical') OR type = 'alert'")
+        # Fetch critical modules config
+        stmt_settings = text("SELECT value FROM system_settings WHERE key = 'critical_modules'")
+        settings_row = conn.execute(stmt_settings).fetchone()
+        import json
+        try:
+            critical_modules = json.loads(settings_row[0]) if settings_row else ["ppe-compliance", "intrusion-detection"]
+        except:
+            critical_modules = ["ppe-compliance", "intrusion-detection"]
+
+        # Total Alerts (last 24h)
+        stmt_alerts = text("SELECT COUNT(*) FROM events WHERE timestamp >= (CURRENT_TIMESTAMP - INTERVAL '24 hours')")
         total_alerts_row = conn.execute(stmt_alerts).fetchone()
         total_alerts = total_alerts_row[0] if total_alerts_row else 0
         
+        # Critical Alerts (last 24h) based on settings
+        if critical_modules:
+            # Construct a safe IN clause or use ANY for Postgres
+            params = {"mods": tuple(critical_modules)}
+            stmt_critical = text("SELECT COUNT(*) FROM events WHERE module_key IN :mods AND timestamp >= (CURRENT_TIMESTAMP - INTERVAL '24 hours')")
+            critical_row = conn.execute(stmt_critical, params).fetchone()
+            critical_alerts = critical_row[0] if critical_row else 0
+        else:
+            critical_alerts = 0
+            
         # Active vs Total Cameras
         stmt_cams = text("SELECT COUNT(*) FROM cameras")
         total_cameras_row = conn.execute(stmt_cams).fetchone()
@@ -577,6 +598,7 @@ def get_dashboard_stats():
             
         return {
             "totalAlerts": total_alerts,
+            "criticalAlerts": critical_alerts,
             "activeCameras": active_cameras,
             "totalCameras": total_cameras,
             "attendance": attendance,
@@ -635,3 +657,23 @@ def update_password(username: str, new_password_hash: str):
 
 # Other minor stats helpers skipped for brevity (mock data anyway in those helpers)
 # But key functions are all refactored to SQLAlchemy Text.
+
+# --- System Settings ---
+
+def get_system_setting(key: str, default: str = None):
+    try:
+        row = _exec_query("SELECT value FROM system_settings WHERE key = :key", {"key": key}, fetch_one=True)
+        if row:
+            return row[0]
+        return default
+    except Exception as e:
+        print(f"Error fetching setting {key}: {e}")
+        return default
+
+def update_system_setting(key: str, value: str):
+    try:
+        stmt = "INSERT INTO system_settings (key, value) VALUES (:key, :value) ON CONFLICT (key) DO UPDATE SET value = :value"
+        return _exec_query(stmt, {"key": key, "value": value}, commit=True)
+    except Exception as e:
+        print(f"Error updating setting {key}: {e}")
+        return False

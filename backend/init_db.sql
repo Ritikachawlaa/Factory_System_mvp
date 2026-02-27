@@ -73,6 +73,15 @@ CREATE TABLE IF NOT EXISTS evidence (
     thumbnail_path TEXT
 );
 
+-- System Settings
+CREATE TABLE IF NOT EXISTS system_settings (
+    key VARCHAR(100) PRIMARY KEY,
+    value TEXT -- JSON or simple string
+);
+
+-- Default Critical Modules
+INSERT INTO system_settings (key, value) VALUES ('critical_modules', '["ppe-compliance", "intrusion-detection"]') ON CONFLICT (key) DO NOTHING;
+
 -- Initial Admin Seed (only if not exists)
 -- Password 'admin123' hashed with passlib pbkdf2_sha256
 -- INSERT INTO users (username, password_hash, role) 

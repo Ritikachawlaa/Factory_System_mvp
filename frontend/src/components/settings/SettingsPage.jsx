@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import UserManagement from './UserManagement';
 import StorageSettings from './StorageSettings';
 import AuditLogs from './AuditLogs';
+import CriticalAlertsSettings from './CriticalAlertsSettings';
 
 
 const SettingsPage = () => {
@@ -47,6 +48,13 @@ const SettingsPage = () => {
                         <div style={{ gridColumn: '1 / -1' }}>
                             <AuditLogs />
                         </div>
+
+                        {/* Critical Alerts Configuration (Full Width, Superadmin only) */}
+                        {user?.role === 'superadmin' && (
+                            <div style={{ gridColumn: '1 / -1' }}>
+                                <CriticalAlertsSettings />
+                            </div>
+                        )}
 
 
                     </div>

@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import Header from './Header';
 import Footer from './Footer';
 import analyticsApi from '../api/analytics.api';
+import settingsApi from '../api/settings.api';
 
 const TodayAlertsPage = () => {
     const [alerts, setAlerts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [timeRange, setTimeRange] = useState('daily'); // daily, weekly, monthly
+    const [criticalModules, setCriticalModules] = useState(['ppe-compliance', 'intrusion-detection']);
 
     const fetchAlerts = async () => {
         setLoading(true);
@@ -15,8 +17,14 @@ const TodayAlertsPage = () => {
             const daysMap = { daily: 1, weekly: 7, monthly: 30 };
             const data = await analyticsApi.getEvents(daysMap[timeRange]);
             setAlerts(data);
+
+            // Fetch settings
+            const settingsRes = await settingsApi.getSetting('critical_modules');
+            if (settingsRes && settingsRes.value) {
+                setCriticalModules(JSON.parse(settingsRes.value));
+            }
         } catch (e) {
-            console.error("Failed to fetch alerts", e);
+            console.error("Failed to fetch alerts or settings", e);
         }
         setLoading(false);
     };
@@ -31,11 +39,11 @@ const TodayAlertsPage = () => {
         a.type.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const criticalAlerts = filteredAlerts.filter(a => a.severity === 'critical' || a.severity === 'high');
-    const regularAlerts = filteredAlerts.filter(a => a.severity !== 'critical' && a.severity !== 'high');
+    const criticalAlerts = filteredAlerts.filter(a => criticalModules.includes(a.module_key));
+    const regularAlerts = filteredAlerts.filter(a => !criticalModules.includes(a.module_key));
 
-    const getSeverityStyle = (severity) => {
-        if (severity === 'critical' || severity === 'high') {
+    const getSeverityStyle = (alert) => {
+        if (criticalModules.includes(alert.module_key)) {
             return {
                 border: '1px solid rgba(239, 68, 68, 0.4)',
                 background: 'rgba(239, 68, 68, 0.05)',
@@ -67,7 +75,7 @@ const TodayAlertsPage = () => {
                 alignItems: 'center',
                 gap: '2rem',
                 transition: 'all 0.2s',
-                ...getSeverityStyle(alert.severity)
+                ...getSeverityStyle(alert)
             }}
         >
             <div style={{ width: '100px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
