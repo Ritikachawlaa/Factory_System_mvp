@@ -123,7 +123,7 @@ const TodayAlertsPage = () => {
                     {/* Page Header */}
                     <div style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <div>
-                            <h2 style={{ fontSize: '2.5rem', fontWeight: '800', margin: 0 }} className="text-gradient">Intelligence & Alerts</h2>
+                            <h2 style={{ fontSize: '2.5rem', fontWeight: '800', margin: 0 }} className="text-gradient">Alerts</h2>
                             <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>Centralized monitoring for threat detection and system violations.</p>
                         </div>
 
