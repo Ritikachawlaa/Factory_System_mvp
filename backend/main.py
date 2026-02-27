@@ -550,10 +550,10 @@ def get_today_events_endpoint(limit: int = 100):
     return database.get_today_events(limit)
 
 @app.get("/events")
-def get_events_endpoint(camera_id: int = None, module_key: str = None):
+def get_events_endpoint(camera_id: int = None, module_key: str = None, days: int = Query(1)):
     if camera_id or module_key:
         return database.get_events_filtered(camera_id, module_key)
-    return database.get_recent_events()
+    return database.get_recent_events_by_range(days=days)
 
 @app.get("/stats/camera/{camera_id}/module/{module_key}")
 def get_module_stats_endpoint(camera_id: int, module_key: str):

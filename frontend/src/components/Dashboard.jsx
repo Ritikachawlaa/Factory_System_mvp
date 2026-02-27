@@ -113,10 +113,10 @@ const Dashboard = () => {
                     {/* Top Stats Row */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem', marginBottom: '2.5rem' }}>
                         {[
-                            { label: "Today's Alerts", value: stats.totalAlerts, icon: '🚨', bg: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '#ef4444' },
+                            { label: "Today's Alerts", value: stats.totalAlerts, icon: '🚨', bg: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '#ef4444', path: '/today-alerts' },
                             { label: 'Attendance', value: `${stats.attendance}%`, icon: '📋', bg: 'rgba(6, 182, 212, 0.1)', color: 'var(--accent-cyan)', border: 'var(--accent-cyan)', path: '/attendance' },
                             { label: 'Active Cameras', value: `${stats.activeCameras}/${stats.totalCameras}`, icon: '📹', bg: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '#10b981', path: '/cameras' },
-                            { label: 'Critical Alerts', value: '3', icon: '🔥', bg: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '#ef4444' }
+                            { label: 'Critical Alerts', value: '3', icon: '🔥', bg: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '#ef4444', path: '/today-alerts' }
                         ].map((item, idx) => (
                             <div key={idx} className="glass-panel"
                                 onClick={() => item.path && navigate(item.path)}
@@ -170,14 +170,6 @@ const Dashboard = () => {
                                     <div style={{ width: '10px', height: '10px', background: '#ef4444', borderRadius: '50%', boxShadow: '0 0 10px #ef4444' }}></div>
                                     <h3 style={{ color: '#fff', fontSize: '1.2rem', margin: 0, fontWeight: '600' }}>Live Intelligence Feed</h3>
                                 </div>
-                                <button onClick={() => navigate('/evidence')} style={{
-                                    padding: '0.5rem 1rem', background: 'transparent',
-                                    border: '1px solid var(--accent-cyan)', color: 'var(--accent-cyan)',
-                                    borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem',
-                                    transition: 'all 0.2s'
-                                }}>
-                                    View Logs
-                                </button>
                             </div>
 
                             <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', flex: 1 }}>

@@ -11,7 +11,6 @@ const Sidebar = () => {
         { name: 'Dashboard', icon: '⚡', path: '/' },
         { name: 'Cameras', icon: '📹', path: '/cameras' },
         { name: 'Analytics', icon: '📊', path: '/analytics' },
-        { name: 'Evidence', icon: '📁', path: '/evidence' },
         { name: 'Audit Logs', icon: '📋', path: '/audit-logs' },
         { name: 'Settings', icon: '⚙️', path: '/settings' }
     ];

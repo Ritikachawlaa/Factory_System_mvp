@@ -21,7 +21,6 @@ import LineCrossing from './components/modules/LineCrossing'
 import CamerasPage from './components/CamerasPage'
 import Login from './components/Login'
 import AttendancePage from './components/AttendancePage'
-import EvidencePage from './components/EvidencePage'
 import AuditLogsPage from './components/AuditLogsPage'
 import PrivacyPolicy from './components/PrivacyPolicy'
 import TermsOfService from './components/TermsOfService'
@@ -76,7 +75,6 @@ function AppRoutes() {
       <Route path="/intrusion-detection" element={<ProtectedRoute><IntrusionDetection /></ProtectedRoute>} />
       <Route path="/attendance" element={<ProtectedRoute><AttendancePage /></ProtectedRoute>} />
       <Route path="/today-alerts" element={<ProtectedRoute><TodayAlertsPage /></ProtectedRoute>} />
-      <Route path="/evidence" element={<ProtectedRoute><EvidencePage /></ProtectedRoute>} />
       <Route path="/loitering-detection" element={<ProtectedRoute><LoiteringDetection /></ProtectedRoute>} />
       <Route path="/line-crossing" element={<ProtectedRoute><LineCrossing /></ProtectedRoute>} />
       <Route path="/audit-logs" element={<ProtectedRoute><AuditLogsPage /></ProtectedRoute>} />

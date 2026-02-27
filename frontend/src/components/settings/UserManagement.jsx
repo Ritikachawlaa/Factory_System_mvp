@@ -135,8 +135,8 @@ const UserManagement = () => {
                                 <button type="button" onClick={generateCredentials} style={{ color: 'var(--accent-cyan)', background: 'transparent', border: 'none', fontSize: '0.8rem', cursor: 'pointer', textDecoration: 'underline' }}>Auto-Generate</button>
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                                <input type="text" readOnly value={newUser.username} placeholder="User ID" style={{ width: '100%', padding: '0.75rem', background: 'rgba(0,0,0,0.4)', border: '1px solid var(--panel-border)', borderRadius: '6px', color: '#fff', cursor: 'not-allowed' }} />
-                                <input type="text" readOnly value={newUser.password} placeholder="Password" style={{ width: '100%', padding: '0.75rem', background: 'rgba(0,0,0,0.4)', border: '1px solid var(--panel-border)', borderRadius: '6px', color: '#fff', cursor: 'not-allowed' }} />
+                                <input type="text" value={newUser.username} onChange={e => setNewUser({ ...newUser, username: e.target.value })} placeholder="User ID" style={{ width: '100%', padding: '0.75rem', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--panel-border)', borderRadius: '6px', color: '#fff' }} />
+                                <input type="text" value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })} placeholder="Password" style={{ width: '100%', padding: '0.75rem', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--panel-border)', borderRadius: '6px', color: '#fff' }} />
                             </div>
                         </div>
 
