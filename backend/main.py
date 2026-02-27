@@ -150,12 +150,21 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 @app.on_event("startup")
 async def startup_event():
     database.init_db()
-    recognition.load_models()
-    # Create valid superadmin.
-    if database.create_user("admin", get_password_hash("admin123"), role="superadmin"):
-        print("Created default superadmin (admin/admin123)")
     
-    # REMOVED: Default camera "0" creation. User must add camera via API.
+    # Initialize system settings table
+    try:
+        from database import get_connection, text
+        conn = get_connection()
+        conn.execute(text('CREATE TABLE IF NOT EXISTS system_settings (key VARCHAR(100) PRIMARY KEY, value TEXT)'))
+        conn.execute(text('INSERT INTO system_settings (key, value) VALUES (:key, :val) ON CONFLICT (key) DO NOTHING'), 
+                     {"key": "critical_modules", "val": '["ppe-compliance", "intrusion-detection"]'})
+        conn.commit()
+        conn.close()
+        print("System settings initialized")
+    except Exception as e:
+        print(f"Failed to initialize system settings: {e}")
+
+    recognition.load_models()
 
 @app.on_event("shutdown")
 def shutdown_event():
@@ -1042,9 +1051,11 @@ def update_module_status_endpoint(camera_id: int, module_key: str, update: Modul
 
 @app.get("/settings/{key}")
 async def get_system_setting(key: str, current_user = Depends(get_current_user)):
-    value = database.get_system_setting(key)
-    if value is None:
-        raise HTTPException(status_code=404, detail="Setting not found")
+    # Use defaults if not found to avoid 404 breaking frontend
+    defaults = {
+        "critical_modules": '["ppe-compliance", "intrusion-detection"]'
+    }
+    value = database.get_system_setting(key, default=defaults.get(key))
     return {"key": key, "value": value}
 
 @app.post("/settings/{key}")
