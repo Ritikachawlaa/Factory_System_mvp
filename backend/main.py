@@ -337,6 +337,57 @@ async def startup_event():
 def shutdown_event():
     print("Shutting down...")
 
+# --- Diagnostic Endpoint (no auth required) ---
+@app.get("/debug/settings-test")
+async def debug_settings_test():
+    """Temporary diagnostic endpoint to identify settings 500 error. Remove after debugging."""
+    results = {"steps": []}
+    
+    # Step 1: Test DB connection
+    try:
+        database._exec_query("SELECT 1", fetch_one=True)
+        results["steps"].append({"step": "db_connection", "status": "ok"})
+    except Exception as e:
+        results["steps"].append({"step": "db_connection", "status": "error", "detail": str(e)})
+        return results
+    
+    # Step 2: Check if system_settings table exists
+    try:
+        database._exec_query("SELECT COUNT(*) FROM system_settings", fetch_one=True)
+        results["steps"].append({"step": "table_exists", "status": "ok"})
+    except Exception as e:
+        results["steps"].append({"step": "table_exists", "status": "error", "detail": str(e)})
+        # Try to create it
+        try:
+            database._exec_query('CREATE TABLE IF NOT EXISTS system_settings (key VARCHAR(100) PRIMARY KEY, value TEXT)', commit=True)
+            results["steps"].append({"step": "table_created", "status": "ok"})
+        except Exception as e2:
+            results["steps"].append({"step": "table_created", "status": "error", "detail": str(e2)})
+            return results
+    
+    # Step 3: Try reading a setting
+    try:
+        val = database.get_system_setting("critical_modules", default="not_found")
+        results["steps"].append({"step": "read_setting", "status": "ok", "value": val})
+    except Exception as e:
+        results["steps"].append({"step": "read_setting", "status": "error", "detail": str(e)})
+    
+    # Step 4: Try writing a setting
+    try:
+        success = database.update_system_setting("_debug_test", "hello")
+        results["steps"].append({"step": "write_setting", "status": "ok" if success else "failed_false"})
+    except Exception as e:
+        results["steps"].append({"step": "write_setting", "status": "error", "detail": str(e)})
+    
+    # Step 5: Clean up test key
+    try:
+        database._exec_query("DELETE FROM system_settings WHERE key = :key", {"key": "_debug_test"}, commit=True)
+        results["steps"].append({"step": "cleanup", "status": "ok"})
+    except Exception as e:
+        results["steps"].append({"step": "cleanup", "status": "error", "detail": str(e)})
+    
+    return results
+
 # --- System Settings Routes ---
 @app.get("/settings/{key}")
 async def get_system_setting(key: str, current_user = Depends(get_current_user_debug_optional)):
