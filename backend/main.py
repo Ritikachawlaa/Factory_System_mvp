@@ -212,34 +212,6 @@ async def websocket_detections(websocket: WebSocket, camera_id: int = 1, token: 
         detection_manager.disconnect(username, camera_id)
 
 
-# --- System Settings Routes (Top Level for Resilience) ---
-class SystemSettingUpdate(BaseModel):
-    value: str
-    config: Optional[dict] = {}
-
-@app.get("/settings/{key}")
-async def get_system_setting(key: str, current_user = Depends(get_current_user_debug_optional)):
-    # Use defaults if not found to avoid 404 breaking frontend
-    defaults = {
-        "critical_modules": '["ppe-compliance", "intrusion-detection"]'
-    }
-    try:
-        value = database.get_system_setting(key, default=defaults.get(key))
-    except:
-        value = defaults.get(key)
-    return {"key": key, "value": value}
-
-@app.post("/settings/{key}")
-async def update_system_setting_endpoint(key: str, setting: SystemSettingUpdate, current_user = Depends(get_current_user)):
-    # current_user is a tuple (username, hash, role)
-    if current_user[2] != "superadmin":
-        raise HTTPException(status_code=403, detail="Only superadmins can change system settings")
-        
-    success = database.update_system_setting(key, setting.value)
-    if not success:
-        raise HTTPException(status_code=500, detail="Failed to update setting")
-    return {"message": f"Setting {key} updated successfully"}
-
 # Mount Visitors directory
 VISITORS_DIR = os.path.join(os.path.dirname(__file__), "visitors")
 if not os.path.exists(VISITORS_DIR):
@@ -247,10 +219,14 @@ if not os.path.exists(VISITORS_DIR):
 app.mount("/visitors", StaticFiles(directory=VISITORS_DIR), name="visitors")
 
 # --- Models ---
+class SystemSettingUpdate(BaseModel):
+    value: str
+    config: Optional[dict] = {}
+
 class UserCreate(BaseModel):
     username: str
     password: str
-    role: str = "admin" # Default role for new users is admin
+    role: str = "admin"
 
 class UserPasswordUpdate(BaseModel):
     new_password: str
@@ -271,16 +247,12 @@ class EmployeeUpdate(BaseModel):
 
 class ModuleConfig(BaseModel):
     enabled: bool
-    status: str # 'active', 'paused'
-
-class SystemSettingUpdate(BaseModel):
-    value: str
-    config: Optional[dict] = {}
+    status: str
 
 class EvidenceCreate(BaseModel):
     camera_id: int
     module_key: str
-    type: str # 'image', 'video'
+    type: str
     title: str
 
 class EventCreate(BaseModel):
@@ -300,17 +272,13 @@ class DetectionSchema(BaseModel):
 
 class HeartbeatSchema(BaseModel):
     camera_id: int
-    status: str # 'running', 'error'
+    status: str
 
+class DetectionStreamPayload(BaseModel):
+    camera_id: int
+    detections: List[dict]
 
-# --- Auth Helpers ---
-async def get_current_user_debug_optional(token: Optional[str] = Depends(oauth2_scheme)):
-    # Helper for debugging - if token is missing, return None instead of 401
-    try:
-        return await get_current_user(token)
-    except:
-        return None
-
+# --- Auth Helpers (MUST be defined before any route that uses Depends) ---
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
@@ -327,29 +295,6 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-# --- Startup ---
-@app.on_event("startup")
-async def startup_event():
-    database.init_db()
-    
-    # Initialize system settings table
-    print("Pre-startup: Initializing system settings table...")
-    try:
-        database._exec_query('CREATE TABLE IF NOT EXISTS system_settings (key VARCHAR(100) PRIMARY KEY, value TEXT)', commit=True)
-        database._exec_query('INSERT INTO system_settings (key, value) VALUES (:key, :val) ON CONFLICT (key) DO NOTHING', 
-                              {"key": "critical_modules", "val": '["ppe-compliance", "intrusion-detection"]'}, commit=True)
-        print("System settings successfully initialized")
-    except Exception as e:
-        print(f"CRITICAL: Failed to initialize system settings: {e}")
-
-    recognition.load_models()
-
-@app.on_event("shutdown")
-def shutdown_event():
-    print("Shutting down...")
-
-# --- Auth Endpoints ---
-# Define get_current_user first since it's used by other endpoints
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
         status_code=401,
@@ -363,10 +308,55 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-    user = database.get_user(username) # returns (username, hash, role)
+    user = database.get_user(username)
     if user is None:
         raise credentials_exception
     return user
+
+async def get_current_user_debug_optional(token: Optional[str] = Depends(oauth2_scheme)):
+    try:
+        return await get_current_user(token)
+    except:
+        return None
+
+# --- Startup ---
+@app.on_event("startup")
+async def startup_event():
+    database.init_db()
+    print("Pre-startup: Initializing system settings table...")
+    try:
+        database._exec_query('CREATE TABLE IF NOT EXISTS system_settings (key VARCHAR(100) PRIMARY KEY, value TEXT)', commit=True)
+        database._exec_query('INSERT INTO system_settings (key, value) VALUES (:key, :val) ON CONFLICT (key) DO NOTHING', 
+                              {"key": "critical_modules", "val": '["ppe-compliance", "intrusion-detection"]'}, commit=True)
+        print("System settings successfully initialized")
+    except Exception as e:
+        print(f"CRITICAL: Failed to initialize system settings: {e}")
+    recognition.load_models()
+
+@app.on_event("shutdown")
+def shutdown_event():
+    print("Shutting down...")
+
+# --- System Settings Routes ---
+@app.get("/settings/{key}")
+async def get_system_setting(key: str, current_user = Depends(get_current_user_debug_optional)):
+    defaults = {
+        "critical_modules": '["ppe-compliance", "intrusion-detection"]'
+    }
+    try:
+        value = database.get_system_setting(key, default=defaults.get(key))
+    except:
+        value = defaults.get(key)
+    return {"key": key, "value": value}
+
+@app.post("/settings/{key}")
+async def update_system_setting_endpoint(key: str, setting: SystemSettingUpdate, current_user = Depends(get_current_user)):
+    if current_user[2] != "superadmin":
+        raise HTTPException(status_code=403, detail="Only superadmins can change system settings")
+    success = database.update_system_setting(key, setting.value)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to update setting")
+    return {"message": f"Setting {key} updated successfully"}
 
 @app.post("/users", response_model=dict)
 async def create_new_user(user: UserCreate, current_user = Depends(get_current_user)):
