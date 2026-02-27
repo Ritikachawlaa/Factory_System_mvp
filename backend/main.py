@@ -1037,25 +1037,27 @@ def update_module_status_endpoint(camera_id: int, module_key: str, update: Modul
     
     return {"status": "success", "module": module_key, "new_status": new_status}
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
 
 # --- System Settings ---
 
 @app.get("/settings/{key}")
-async def get_system_setting(key: str, current_user: dict = Depends(get_current_user)):
+async def get_system_setting(key: str, current_user = Depends(get_current_user)):
     value = database.get_system_setting(key)
     if value is None:
         raise HTTPException(status_code=404, detail="Setting not found")
     return {"key": key, "value": value}
 
 @app.post("/settings/{key}")
-async def update_system_setting(key: str, setting: SystemSettingUpdate, current_user: dict = Depends(get_current_user)):
-    if current_user.get("role") != "superadmin":
+async def update_system_setting(key: str, setting: SystemSettingUpdate, current_user = Depends(get_current_user)):
+    # current_user is a tuple (username, hash, role)
+    if current_user[2] != "superadmin":
         raise HTTPException(status_code=403, detail="Only superadmins can change system settings")
         
     success = database.update_system_setting(key, setting.value)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to update setting")
     return {"message": f"Setting {key} updated successfully"}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

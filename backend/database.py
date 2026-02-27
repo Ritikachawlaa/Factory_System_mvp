@@ -554,10 +554,12 @@ def get_dashboard_stats():
         stmt_settings = text("SELECT value FROM system_settings WHERE key = 'critical_modules'")
         settings_row = conn.execute(stmt_settings).fetchone()
         import json
-        try:
-            critical_modules = json.loads(settings_row[0]) if settings_row else ["ppe-compliance", "intrusion-detection"]
-        except:
-            critical_modules = ["ppe-compliance", "intrusion-detection"]
+        critical_modules = ["ppe-compliance", "intrusion-detection"]
+        if settings_row and settings_row[0]:
+            try:
+                critical_modules = json.loads(settings_row[0])
+            except:
+                pass
 
         # Total Alerts (last 24h)
         stmt_alerts = text("SELECT COUNT(*) FROM events WHERE timestamp >= (CURRENT_TIMESTAMP - INTERVAL '24 hours')")
@@ -566,9 +568,9 @@ def get_dashboard_stats():
         
         # Critical Alerts (last 24h) based on settings
         if critical_modules:
-            # Construct a safe IN clause or use ANY for Postgres
-            params = {"mods": tuple(critical_modules)}
-            stmt_critical = text("SELECT COUNT(*) FROM events WHERE module_key IN :mods AND timestamp >= (CURRENT_TIMESTAMP - INTERVAL '24 hours')")
+            # Construct a safe ANY clause for Postgres
+            params = {"mods": list(critical_modules)}
+            stmt_critical = text("SELECT COUNT(*) FROM events WHERE module_key = ANY(:mods) AND timestamp >= (CURRENT_TIMESTAMP - INTERVAL '24 hours')")
             critical_row = conn.execute(stmt_critical, params).fetchone()
             critical_alerts = critical_row[0] if critical_row else 0
         else:
