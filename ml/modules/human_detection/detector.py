@@ -6,6 +6,8 @@ Model : Core_Model_1.pt  (YOLO – class 0 = person)
 import os
 from ultralytics import YOLO
 
+import torch
+
 # Path priority: local copy → Phase-1 repo copy → generic yolov8n
 _LOCAL_MODEL = os.path.join(os.path.dirname(__file__), "..", "..", "models", "Core_Model_1.pt")
 _PHASE1_MODEL = os.path.join(
@@ -24,11 +26,15 @@ def _resolve_model():
 class HumanDetector:
     def __init__(self, conf=0.25):
         self.model = YOLO(_resolve_model())
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model.to(self.device)
         self.conf = conf
 
     def detect(self, frame):
         """Return list of (x1, y1, x2, y2, confidence) for every person."""
-        results = self.model(frame, conf=self.conf, verbose=False)[0]
+        # Use half precision on GPU for 2x speedup
+        is_gpu = self.device.type == "cuda"
+        results = self.model(frame, conf=self.conf, verbose=False, device=self.device, half=is_gpu)[0]
         detections = []
         for box in results.boxes:
             cls = int(box.cls[0])

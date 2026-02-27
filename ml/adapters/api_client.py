@@ -2,6 +2,8 @@ import requests
 import os
 import time
 import logging
+import threading
+from queue import Queue, Empty
 
 # Configure logger
 logging.basicConfig(level=logging.INFO)
@@ -14,8 +16,30 @@ class APIClient:
         # Use BACKEND_API_URL as the default source for base_url
         self.base_url = base_url or BACKEND_API_URL
         self.session = requests.Session()
+        
+        # Performance optimization: Streamer Queue
+        self._stream_queue = Queue(maxsize=10) # Keep small to ensure real-time
+        self._streaming_active = True
+        self._stream_thread = threading.Thread(target=self._stream_worker, daemon=True)
+        self._stream_thread.start()
+        
         logger.info(f"API Client initialized with URL: {self.base_url}")
 
+    def _stream_worker(self):
+        """Persistent worker to send detection frames without spawning threads."""
+        while self._streaming_active:
+            try:
+                # Get the latest payload, skip if queue backed up
+                payload = self._stream_queue.get(timeout=1.0)
+                try:
+                    self.session.post(f"{self.base_url}/api/detections/stream", json=payload, timeout=0.5)
+                except Exception:
+                    pass
+                self._stream_queue.task_done()
+            except Empty:
+                continue
+            except Exception as e:
+                logger.error(f"Stream worker error: {e}")
 
     def _post(self, endpoint, data):
         url = f"{self.base_url}{endpoint}"
@@ -33,8 +57,6 @@ class APIClient:
         Send a detection event to the backend.
         event: dict with camera_id, module_key, label, confidence, etc.
         """
-        # Ensure event matches DetectionSchema expected by backend
-        # backend expects: camera_id, module_key, label, confidence, timestamp, metadata
         payload = {
             "camera_id": event.get("camera_id"),
             "module_key": event.get("module_key"),
@@ -42,10 +64,6 @@ class APIClient:
             "confidence": event.get("confidence", 1.0),
             "timestamp": str(event.get("timestamp")) if event.get("timestamp") else None,
             "metadata": {"meta": event.get("meta")} if event.get("meta") else None 
-            # Note: The backend schema expects `metadata: dict`. 
-            # Our event logic might have `meta` as a string. Let's wrap it if needed or adjust.
-            # Reading main.py: ingest_detection -> meta=str(event.metadata) if event.metadata else None
-            # So if we send metadata={"meta": "some string"}, backend gets it as dict and converts to str. Perfect.
         }
         return self._post("/api/detections", payload)
 
@@ -65,19 +83,22 @@ class APIClient:
 
     def send_detection_stream(self, camera_id: int, detections: list):
         """
-        Send raw bounding boxes to the WebSocket broadcast endpoint non-blocking.
+        Queue raw bounding boxes for the worker thread to send.
         """
         payload = {
             "camera_id": camera_id,
             "detections": detections
         }
-        import threading
-        def _async_stream():
+        
+        # If queue full, drop older frame to keep latency low
+        if self._stream_queue.full():
             try:
-                self.session.post(f"{self.base_url}/api/detections/stream", json=payload, timeout=2)
-            except:
+                self._stream_queue.get_nowait()
+                self._stream_queue.task_done()
+            except Empty:
                 pass
-        threading.Thread(target=_async_stream, daemon=True).start()
+                
+        self._stream_queue.put(payload)
         return True
 
     def get_cameras(self):

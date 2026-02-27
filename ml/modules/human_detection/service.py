@@ -23,7 +23,7 @@ class HumanDetectionService:
         if not self.model_loaded:
             logger.info("Loading Human Detection model …")
             try:
-                self.detector = HumanDetector(conf=0.4)
+                self.detector = HumanDetector(conf=0.3)
                 self.model_loaded = True
                 logger.info("Human Detection model loaded.")
             except Exception as e:

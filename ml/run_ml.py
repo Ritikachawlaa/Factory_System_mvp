@@ -151,9 +151,10 @@ def run_camera_inference(camera, client):
         orig_h, orig_w = frame.shape[:2]
 
         # Resize for performance matching backend logic
-        frame = cv2.resize(frame, (320, 240))
-        scale_x = orig_w / 320.0
-        scale_y = orig_h / 240.0
+        # Increasing resolution from 320x240 to 640x480 for much better accuracy
+        frame = cv2.resize(frame, (640, 480))
+        scale_x = orig_w / 640.0
+        scale_y = orig_h / 480.0
 
         start_time = time.time()
         last_boxes_count = getattr(run_camera_inference, f"last_boxes_{cam_id}", 0)
@@ -183,12 +184,13 @@ def run_camera_inference(camera, client):
                                 })
                             # Stream live bounding boxes to frontend
                             client.send_detection_stream(cam_id, scaled_boxes)
-                            last_boxes_count = len(scaled_boxes)
+                            # Update persist state on service instance instead of thread attribute
+                            service.last_boxes_found = True
                         else:
                             # Send empty boxes array to clear the UI ONCE
-                            if last_boxes_count > 0:
+                            if getattr(service, 'last_boxes_found', False):
                                 client.send_detection_stream(cam_id, [])
-                                last_boxes_count = 0
+                                service.last_boxes_found = False
                     else:
                         _, events = result
                     
