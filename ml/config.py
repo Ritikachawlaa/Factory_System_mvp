@@ -9,7 +9,7 @@ load_dotenv()
 # BACKEND_API_URL should be set in .env or environment variables
 # Requirement: Remove all hardcoded references to localhost, 127.0.0.1, etc.
 # Default should be: http://localhost:8000 (development only)
-ENV_BACKEND_URL = os.getenv("BACKEND_API_URL")
+ENV_BACKEND_URL = os.getenv("BACKEND_API_URL") or os.getenv("BACKEND_BASE_URL")
 BACKEND_API_URL = (ENV_BACKEND_URL or "http://localhost:8000").rstrip('/')
 
 # Production Safety Check:

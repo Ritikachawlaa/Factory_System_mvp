@@ -1038,12 +1038,13 @@ async def get_system_health(camera_id: int = 1):
 async def broadcast_detection_stream(payload: DetectionStreamPayload):
     """
     Endpoint for ML Engine to push raw detection bounding boxes
-    in format: {"camera_id": 1, "detections": [{"class": "person", "x": 10, "y": 10, "w": 50, "h": 100}]}
     """
     if payload.detections:
         last_detection_time[payload.camera_id] = time.time()
+        # logger.info(f"ML Stream: Camera {payload.camera_id} -> {len(payload.detections)} detections")
         
-    await detection_manager.broadcast(payload.dict())
+    # Process broadcast in background to keep ML engine fast and responsive
+    asyncio.create_task(detection_manager.broadcast(payload.dict()))
     return {"status": "broadcast_success"}
 
 # --- WebRTC Signaling (MediaMTX Proxy) ---

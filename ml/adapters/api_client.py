@@ -32,9 +32,11 @@ class APIClient:
                 # Get the latest payload, skip if queue backed up
                 payload = self._stream_queue.get(timeout=1.0)
                 try:
-                    self.session.post(f"{self.base_url}/api/detections/stream", json=payload, timeout=0.5)
-                except Exception:
-                    pass
+                    res = self.session.post(f"{self.base_url}/api/detections/stream", json=payload, timeout=2.0)
+                    if not res.ok:
+                        logger.warning(f"Stream POST failed: {res.status_code}")
+                except Exception as e:
+                    logger.debug(f"Stream worker transient error: {e}")
                 self._stream_queue.task_done()
             except Empty:
                 continue

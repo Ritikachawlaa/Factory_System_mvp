@@ -18,6 +18,7 @@ class HumanDetectionService:
         self.last_count = 0
         self.last_log_time = 0
         self.LOG_INTERVAL = 5          # emit event every 5 s at most
+        self.last_boxes_found = False  # Track if boxes were previously sent to UI
 
     def _load(self):
         if not self.model_loaded:

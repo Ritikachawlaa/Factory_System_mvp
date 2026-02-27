@@ -100,9 +100,15 @@ def run_camera_inference(camera, client):
     inference_times = deque(maxlen=100)
     last_metrics_send = time.time()
     last_config_check = time.time()
+    last_heartbeat = time.time()
 
     while True:
         now = time.time()
+        
+        # Diagnostic Heartbeat: Print every 30s to show engine is Alive
+        if now - last_heartbeat >= 30.0:
+            logger.info(f"--- ML ENGINE HEARTBEAT: Camera {cam_id} Active ---")
+            last_heartbeat = now
         
         # Periodic DB sync: allow UI toggles to resume inference without restarting thread
         if now - last_config_check >= 5.0:
