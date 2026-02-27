@@ -662,33 +662,51 @@ def update_password(username: str, new_password_hash: str):
 
 # --- System Settings ---
 
+# --- File-based settings fallback ---
+import json as _json
+
+_SETTINGS_FILE = os.path.join(os.path.dirname(__file__), "settings.json")
+
+def _load_file_settings():
+    try:
+        if os.path.exists(_SETTINGS_FILE):
+            with open(_SETTINGS_FILE, "r") as f:
+                return _json.load(f)
+    except:
+        pass
+    return {}
+
+def _save_file_settings(data: dict):
+    try:
+        with open(_SETTINGS_FILE, "w") as f:
+            _json.dump(data, f)
+        return True
+    except Exception as e:
+        print(f"Error saving settings file: {e}")
+        return False
+
 def get_system_setting(key: str, default: str = None):
+    # Try database first
     try:
         row = _exec_query("SELECT value FROM system_settings WHERE key = :key", {"key": key}, fetch_one=True)
         if row:
             return row[0]
-        return default
-    except Exception as e:
-        print(f"Error fetching setting {key}: {e}")
-        return default
+    except:
+        pass  # Table doesn't exist or DB error
+    
+    # Fallback to file
+    data = _load_file_settings()
+    return data.get(key, default)
 
 def update_system_setting(key: str, value: str):
+    # Try database first
     try:
-        # Ensure table exists
-        _exec_query('CREATE TABLE IF NOT EXISTS system_settings (key VARCHAR(100) PRIMARY KEY, value TEXT)', commit=True)
-        
-        # Try update first
-        update_stmt = "UPDATE system_settings SET value = :value WHERE key = :key"
-        result = _exec_query(update_stmt, {"key": key, "value": value}, commit=True)
-        
-        # If no row was updated, insert
-        try:
-            insert_stmt = "INSERT INTO system_settings (key, value) VALUES (:key, :value)"
-            _exec_query(insert_stmt, {"key": key, "value": value}, commit=True)
-        except:
-            pass  # Row already exists, update was successful
-        
+        _exec_query("UPDATE system_settings SET value = :value WHERE key = :key", {"key": key, "value": value}, commit=True)
         return True
-    except Exception as e:
-        print(f"Error updating setting {key}: {e}")
-        return False
+    except:
+        pass  # Table doesn't exist or no permissions
+    
+    # Fallback to file
+    data = _load_file_settings()
+    data[key] = value
+    return _save_file_settings(data)

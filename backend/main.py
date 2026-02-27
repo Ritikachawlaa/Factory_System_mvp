@@ -323,14 +323,7 @@ async def get_current_user_debug_optional(token: Optional[str] = Depends(oauth2_
 @app.on_event("startup")
 async def startup_event():
     database.init_db()
-    print("Pre-startup: Initializing system settings table...")
-    try:
-        database._exec_query('CREATE TABLE IF NOT EXISTS system_settings (key VARCHAR(100) PRIMARY KEY, value TEXT)', commit=True)
-        database._exec_query('INSERT INTO system_settings (key, value) VALUES (:key, :val) ON CONFLICT (key) DO NOTHING', 
-                              {"key": "critical_modules", "val": '["ppe-compliance", "intrusion-detection"]'}, commit=True)
-        print("System settings successfully initialized")
-    except Exception as e:
-        print(f"CRITICAL: Failed to initialize system settings: {e}")
+    print("Startup: Database initialized. Settings use file-based fallback if DB table unavailable.")
     recognition.load_models()
 
 @app.on_event("shutdown")
