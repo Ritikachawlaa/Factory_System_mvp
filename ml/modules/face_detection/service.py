@@ -18,7 +18,7 @@ class FaceDetectionService:
         self.last_log_time = 0
         self.LOG_INTERVAL = 5
         self.frame_count = 0
-        self.SKIP_FRAMES = 1 # Balanced: Process every 2nd frame
+        self.SKIP_FRAMES = 2 # High-Speed: Process every 3rd frame to reduce YOLO latency
         self.last_boxes = []
 
     def _load(self):

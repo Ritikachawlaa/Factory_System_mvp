@@ -1,49 +1,46 @@
 """
 Face Detection – Detector
-Source: Ai_system_phase_1_repo/AI_FACE_DASHBOARD_FINAL/register_dashboard/app.py
-Uses OpenCV Haar Cascade (haarcascade_frontalface_default.xml) — no GPU needed.
+Uses YOLO Core_Model_1.pt for robust accuracy.
+Optimized for multi-face detection (iou=0.5, max_det=100) and reduced delay (imgsz=320).
 """
 import os
-import cv2
+import torch
+from ultralytics import YOLO
 import logging
 
 logger = logging.getLogger("face_detection")
 
-class FaceDetector:
-    def __init__(self, scale_factor=1.3, min_neighbors=5, min_size=(30, 30), conf=0.4):
-        # We accept `conf` for interface compatibility with BaseDetector if needed
-        self.cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
-        self.cascade = cv2.CascadeClassifier(self.cascade_path)
-        
-        if self.cascade.empty():
-            logger.error(f"Failed to load Haar cascade from {self.cascade_path}")
-        else:
-            logger.info("FaceDetector initialized with Haar Cascades (Fast Multi-Face CPU)")
-            
-        self.scale_factor = scale_factor
-        self.min_neighbors = min_neighbors
-        self.min_size = min_size
+from utils.base_detector import BaseDetector
+
+class FaceDetector(BaseDetector):
+    def __init__(self, conf=0.25):
+        # Revert to robust YOLO Face Model
+        super().__init__(model_path="Core_Model_1.pt", conf=conf)
+        logger.info(f"YOLO-Face Detector initialized with Core_Model_1.pt")
 
     def detect(self, frame):
         """Return list of (x, y, w, h, confidence) face rectangles."""
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        is_gpu = self.device.type == "cuda"
         
-        # detectMultiScale3 provides weights which we can proxy as confidence
-        faces, rejectLevels, levelWeights = self.cascade.detectMultiScale3(
-            gray,
-            scaleFactor=self.scale_factor,
-            minNeighbors=self.min_neighbors,
-            minSize=self.min_size,
-            outputRejectLevels=True
-        )
+        # Optimizations: 
+        # imgsz=320 for speed
+        # iou=0.5 to allow boxes for faces close together
+        # max_det=100 explicitly allowing up to 100 people at once
+        results = self.model(
+            frame, 
+            conf=self.conf, 
+            iou=0.5,
+            max_det=100,
+            verbose=False, 
+            device=self.device, 
+            half=is_gpu, 
+            imgsz=320
+        )[0]
         
-        if len(faces) == 0:
-            return []
-            
         detections = []
-        for (x, y, w, h), weight in zip(faces, levelWeights):
-            # Normalize Haar weight (often 1-10+) to a 0.5 - 0.99 confidence score
-            conf = min(0.99, max(0.4, float(weight) / 10.0))
-            detections.append((int(x), int(y), int(w), int(h), conf))
+        for box in results.boxes:
+            x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
+            conf = float(box.conf[0].tolist())
+            detections.append((x1, y1, x2 - x1, y2 - y1, conf))
             
         return detections
