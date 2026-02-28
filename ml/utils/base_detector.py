@@ -47,20 +47,19 @@ class BaseDetector:
         Returns list of (x1, y1, x2, y2, confidence, class_id).
         """
         is_gpu = self.device.type == "cuda"
-        results = self.model(frame, conf=self.conf, verbose=False, device=self.device, half=is_gpu)[0]
+        # Let Ultralytics handle class filtering natively during NMS to reduce false positives
+        results = self.model(frame, classes=classes, conf=self.conf, verbose=False, device=self.device, half=is_gpu)[0]
         
         detections = []
-        for box in results.boxes:
-            cls_id = int(box.cls[0].tolist()) if hasattr(box.cls[0], 'tolist') else int(box.cls[0])
-            
-            if classes is not None and cls_id not in classes:
-                continue
+        if results.boxes is not None:
+            for box in results.boxes:
+                cls_id = int(box.cls[0].tolist()) if hasattr(box.cls[0], 'tolist') else int(box.cls[0])
                 
-            # Convert to native Python types for JSON compatibility
-            x1, y1, x2, y2 = map(int, box.xyxy[0].tolist() if hasattr(box.xyxy[0], 'tolist') else box.xyxy[0])
-            conf = float(box.conf[0].tolist()) if hasattr(box.conf[0], 'tolist') else float(box.conf[0])
-            
-            detections.append((x1, y1, x2, y2, conf, cls_id))
+                # Convert to native Python types for JSON compatibility
+                x1, y1, x2, y2 = map(int, box.xyxy[0].tolist() if hasattr(box.xyxy[0], 'tolist') else box.xyxy[0])
+                conf = float(box.conf[0].tolist()) if hasattr(box.conf[0], 'tolist') else float(box.conf[0])
+                
+                detections.append((x1, y1, x2, y2, conf, cls_id))
             
         return detections
 
@@ -70,14 +69,12 @@ class BaseDetector:
         Returns list of (x1, y1, x2, y2, track_id, confidence, class_id).
         """
         is_gpu = self.device.type == "cuda"
-        results = self.model.track(frame, persist=True, conf=self.conf, verbose=False, device=self.device, half=is_gpu)[0]
+        results = self.model.track(frame, classes=classes, persist=True, conf=self.conf, verbose=False, device=self.device, half=is_gpu)[0]
         
         tracks = []
         if results.boxes is not None:
             for box in results.boxes:
                 cls_id = int(box.cls[0].tolist()) if hasattr(box.cls[0], 'tolist') else int(box.cls[0])
-                if classes is not None and cls_id not in classes:
-                    continue
                     
                 x1, y1, x2, y2 = map(int, box.xyxy[0].tolist() if hasattr(box.xyxy[0], 'tolist') else box.xyxy[0])
                 track_id = int(box.id[0].tolist()) if box.id is not None else -1

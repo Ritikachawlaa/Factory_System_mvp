@@ -9,7 +9,7 @@ to assign persistent IDs to detected persons across frames.
 from utils.base_detector import BaseDetector
 
 class AutoTrackingDetector(BaseDetector):
-    def __init__(self, conf=0.4):
+    def __init__(self, conf=0.55):
         super().__init__(model_path="yolov8s.pt", conf=conf)
 
     def track(self, frame):

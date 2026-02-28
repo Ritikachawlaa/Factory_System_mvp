@@ -537,16 +537,51 @@ def get_face_trend(camera_id: int = None):
 def get_crowd_analytics(camera_id: int = None):
     conn = get_connection()
     try:
-        query_events = "SELECT COUNT(*) FROM events WHERE module_key = 'crowd-density' AND timestamp >= CURRENT_DATE"
+        query_events = "SELECT metadata, timestamp FROM events WHERE module_key = 'crowd-density' AND timestamp >= CURRENT_DATE"
+        params = {}
         if camera_id:
             query_events += " AND camera_id = :cid"
-        total_events = conn.execute(text(query_events), {"cid": camera_id}).scalar() or 0
+            params["cid"] = camera_id
+            
+        rows = conn.execute(text(query_events), params).fetchall()
+        
+        total_events = len(rows)
+        max_people = 0
+        total_people = 0
+        hour_counts = {}
+        
+        import re
+        for meta, ts in rows:
+            if not meta: continue
+            
+            # Formats: "Count: 12, Hot cells: 0"
+            m = re.search(r"Count:\s*(\d+)", meta)
+            if m:
+                count = int(m.group(1))
+                max_people = max(max_people, count)
+                total_people += count
+                
+                # Extract hour from timestamp "2023-10-25 14:30:00"
+                if isinstance(ts, str) and len(ts) >= 13:
+                    hr = ts[11:13]
+                    hour_counts[hr] = hour_counts.get(hr, 0) + count
+        
+        peak_hour = None
+        if hour_counts:
+            best_hr = max(hour_counts.items(), key=lambda x: x[1])[0]
+            peak_hour = int(best_hr)
+            
+        # Assume density % is roughly count / 100 for safety, cap at 100%
+        avg_density = 0
+        if total_events > 0:
+            avg_people = total_people / total_events
+            avg_density = min(1.0, avg_people / 100.0)
         
         return {
-            "max_people": random.randint(20, 150) if total_events > 0 else 0,
+            "max_people": max_people,
             "total_events": total_events,
-            "peak_hour": random.choice([10, 11, 14, 15, 16]) if total_events > 0 else None, 
-            "avg_density": random.uniform(0.1, 0.8) if total_events > 0 else 0
+            "peak_hour": peak_hour, 
+            "avg_density": avg_density
         }
     except Exception as e:
         print(f"Get Crowd Analytics Error: {e}")
@@ -561,33 +596,117 @@ def get_crowd_timeline(camera_id: int = None, limit: int = 50):
         results.append({
             "time": e["timestamp"].split(' ')[1] if ' ' in e["timestamp"] else e["timestamp"],
             "label": e["label"],
-            "meta": e.get("meta", "")
+            "meta": e.get("metadata", e.get("meta", "")) # DB uses 'metadata', some older dicts use 'meta'
         })
     return results
 
 def get_crowd_trend(camera_id: int = None):
-    labels = ["08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00"]
-    return {
-        "labels": labels,
-        "today": [random.randint(5, 50) for _ in labels],
-        "yesterday": [random.randint(5, 50) for _ in labels]
-    }
+    # Calculate real today trend
+    conn = get_connection()
+    try:
+        # Fetch today and yesterday
+        query = "SELECT metadata, timestamp FROM events WHERE module_key = 'crowd-density' AND timestamp >= datetime('now', '-1 day')"
+        if "postgresql" in str(conn.engine.url):
+             query = "SELECT metadata, timestamp FROM events WHERE module_key = 'crowd-density' AND timestamp >= CURRENT_DATE - INTERVAL '1 day'"
+             
+        params = {}
+        if camera_id:
+            query += " AND camera_id = :cid"
+            params["cid"] = camera_id
+            
+        rows = conn.execute(text(query), params).fetchall()
+        
+        import re
+        from datetime import datetime, timedelta
+        
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        
+        labels_hours = ["08", "10", "12", "14", "16", "18", "20"]
+        labels = [f"{h}:00" for h in labels_hours]
+        
+        today_data = {h: [] for h in labels_hours}
+        yesterday_data = {h: [] for h in labels_hours}
+        
+        for meta, ts in rows:
+            if not meta or not ts: continue
+            ts_str = str(ts)
+            
+            m = re.search(r"Count:\s*(\d+)", meta)
+            if not m: continue
+            count = int(m.group(1))
+            
+            hr = ts_str[11:13]
+            if hr in today_data:
+                if ts_str.startswith(today_str):
+                    today_data[hr].append(count)
+                else:
+                    yesterday_data[hr].append(count)
+                    
+        # Average per hour
+        today = [int(sum(today_data[h])/len(today_data[h])) if today_data[h] else 0 for h in labels_hours]
+        yesterday = [int(sum(yesterday_data[h])/len(yesterday_data[h])) if yesterday_data[h] else 0 for h in labels_hours]
+                    
+        return {
+            "labels": labels,
+            "today": today,
+            "yesterday": yesterday
+        }
+    except Exception as e:
+        print(f"Get Crowd Trend Error: {e}")
+        labels = ["08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00"]
+        return {"labels": labels, "today": [0]*7, "yesterday": [0]*7}
+    finally:
+        conn.close()
 
 # --- Auto-Tracking Analytics (Camera Specific) ---
 
 def get_tracking_analytics(camera_id: int = None):
     conn = get_connection()
     try:
-        query_events = "SELECT COUNT(*) FROM events WHERE module_key = 'auto-tracking' AND timestamp >= CURRENT_DATE"
+        query = "SELECT metadata, timestamp FROM events WHERE module_key = 'auto-tracking' AND timestamp >= CURRENT_DATE"
+        params = {}
         if camera_id:
-            query_events += " AND camera_id = :cid"
-        total_events = conn.execute(text(query_events), {"cid": camera_id}).scalar() or 0
+            query += " AND camera_id = :cid"
+            params["cid"] = camera_id
+            
+        rows = conn.execute(text(query), params).fetchall()
+        
+        total_events = len(rows)
+        max_active = 0
+        total_new_tracks = 0
+        hour_counts = {}
+        
+        import re
+        for meta, ts in rows:
+            if not meta: continue
+            
+            # Format: "New IDs: [1, 2], Active: 2"
+            m_active = re.search(r"Active:\s*(\d+)", meta)
+            if m_active:
+                act = int(m_active.group(1))
+                max_active = max(max_active, act)
+                
+            if "New IDs" in meta:
+                # count commas + 1 or just grab array len
+                m_list = re.search(r"New IDs:\s*\[(.*?)\]", meta)
+                if m_list and m_list.group(1).strip():
+                    new_count = len(m_list.group(1).split(","))
+                    total_new_tracks += new_count
+                    
+                    if isinstance(ts, str) and len(ts) >= 13:
+                        hr = ts[11:13]
+                        hour_counts[hr] = hour_counts.get(hr, 0) + new_count
+                        
+        peak_hour = None
+        if hour_counts:
+            best_hr = max(hour_counts.items(), key=lambda x: x[1])[0]
+            peak_hour = int(best_hr)
         
         return {
-            "total_tracks": random.randint(10, 300) if total_events > 0 else 0,
-            "active_tracks": random.randint(0, 15) if total_events > 0 else 0,
+            "total_tracks": total_new_tracks,
+            "active_tracks": max_active,
             "total_events": total_events,
-            "peak_hour": random.choice([10, 11, 14, 15, 16]) if total_events > 0 else None
+            "peak_hour": peak_hour
         }
     except Exception as e:
         print(f"Get Tracking Analytics Error: {e}")
@@ -602,32 +721,105 @@ def get_tracking_timeline(camera_id: int = None, limit: int = 50):
         results.append({
             "time": e["timestamp"].split(' ')[1] if ' ' in e["timestamp"] else e["timestamp"],
             "label": e["label"],
-            "meta": e.get("meta", "")
+            "meta": e.get("metadata", e.get("meta", ""))
         })
     return results
 
 def get_tracking_trend(camera_id: int = None):
-    labels = ["08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00"]
-    return {
-        "labels": labels,
-        "today": [random.randint(5, 50) for _ in labels],
-        "yesterday": [random.randint(5, 50) for _ in labels]
-    }
+    conn = get_connection()
+    try:
+        query = "SELECT metadata, timestamp FROM events WHERE module_key = 'auto-tracking' AND timestamp >= datetime('now', '-1 day')"
+        if "postgresql" in str(conn.engine.url):
+             query = "SELECT metadata, timestamp FROM events WHERE module_key = 'auto-tracking' AND timestamp >= CURRENT_DATE - INTERVAL '1 day'"
+             
+        params = {}
+        if camera_id:
+            query += " AND camera_id = :cid"
+            params["cid"] = camera_id
+            
+        rows = conn.execute(text(query), params).fetchall()
+        
+        import re
+        from datetime import datetime
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        
+        labels_hours = ["08", "10", "12", "14", "16", "18", "20"]
+        labels = [f"{h}:00" for h in labels_hours]
+        
+        today_data = {h: 0 for h in labels_hours}
+        yesterday_data = {h: 0 for h in labels_hours}
+        
+        for meta, ts in rows:
+            if not meta or not ts or "New IDs" not in meta: continue
+            
+            m_list = re.search(r"New IDs:\s*\[(.*?)\]", meta)
+            if not m_list or not m_list.group(1).strip(): continue
+            count = len(m_list.group(1).split(","))
+            
+            ts_str = str(ts)
+            hr = ts_str[11:13]
+            
+            if hr in today_data:
+                if ts_str.startswith(today_str):
+                    today_data[hr] += count
+                else:
+                    yesterday_data[hr] += count
+                    
+        return {
+            "labels": labels,
+            "today": [today_data[h] for h in labels_hours],
+            "yesterday": [yesterday_data[h] for h in labels_hours]
+        }
+    except Exception as e:
+        print(f"Get Tracking Trend Error: {e}")
+        labels = ["08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00"]
+        return {"labels": labels, "today": [0]*7, "yesterday": [0]*7}
+    finally:
+        conn.close()
 
 # --- People Count Analytics (Camera Specific) ---
 
 def get_people_analytics(camera_id: int = None):
     conn = get_connection()
     try:
-        query_events = "SELECT COUNT(*) FROM events WHERE module_key = 'people-count' AND timestamp >= CURRENT_DATE"
+        query = "SELECT metadata, timestamp FROM events WHERE module_key = 'people-count' AND timestamp >= CURRENT_DATE"
+        params = {}
         if camera_id:
-            query_events += " AND camera_id = :cid"
-        total_events = conn.execute(text(query_events), {"cid": camera_id}).scalar() or 0
+            query += " AND camera_id = :cid"
+            params["cid"] = camera_id
+            
+        rows = conn.execute(text(query), params).fetchall()
         
+        total_events = len(rows)
+        max_people = 0
+        hour_counts = {}
+        
+        import re
+        for meta, ts in rows:
+            if not meta: continue
+            
+            # Format: "Detected: 5 people"
+            m = re.search(r"Detected:\s*(\d+)", meta)
+            if m:
+                count = int(m.group(1))
+                max_people = max(max_people, count)
+                
+                # Extract hour
+                if isinstance(ts, str) and len(ts) >= 13:
+                    hr = ts[11:13]
+                    # Since person count isn't additive (it reflects current scene state), 
+                    # hour peaks is just max seen in that hour
+                    hour_counts[hr] = max(hour_counts.get(hr, 0), count)
+        
+        peak_hour = None
+        if hour_counts:
+            best_hr = max(hour_counts.items(), key=lambda x: x[1])[0]
+            peak_hour = int(best_hr)
+            
         return {
-            "max_people": random.randint(10, 150) if total_events > 0 else 0,
+            "max_people": max_people,
             "total_events": total_events,
-            "peak_hour": random.choice([10, 11, 14, 15, 16]) if total_events > 0 else None
+            "peak_hour": peak_hour
         }
     except Exception as e:
         print(f"Get People Analytics Error: {e}")
@@ -642,17 +834,65 @@ def get_people_timeline(camera_id: int = None, limit: int = 50):
         results.append({
             "time": e["timestamp"].split(' ')[1] if ' ' in e["timestamp"] else e["timestamp"],
             "label": e["label"],
-            "meta": e.get("meta", "")
+            "meta": e.get("metadata", e.get("meta", ""))
         })
     return results
 
 def get_people_trend(camera_id: int = None):
-    labels = ["08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00"]
-    return {
-        "labels": labels,
-        "today": [random.randint(5, 100) for _ in labels],
-        "yesterday": [random.randint(5, 100) for _ in labels]
-    }
+    conn = get_connection()
+    try:
+        query = "SELECT metadata, timestamp FROM events WHERE module_key = 'people-count' AND timestamp >= datetime('now', '-1 day')"
+        if "postgresql" in str(conn.engine.url):
+             query = "SELECT metadata, timestamp FROM events WHERE module_key = 'people-count' AND timestamp >= CURRENT_DATE - INTERVAL '1 day'"
+             
+        params = {}
+        if camera_id:
+            query += " AND camera_id = :cid"
+            params["cid"] = camera_id
+            
+        rows = conn.execute(text(query), params).fetchall()
+        
+        import re
+        from datetime import datetime
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        
+        labels_hours = ["08", "10", "12", "14", "16", "18", "20"]
+        labels = [f"{h}:00" for h in labels_hours]
+        
+        today_data = {h: [] for h in labels_hours}
+        yesterday_data = {h: [] for h in labels_hours}
+        
+        for meta, ts in rows:
+            if not meta or not ts: continue
+            
+            m = re.search(r"Detected:\s*(\d+)", meta)
+            if not m: continue
+            count = int(m.group(1))
+            
+            ts_str = str(ts)
+            hr = ts_str[11:13]
+            
+            if hr in today_data:
+                if ts_str.startswith(today_str):
+                    today_data[hr].append(count)
+                else:
+                    yesterday_data[hr].append(count)
+                    
+        # Max per hour, not average, to show peak periods
+        today = [max(today_data[h]) if today_data[h] else 0 for h in labels_hours]
+        yesterday = [max(yesterday_data[h]) if yesterday_data[h] else 0 for h in labels_hours]
+                    
+        return {
+            "labels": labels,
+            "today": today,
+            "yesterday": yesterday
+        }
+    except Exception as e:
+        print(f"Get People Trend Error: {e}")
+        labels = ["08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00"]
+        return {"labels": labels, "today": [0]*7, "yesterday": [0]*7}
+    finally:
+        conn.close()
 
 def get_module_stats(camera_id: int, module_key: str):
     conn = get_connection()

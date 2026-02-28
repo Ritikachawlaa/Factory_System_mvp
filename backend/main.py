@@ -852,6 +852,22 @@ def get_system_stats():
         "disk_usage": f"{usage_percent:.1f}% Full" # Frontend expects the text shown in UI "75% Full"
     }
 
+@app.get("/stats/human_detection")
+def get_global_human_stats_endpoint():
+    return database.get_human_analytics(camera_id=None)
+
+@app.get("/stats/crowd_density")
+def get_global_crowd_stats_endpoint():
+    return database.get_crowd_analytics(camera_id=None)
+
+@app.get("/stats/auto_tracking")
+def get_global_tracking_stats_endpoint():
+    return database.get_tracking_analytics(camera_id=None)
+
+@app.get("/stats/people-count")
+def get_global_people_stats_endpoint():
+    return database.get_people_analytics(camera_id=None)
+
 @app.get("/stats/face")
 def get_face_stats_endpoint():
     return database.get_face_stats()
