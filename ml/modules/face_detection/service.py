@@ -1,6 +1,7 @@
 """
 Face Detection – Service
 Detects faces in each frame and emits events when faces are found.
+Rewritten to match the smooth, every-frame processing of Human Detection.
 """
 import cv2
 import time
@@ -8,7 +9,6 @@ import logging
 from .detector import FaceDetector
 
 logger = logging.getLogger("face_detection")
-
 
 class FaceDetectionService:
     def __init__(self):
@@ -18,14 +18,12 @@ class FaceDetectionService:
         self.last_log_time = 0
         self.LOG_INTERVAL = 5
         self.frame_count = 0
-        self.SKIP_FRAMES = 2 # High-Speed: Process every 3rd frame to reduce YOLO latency
-        self.last_boxes = []
 
     def _load(self):
         if not self.model_loaded:
-            logger.info("Loading YOLO-Face model (Balanced Optimization)...")
+            logger.info("Loading YOLO-Face model (High-Speed Optimized)...")
             try:
-                # Lowering confidence threshold to 0.25 for better detection
+                # Lowering confidence threshold to 0.25 to prevent flickering on edge cases
                 self.detector = FaceDetector(conf=0.25)
                 self.model_loaded = True
                 logger.info("YOLO-Face model loaded.")
@@ -38,55 +36,52 @@ class FaceDetectionService:
             return frame, [], []
             
         self.frame_count += 1
+        
+        # 1. Inference Logic (Every Frame for Maximum Smoothness)
+        faces = self.detector.detect(frame)
+        count = len(faces)
+        
         events = []
-        
-        # 1. Inference Logic (Scheduled)
-        is_inference_frame = (self.frame_count % (self.SKIP_FRAMES + 1) == 0)
-        
-        if is_inference_frame:
-            # Standard YOLO detection
-            faces = self.detector.detect(frame)
-            count = len(faces)
-            boxes = []
+        boxes = []
 
-            for (x, y, w, h, conf) in faces:
-                boxes.append({
-                    "class": "Face",
-                    "x": int(x), "y": int(y), "w": int(w), "h": int(h), 
-                    "confidence": float(conf)
-                })
+        for i, (x, y, w, h, conf) in enumerate(faces):
+            # Scale coordinates and format for UI
+            boxes.append({
+                "id": i + 1,
+                "class": "Face",
+                "x": int(x), "y": int(y), "w": int(w), "h": int(h), 
+                "confidence": float(conf)
+            })
 
-            self.last_boxes = boxes
-            self.last_count = count
-        else:
-            # Use cached results for skipped frames to keep stream interactive
-            boxes = self.last_boxes
-            count = self.last_count
-
-        # 2. Drawing Logic (Every Frame for Burn-in Redundancy)
-        for b in boxes:
-            x, y, w, h = b["x"], b["y"], b["w"], b["h"]
-            conf = b["confidence"]
+            # Native draw for debug/WebRTC
             cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 255), 2)
             label = f"Face: {conf:.2f}"
             cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 1)
 
-        # 3. Event Logic (Only on inference frames to avoid duplicate counts)
+        # 3. Event Logic
         now = time.time()
-        if is_inference_frame:
-            if count > 0 and (now - self.last_log_time > self.LOG_INTERVAL or count != self.last_count):
-                max_conf = max((b["confidence"] for b in boxes), default=0.0)
-                events.append({
-                    "camera_id": camera_id,
-                    "module_key": "face-detection",
-                    "label": "Face Detected",
-                    "confidence": float(max_conf),
-                    "timestamp": now,
-                    "meta": f"Detected: {count} faces"
-                })
-                self.last_log_time = now
-            elif count == 0 and self.last_count > 0:
-                self.last_count = 0
-                self.last_log_time = now 
+        if count > 0 and (now - self.last_log_time > self.LOG_INTERVAL or count != self.last_count):
+            max_conf = max((b["confidence"] for b in boxes), default=0.0)
+            events.append({
+                "camera_id": camera_id,
+                "module_key": "face-detection",
+                "label": "Face Detected",
+                "confidence": float(max_conf),
+                "timestamp": now,
+                "meta": f"Count: {count}" # Matches human detection meta format
+            })
+            self.last_count = count
+            self.last_log_time = now
+        elif count == 0 and self.last_count > 0:
+            events.append({
+                "camera_id": camera_id,
+                "module_key": "face-detection",
+                "label": "No Faces",
+                "confidence": 0.0,
+                "timestamp": now,
+                "meta": "Count: 0"
+            })
+            self.last_count = 0
+            self.last_log_time = now 
 
         return frame, events, boxes
