@@ -623,7 +623,7 @@ def update_employee(emp_id: int, emp: EmployeeUpdate):
 
 # --- Camera & Module Endpoints ---
 
-@app.get("/cameras")
+@app.get("/api/cameras")
 def get_cameras_enhanced():
     cameras = database.get_cameras()
     # Enrich with modules
@@ -645,7 +645,7 @@ def get_cameras_enhanced():
         results.append(cam)
     return results
 
-@app.post("/cameras")
+@app.post("/api/cameras")
 def create_camera(cam: CameraCreate, current_user = Depends(get_current_user)):
     # 1. Add Base Camera
     new_id = database.add_camera(cam.name, cam.source)
@@ -659,7 +659,7 @@ def create_camera(cam: CameraCreate, current_user = Depends(get_current_user)):
         
     return {"message": "Camera added", "id": new_id}
 
-@app.delete("/cameras/{cam_id}")
+@app.delete("/api/cameras/{cam_id}")
 def delete_camera(cam_id: int, current_user = Depends(get_current_user)):
     # ML Engine Signal Shutdown
     existing_modules = database.get_camera_modules(cam_id)
@@ -669,7 +669,7 @@ def delete_camera(cam_id: int, current_user = Depends(get_current_user)):
     database.delete_camera(cam_id)
     return {"message": "Camera deleted"}
 
-@app.put("/cameras/{cam_id}")
+@app.put("/api/cameras/{cam_id}")
 def update_camera(cam_id: int, cam: CameraCreate, current_user = Depends(get_current_user)):
     database.update_camera(cam_id, cam.name, cam.source)
     
@@ -746,11 +746,11 @@ def api_people_timeline(camera_id: int):
 
 
 
-@app.get("/cameras/{cam_id}/modules")
+@app.get("/api/cameras/{cam_id}/modules")
 def get_camera_modules_endpoint(cam_id: int):
     return database.get_camera_modules(cam_id)
 
-@app.post("/cameras/{cam_id}/modules/{module_key}")
+@app.post("/api/cameras/{cam_id}/modules/{module_key}")
 def add_camera_module(cam_id: int, module_key: str, module: ModuleConfig):
     # Enable/Register module
     import json
@@ -759,7 +759,7 @@ def add_camera_module(cam_id: int, module_key: str, module: ModuleConfig):
     database.update_module_status(cam_id, module_key, module.status, config_str)
     return {"message": f"Module {module_key} added/updated"}
 
-@app.patch("/cameras/{cam_id}/modules/{module_key}")
+@app.patch("/api/cameras/{cam_id}/modules/{module_key}")
 async def update_module_state(cam_id: int, module_key: str, update: ModuleConfig):
     import json
     # Use the status from the request, fallback to existing logic if needed

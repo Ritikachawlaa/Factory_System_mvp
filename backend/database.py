@@ -36,10 +36,9 @@ def init_db():
     try:
         conn = get_connection()
         conn.execute(text("SELECT 1"))
-        conn.close()
-        return True
+        logger.info(f"Database Connection Check Successful. Version: {version[0]}")
     except Exception as e:
-        print(f"❌ Database Connectivity Check Failed: {e}")
+        print(f"ERROR: Database Connectivity Check Failed: {e}")
         return False
 
 def get_db_timestamp():
