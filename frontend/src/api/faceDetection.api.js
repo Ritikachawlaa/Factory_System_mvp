@@ -2,10 +2,10 @@ import httpClient from './httpClient';
 
 const faceDetectionApi = {
     getDetections: (params = {}) =>
-        httpClient.get('/detections', { params: { type: 'face_detection', ...params } }),
+        httpClient.get('/detections', { params: { type: 'face-detection', ...params } }),
 
     getForCamera: (cameraId, params = {}) =>
-        httpClient.get(`/cameras/${cameraId}/detections`, { params: { type: 'face_detection', ...params } }),
+        httpClient.get(`/cameras/${cameraId}/detections`, { params: { type: 'face-detection', ...params } }),
 
     getStats: () =>
         httpClient.get('/stats/face'),

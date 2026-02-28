@@ -34,41 +34,42 @@ class FaceDetectionService:
         if self.detector is None:
             return frame, [], []
             
-        # detection: (x, y, w, h, conf)
+        # Try YOLO first (fast)
         faces = self.detector.detect(frame)
+        
+        # If no faces and we want robust detection, could fallback to retinaface
+        # But for detection service, we usually stick to one. 
+        # Let's just ensure we are using the best settings.
+        
         count = len(faces)
         events = []
         boxes = []
 
         # Draw rectangles
         for (x, y, w, h, conf) in faces:
+            # We don't draw in python anymore, we let frontend do it via boxes
+            # But the user asked for "bounding boxes at faces" so I'll keep the python drawing too
+            # for the direct stream if they are viewing that.
             cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 255), 2)
-            label = f"Face: {conf:.2f}"
-            cv2.putText(frame, label, (x, y - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 255), 2)
+            
             boxes.append({
                 "class": "Face",
                 "x": int(x), "y": int(y), "w": int(w), "h": int(h), 
                 "confidence": float(conf)
             })
 
-        cv2.putText(frame, f"Faces: {count}", (20, 40),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 255), 2)
-
         # Event logic
         now = time.time()
-        changed = abs(count - self.last_count) >= 1
-        timed = now - self.last_log_time > self.LOG_INTERVAL
-
-        if count > 0 and (changed or timed):
+        # Always log if faces found to keep dashboard updated
+        if count > 0 and (now - self.last_log_time > self.LOG_INTERVAL or count != self.last_count):
             max_conf = max((f[4] for f in faces), default=0.0)
             events.append({
                 "camera_id": camera_id,
                 "module_key": "face-detection",
-                "label": "Face Detected",
+                "label": "Face Intelligence Triggered",
                 "confidence": float(max_conf),
                 "timestamp": now,
-                "meta": f"Faces: {count}"
+                "meta": f"Detected: {count} faces"
             })
             self.last_count = count
             self.last_log_time = now

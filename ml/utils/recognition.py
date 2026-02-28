@@ -85,12 +85,6 @@ def process_frame(frame, modules=None):
     if modules is None:
         modules = []
     
-    # Check if Face Recognition is requested
-    # We assume 'face_rec' or 'face-rec' or similar key. 
-    # Current codebase might use 'face_recognition' or just implied enabled.
-    # For now, let's look for 'face_rec' in modules list or if modules is empty (default behavior check?)
-    # But generally process_frame is called with specific active modules.
-    
     run_face_rec = False
     for m in modules:
         if 'face' in m.lower():
@@ -110,16 +104,16 @@ def identify_faces(frame):
     
     detections = []
     
-    # Optimization: resizing
-    small_frame = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
-    rgb_small_frame = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
+    # Use the full frame for better accuracy
+    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     
     try:
+        # Retinaface is much more robust for finding faces than opencv
         results = DeepFace.represent(
-            img_path=rgb_small_frame,
+            img_path=rgb_frame,
             model_name=MODEL_NAME,
             enforce_detection=False,
-            detector_backend='opencv'
+            detector_backend='retinaface'
         )
         
         for res in results:
@@ -136,21 +130,43 @@ def identify_faces(frame):
                     b = np.array(known_emb)
                     # Cosine Similarity
                     score = np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
-                    if score > best_score and score > 0.40: 
+                    # Threshold: 0.35
+                    if score > best_score and score > 0.35: 
                         best_score = score
                         name = known_face_names[i]
             
-            # Scale back up coords
-            x = int(region['x'] * 2)
-            y = int(region['y'] * 2)
-            w = int(region['w'] * 2)
-            h = int(region['h'] * 2)
+            x = int(region['x'])
+            y = int(region['y'])
+            w = int(region['w'])
+            h = int(region['h'])
             
             detections.append((name, best_score, (x, y, w, h)))
             
     except Exception as e:
-        # print(f"Rec Error: {e}")
-        pass
+        # Fallback to opencv if retinaface fails
+        try:
+             results = DeepFace.represent(
+                img_path=rgb_frame,
+                model_name=MODEL_NAME,
+                enforce_detection=False,
+                detector_backend='opencv'
+            )
+             for res in results:
+                embedding = res["embedding"]
+                region = res["facial_area"]
+                name = "Unknown"
+                best_score = 0.0
+                if len(known_face_encodings) > 0:
+                    a = np.array(embedding)
+                    for i, known_emb in enumerate(known_face_encodings):
+                        b = np.array(known_emb)
+                        score = np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+                        if score > best_score and score > 0.35: 
+                            best_score = score
+                            name = known_face_names[i]
+                detections.append((name, best_score, (int(region['x']), int(region['y']), int(region['w']), int(region['h']))))
+        except:
+            pass
         
     return detections
 

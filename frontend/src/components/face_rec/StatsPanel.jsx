@@ -41,11 +41,17 @@ const StatsPanel = () => {
                     {events.length === 0 ? (
                         <span style={{ color: 'var(--text-secondary)' }}>No recent events</span>
                     ) : (
-                        events.map((e, i) => (
-                            <div key={i} style={{ color: e.message.includes('Unknown') ? '#e2e8f0' : 'var(--text-secondary)' }}>
-                                {e.message} <span style={{ fontSize: '0.7em', opacity: 0.7 }}>({e.time})</span>
-                            </div>
-                        ))
+                        events.map((e, i) => {
+                            const msg = e.message || e.label || 'Unknown event';
+                            const timeStr = e.time || e.timestamp || '';
+                            const isUnknown = typeof msg === 'string' && msg.includes('Unknown');
+
+                            return (
+                                <div key={i} style={{ color: isUnknown ? '#e2e8f0' : 'var(--text-secondary)' }}>
+                                    {msg} <span style={{ fontSize: '0.7em', opacity: 0.7 }}>({timeStr})</span>
+                                </div>
+                            );
+                        })
                     )}
                 </div>
             </div>
