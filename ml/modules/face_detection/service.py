@@ -18,14 +18,15 @@ class FaceDetectionService:
         self.last_log_time = 0
         self.LOG_INTERVAL = 5
         self.frame_count = 0
-        self.SKIP_FRAMES = 2 # Process every 3rd frame
+        self.SKIP_FRAMES = 0 # Process every frame for maximum reliability
         self.last_boxes = []
 
     def _load(self):
         if not self.model_loaded:
-            logger.info("Loading YOLO-Face model (Nano optimized)...")
+            logger.info("Loading YOLO-Face model (Pro Accuracy)...")
             try:
-                self.detector = FaceDetector(conf=0.4)
+                # Lowering confidence threshold to 0.25 for better detection
+                self.detector = FaceDetector(conf=0.25)
                 self.model_loaded = True
                 logger.info("YOLO-Face model loaded.")
             except Exception as e:
@@ -39,19 +40,16 @@ class FaceDetectionService:
         self.frame_count += 1
         events = []
         
-        # Performance optimization: Skip frames
-        if self.frame_count % (self.SKIP_FRAMES + 1) != 0:
+        # Performance optimization: Conditional skip
+        if self.SKIP_FRAMES > 0 and self.frame_count % (self.SKIP_FRAMES + 1) != 0:
             return frame, [], self.last_boxes
 
-        # Try YOLO (fast nano model)
+        # Standard YOLO detection
         faces = self.detector.detect(frame)
         count = len(faces)
         boxes = []
 
-        # Convert to standardized box format
         for (x, y, w, h, conf) in faces:
-            # We don't draw on the frame in python unless requested, 
-            # as the frontend canvas is faster and smoother.
             boxes.append({
                 "class": "Face",
                 "x": int(x), "y": int(y), "w": int(w), "h": int(h), 
@@ -67,7 +65,7 @@ class FaceDetectionService:
             events.append({
                 "camera_id": camera_id,
                 "module_key": "face-detection",
-                "label": "Face Intelligence Triggered",
+                "label": "Face Detected",
                 "confidence": float(max_conf),
                 "timestamp": now,
                 "meta": f"Detected: {count} faces"
@@ -76,5 +74,6 @@ class FaceDetectionService:
             self.last_log_time = now
         elif count == 0 and self.last_count > 0:
             self.last_count = 0
+            self.last_log_time = now # Throttle 0-count logs too
 
         return frame, events, boxes

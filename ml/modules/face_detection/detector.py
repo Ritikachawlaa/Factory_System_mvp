@@ -20,14 +20,7 @@ class FaceDetector(BaseDetector):
 
     def detect(self, frame):
         """Return list of (x, y, w, h, confidence) face rectangles."""
-        # Using imgsz=320 for localized face detection (much faster on CPU)
-        is_gpu = self.device.type == "cuda"
-        results = self.model(frame, conf=self.conf, verbose=False, device=self.device, half=is_gpu, imgsz=320)[0]
-        
-        detections = []
-        for box in results.boxes:
-            x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
-            conf = float(box.conf[0].tolist())
-            detections.append((x1, y1, x2 - x1, y2 - y1, conf))
-            
-        return detections
+        # Reverting to standard resolution (640 or model default) for reliability
+        detections = super().detect(frame, classes=[0])
+        # Format for face service: (x, y, w, h, confidence)
+        return [(d[0], d[1], d[2]-d[0], d[3]-d[1], d[4]) for d in detections]

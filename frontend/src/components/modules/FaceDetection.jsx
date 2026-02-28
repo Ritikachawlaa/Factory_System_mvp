@@ -99,7 +99,7 @@ const FaceDetection = () => {
                     </div>
 
                     {/* Stats Cards */}
-                    <div style={{ display: grid, gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem', marginBottom: '2.5rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem', marginBottom: '2.5rem' }}>
                         {[
                             { label: "Total Faces Detected", value: stats.today_total, icon: '😊', color: '#a855f7' },
                             { label: 'Model Precision', value: stats.accuracy, icon: '🎯', color: 'var(--success-color)' },
