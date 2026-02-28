@@ -164,8 +164,22 @@ def update_module_heartbeat(camera_id: int, module_key: str, actual_status: str)
     finally:
         conn.close()
 
-def update_module_status(camera_id: int, module_key: str, status: str):
-    return update_module_heartbeat(camera_id, module_key, status)
+def update_module_status(camera_id: int, module_key: str, status: str, config: str = "{}"):
+    conn = get_connection()
+    now = get_db_timestamp()
+    try:
+        stmt = text("SELECT id FROM camera_modules WHERE camera_id = :cid AND module_key = :key")
+        row = conn.execute(stmt, {"cid": camera_id, "key": module_key}).fetchone()
+        
+        if row:
+            upd = text("UPDATE camera_modules SET status = :status, config = :config, last_updated = :ts WHERE id = :id")
+            conn.execute(upd, {"status": status, "config": config, "ts": now, "id": row[0]})
+        else:
+            ins = text("INSERT INTO camera_modules (camera_id, module_key, status, config, last_updated) VALUES (:cid, :key, :status, :config, :ts)")
+            conn.execute(ins, {"cid": camera_id, "key": module_key, "status": status, "config": config, "ts": now})
+        conn.commit()
+    finally:
+        conn.close()
 
 # --- Employee Management ---
 
