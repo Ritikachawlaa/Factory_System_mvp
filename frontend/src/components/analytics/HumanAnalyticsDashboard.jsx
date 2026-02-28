@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import API_BASE_URL from '../../config';
+import httpClient from '../../api/httpClient';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area,
     BarChart, Bar, Cell
@@ -17,13 +16,13 @@ const HumanAnalyticsDashboard = ({ cameraId }) => {
         const fetchAnalytics = async () => {
             try {
                 const [statsRes, trendRes, timelineRes] = await Promise.all([
-                    axios.get(`${API_BASE_URL}/api/cameras/${cameraId}/human-stats`),
-                    axios.get(`${API_BASE_URL}/api/cameras/${cameraId}/human-trend`),
-                    axios.get(`${API_BASE_URL}/api/cameras/${cameraId}/human-timeline`)
+                    httpClient.get(`/cameras/${cameraId}/human-stats`),
+                    httpClient.get(`/cameras/${cameraId}/human-trend`),
+                    httpClient.get(`/cameras/${cameraId}/human-timeline`)
                 ]);
-                setStats(statsRes.data);
-                setTrend(trendRes.data);
-                setTimeline(timelineRes.data);
+                setStats(statsRes || { total_humans: 0, total_events: 0, peak_hour: null, avg_duration: 0 });
+                setTrend(trendRes || { labels: [], today: [], yesterday: [] });
+                setTimeline(timelineRes || []);
             } catch (err) {
                 console.error("Error fetching human analytics:", err);
             } finally {

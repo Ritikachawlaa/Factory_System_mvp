@@ -415,52 +415,54 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                 : [];
 
             // Draw bounding boxes
-            detections.forEach(det => {
-                // det.x, y, w, h are assumed to be in original video resolution coordinates
+            if (Array.isArray(detections)) {
+                detections.forEach(det => {
+                    // det.x, y, w, h are assumed to be in original video resolution coordinates
 
-                // --- VISIBILITY FILTERING ---
-                // If we have specific filters, only show relevant boxes
-                if (activeModuleFilters.length > 0) {
-                    const detClass = (det.class || "").toLowerCase();
-                    const isPerson = detClass === 'person' || detClass === 'human';
-                    const isFace = detClass === 'face' || (!isPerson && detClass !== ""); // Faces are often labeled with names or 'face'
+                    // --- VISIBILITY FILTERING ---
+                    // If we have specific filters, only show relevant boxes
+                    if (activeModuleFilters.length > 0) {
+                        const detClass = (det.class || "").toLowerCase();
+                        const isPerson = detClass === 'person' || detClass === 'human';
+                        const isFace = detClass === 'face' || (!isPerson && detClass !== ""); // Faces are often labeled with names or 'face'
 
-                    const wantsHuman = activeModuleFilters.includes('human-detection');
-                    const wantsFace = activeModuleFilters.includes('face-detection') || activeModuleFilters.includes('face-recognition');
+                        const wantsHuman = activeModuleFilters.includes('human-detection');
+                        const wantsFace = activeModuleFilters.includes('face-detection') || activeModuleFilters.includes('face-recognition');
 
-                    // Logic: 
-                    // 1. If we only want human, and this is a face, SKIP.
-                    if (wantsHuman && !wantsFace && isFace) return;
-                    // 2. If we only want face, and this is a person, SKIP.
-                    if (wantsFace && !wantsHuman && isPerson) return;
-                    // 3. If we want both, show both (no skip).
-                }
+                        // Logic: 
+                        // 1. If we only want human, and this is a face, SKIP.
+                        if (wantsHuman && !wantsFace && isFace) return;
+                        // 2. If we only want face, and this is a person, SKIP.
+                        if (wantsFace && !wantsHuman && isPerson) return;
+                        // 3. If we want both, show both (no skip).
+                    }
 
-                // Scale them to the display coordinate system and add the letterbox/pillarbox offsets
-                const displayX = offsetX + (det.x * scaleX);
-                const displayY = offsetY + (det.y * scaleY);
-                const displayW = det.w * scaleX;
-                const displayH = det.h * scaleY;
+                    // Scale them to the display coordinate system and add the letterbox/pillarbox offsets
+                    const displayX = offsetX + (det.x * scaleX);
+                    const displayY = offsetY + (det.y * scaleY);
+                    const displayW = det.w * scaleX;
+                    const displayH = det.h * scaleY;
 
-                ctx.strokeStyle = '#00ffcc'; // neon cyan
-                ctx.lineWidth = 2;
-                ctx.strokeRect(displayX, displayY, displayW, displayH);
+                    ctx.strokeStyle = '#00ffcc'; // neon cyan
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(displayX, displayY, displayW, displayH);
 
-                // Draw Label Background
-                if (det.class) {
-                    ctx.font = '14px sans-serif';
-                    // Label text format: class + optional confidence
-                    const labelText = det.confidence ? `${det.class} ${(det.confidence * 100).toFixed(0)}%` : det.class;
-                    const textWidth = ctx.measureText(labelText).width;
+                    // Draw Label Background
+                    if (det.class) {
+                        ctx.font = '14px sans-serif';
+                        // Label text format: class + optional confidence
+                        const labelText = det.confidence ? `${det.class} ${(det.confidence * 100).toFixed(0)}%` : det.class;
+                        const textWidth = ctx.measureText(labelText).width;
 
-                    ctx.fillStyle = '#00ffcc';
-                    ctx.fillRect(displayX, displayY - 20, textWidth + 8, 20);
+                        ctx.fillStyle = '#00ffcc';
+                        ctx.fillRect(displayX, displayY - 20, textWidth + 8, 20);
 
-                    // Draw Label Text
-                    ctx.fillStyle = '#000000';
-                    ctx.fillText(labelText, displayX + 4, displayY - 5);
-                }
-            });
+                        // Draw Label Text
+                        ctx.fillStyle = '#000000';
+                        ctx.fillText(labelText, displayX + 4, displayY - 5);
+                    }
+                });
+            }
         };
 
         renderLoop();

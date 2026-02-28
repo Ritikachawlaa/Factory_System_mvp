@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import API_BASE_URL from '../../config';
+import httpClient from '../../api/httpClient';
 import {
     XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area
 } from 'recharts';
@@ -15,13 +14,13 @@ const FaceAnalyticsDashboard = ({ cameraId }) => {
         const fetchAnalytics = async () => {
             try {
                 const [statsRes, trendRes, timelineRes] = await Promise.all([
-                    axios.get(`${API_BASE_URL}/api/cameras/${cameraId}/face-stats`),
-                    axios.get(`${API_BASE_URL}/api/cameras/${cameraId}/face-trend`),
-                    axios.get(`${API_BASE_URL}/api/cameras/${cameraId}/face-timeline`)
+                    httpClient.get(`/cameras/${cameraId}/face-stats`),
+                    httpClient.get(`/cameras/${cameraId}/face-trend`),
+                    httpClient.get(`/cameras/${cameraId}/face-timeline`)
                 ]);
-                setStats(statsRes.data);
-                setTrend(trendRes.data);
-                setTimeline(timelineRes.data);
+                setStats(statsRes || { total_faces: 0, total_events: 0, peak_hour: null, avg_duration: 0 });
+                setTrend(trendRes || { labels: [], today: [], yesterday: [] });
+                setTimeline(timelineRes || []);
             } catch (err) {
                 console.error("Error fetching face analytics:", err);
             } finally {
