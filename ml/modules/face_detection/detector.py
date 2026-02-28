@@ -4,30 +4,46 @@ Source: Ai_system_phase_1_repo/AI_FACE_DASHBOARD_FINAL/register_dashboard/app.py
 Uses OpenCV Haar Cascade (haarcascade_frontalface_default.xml) — no GPU needed.
 """
 import os
-import torch
-from ultralytics import YOLO
+import cv2
 import logging
 
 logger = logging.getLogger("face_detection")
 
-from utils.base_detector import BaseDetector
-
-class FaceDetector(BaseDetector):
-    def __init__(self, conf=0.4):
-        # Using Core_Model_1.pt (verified as high-accuracy face model)
-        super().__init__(model_path="Core_Model_1.pt", conf=conf)
-        logger.info(f"YOLO-Face Detector initialized with Core_Model_1.pt")
+class FaceDetector:
+    def __init__(self, scale_factor=1.3, min_neighbors=5, min_size=(30, 30), conf=0.4):
+        # We accept `conf` for interface compatibility with BaseDetector if needed
+        self.cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+        self.cascade = cv2.CascadeClassifier(self.cascade_path)
+        
+        if self.cascade.empty():
+            logger.error(f"Failed to load Haar cascade from {self.cascade_path}")
+        else:
+            logger.info("FaceDetector initialized with Haar Cascades (Fast Multi-Face CPU)")
+            
+        self.scale_factor = scale_factor
+        self.min_neighbors = min_neighbors
+        self.min_size = min_size
 
     def detect(self, frame):
         """Return list of (x, y, w, h, confidence) face rectangles."""
-        # Using imgsz=416 for balanced speed and recognition accuracy
-        is_gpu = self.device.type == "cuda"
-        results = self.model(frame, conf=self.conf, verbose=False, device=self.device, half=is_gpu, imgsz=416)[0]
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         
+        # detectMultiScale3 provides weights which we can proxy as confidence
+        faces, rejectLevels, levelWeights = self.cascade.detectMultiScale3(
+            gray,
+            scaleFactor=self.scale_factor,
+            minNeighbors=self.min_neighbors,
+            minSize=self.min_size,
+            outputRejectLevels=True
+        )
+        
+        if len(faces) == 0:
+            return []
+            
         detections = []
-        for box in results.boxes:
-            x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
-            conf = float(box.conf[0].tolist())
-            detections.append((x1, y1, x2 - x1, y2 - y1, conf))
+        for (x, y, w, h), weight in zip(faces, levelWeights):
+            # Normalize Haar weight (often 1-10+) to a 0.5 - 0.99 confidence score
+            conf = min(0.99, max(0.4, float(weight) / 10.0))
+            detections.append((int(x), int(y), int(w), int(h), conf))
             
         return detections
