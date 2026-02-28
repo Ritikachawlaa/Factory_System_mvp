@@ -18,15 +18,22 @@ class BaseDetector:
         # Priority 2: Core_Model_1.pt (if exists locally)
         # Priority 3: yolov8s.pt (Standard Pro model)
         
-        _LOCAL_MODEL = os.path.join(os.path.dirname(__file__), "..", "models", "Core_Model_1.pt")
+        # Search for model file
+        _MODELS_DIR = os.path.join(os.path.dirname(__file__), "..", "models")
+        _LOCAL_MODEL = os.path.join(_MODELS_DIR, "Core_Model_1.pt")
         
-        if model_path and (os.path.exists(model_path) or model_path.endswith('.pt')):
+        # 1. Check literal path
+        if model_path and os.path.exists(model_path):
             final_path = model_path
-        elif os.path.exists(_LOCAL_MODEL):
+        # 2. Check if it's a filename in the models/ directory
+        elif model_path and os.path.exists(os.path.join(_MODELS_DIR, model_path)):
+            final_path = os.path.join(_MODELS_DIR, model_path)
+        # 3. Fallback to default local model
+        elif not model_path and os.path.exists(_LOCAL_MODEL):
             final_path = _LOCAL_MODEL
+        # 4. Standard YOLO model or explicit string
         else:
-            # Upgraded from 'n' to 's' for system-wide Pro accuracy
-            final_path = "yolov8s.pt" if not model_path else model_path
+            final_path = model_path if model_path else "yolov8s.pt"
             
         logger.info(f"Loading BaseDetector with model: {final_path} (conf={conf})")
         self.model = YOLO(final_path)

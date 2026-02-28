@@ -8,7 +8,7 @@ const faceDetectionApi = {
         httpClient.get(`/cameras/${cameraId}/detections`, { params: { type: 'face_detection', ...params } }),
 
     getStats: () =>
-        httpClient.get('/stats/face_detection'),
+        httpClient.get('/stats/face'),
 
     acknowledgeAlert: (alertId) =>
         httpClient.patch(`/detections/${alertId}`, { acknowledged: true }),
