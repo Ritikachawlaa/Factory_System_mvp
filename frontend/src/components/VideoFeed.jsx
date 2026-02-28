@@ -408,9 +408,34 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
             const scaleX = renderWidth / video.videoWidth;
             const scaleY = renderHeight / video.videoHeight;
 
+            // Determine active filter based on modules prop
+            // modules can be 'human-detection', 'face-detection', 'face-recognition', or 'human-detection,face-detection' etc.
+            const activeModuleFilters = typeof modules === 'string'
+                ? modules.split(',').map(m => m.trim())
+                : [];
+
             // Draw bounding boxes
             detections.forEach(det => {
                 // det.x, y, w, h are assumed to be in original video resolution coordinates
+
+                // --- VISIBILITY FILTERING ---
+                // If we have specific filters, only show relevant boxes
+                if (activeModuleFilters.length > 0) {
+                    const detClass = (det.class || "").toLowerCase();
+                    const isPerson = detClass === 'person' || detClass === 'human';
+                    const isFace = detClass === 'face' || (!isPerson && detClass !== ""); // Faces are often labeled with names or 'face'
+
+                    const wantsHuman = activeModuleFilters.includes('human-detection');
+                    const wantsFace = activeModuleFilters.includes('face-detection') || activeModuleFilters.includes('face-recognition');
+
+                    // Logic: 
+                    // 1. If we only want human, and this is a face, SKIP.
+                    if (wantsHuman && !wantsFace && isFace) return;
+                    // 2. If we only want face, and this is a person, SKIP.
+                    if (wantsFace && !wantsHuman && isPerson) return;
+                    // 3. If we want both, show both (no skip).
+                }
+
                 // Scale them to the display coordinate system and add the letterbox/pillarbox offsets
                 const displayX = offsetX + (det.x * scaleX);
                 const displayY = offsetY + (det.y * scaleY);

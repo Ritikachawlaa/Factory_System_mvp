@@ -38,7 +38,7 @@ const FaceRecognition = () => {
                             aspectRatio: '16/9',
                             position: 'relative'
                         }}>
-                            <VideoFeed modules="face" />
+                            <VideoFeed modules="face-recognition" />
 
                             {/* Overlay Info */}
                             <div style={{
