@@ -12,7 +12,8 @@ from utils.base_detector import BaseDetector
 
 class HumanDetector(BaseDetector):
     def __init__(self, conf=0.3):
-        super().__init__(conf=conf)
+        # Explicitly use yolov8s.pt for whole human body detection (class 0=person)
+        super().__init__(model_path="yolov8s.pt", conf=conf)
 
     def detect(self, frame):
         """Return list of (x1, y1, x2, y2, confidence) for every person."""

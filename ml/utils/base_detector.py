@@ -20,7 +20,7 @@ class BaseDetector:
         
         _LOCAL_MODEL = os.path.join(os.path.dirname(__file__), "..", "models", "Core_Model_1.pt")
         
-        if model_path and os.path.exists(model_path):
+        if model_path and (os.path.exists(model_path) or model_path.endswith('.pt')):
             final_path = model_path
         elif os.path.exists(_LOCAL_MODEL):
             final_path = _LOCAL_MODEL
