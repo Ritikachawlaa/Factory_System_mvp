@@ -15,7 +15,7 @@ GRID_SIZE = 4          # 4×4 grid – same as Phase-1 repo
 
 class CrowdDensityDetector(BaseDetector):
     def __init__(self, conf=0.3):
-        super().__init__(conf=conf)
+        super().__init__(model_path="yolov8s.pt", conf=conf)
 
     def detect(self, frame):
         """

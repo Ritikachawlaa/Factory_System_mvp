@@ -1,7 +1,7 @@
 from utils.base_detector import BaseDetector
 
 class PersonDetector(BaseDetector):
-    def __init__(self, model_path=None):
+    def __init__(self, model_path="yolov8s.pt"):
         super().__init__(model_path=model_path, conf=0.3)
 
     def detect(self, frame):
