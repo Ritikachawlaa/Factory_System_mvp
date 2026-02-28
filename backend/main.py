@@ -694,6 +694,58 @@ def update_camera(cam_id: int, cam: CameraCreate, current_user = Depends(get_cur
 
 # --- Module Lifecycle ---
 
+@app.get("/api/cameras/{camera_id}/face-trend")
+def api_face_trend(camera_id: int):
+    return database.get_face_trend(camera_id)
+
+@app.get("/api/cameras/{camera_id}/face-timeline")
+def api_face_timeline(camera_id: int):
+    return database.get_face_timeline(camera_id)
+
+# --- Crowd Density Analytics Endpoints ---
+
+@app.get("/api/cameras/{camera_id}/crowd-stats")
+def api_crowd_stats(camera_id: int):
+    return database.get_crowd_analytics(camera_id)
+
+@app.get("/api/cameras/{camera_id}/crowd-trend")
+def api_crowd_trend(camera_id: int):
+    return database.get_crowd_trend(camera_id)
+
+@app.get("/api/cameras/{camera_id}/crowd-timeline")
+def api_crowd_timeline(camera_id: int):
+    return database.get_crowd_timeline(camera_id)
+
+# --- Auto Tracking Analytics Endpoints ---
+
+@app.get("/api/cameras/{camera_id}/tracking-stats")
+def api_tracking_stats(camera_id: int):
+    return database.get_tracking_analytics(camera_id)
+
+@app.get("/api/cameras/{camera_id}/tracking-trend")
+def api_tracking_trend(camera_id: int):
+    return database.get_tracking_trend(camera_id)
+
+@app.get("/api/cameras/{camera_id}/tracking-timeline")
+def api_tracking_timeline(camera_id: int):
+    return database.get_tracking_timeline(camera_id)
+
+# --- People Count Analytics Endpoints ---
+
+@app.get("/api/cameras/{camera_id}/people-stats")
+def api_people_stats(camera_id: int):
+    return database.get_people_analytics(camera_id)
+
+@app.get("/api/cameras/{camera_id}/people-trend")
+def api_people_trend(camera_id: int):
+    return database.get_people_trend(camera_id)
+
+@app.get("/api/cameras/{camera_id}/people-timeline")
+def api_people_timeline(camera_id: int):
+    return database.get_people_timeline(camera_id)
+
+
+
 @app.get("/cameras/{cam_id}/modules")
 def get_camera_modules_endpoint(cam_id: int):
     return database.get_camera_modules(cam_id)

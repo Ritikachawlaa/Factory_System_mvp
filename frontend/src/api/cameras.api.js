@@ -1,16 +1,16 @@
 import httpClient from './httpClient';
 
 const camerasApi = {
-    getAll: () => httpClient.get('/cameras'),
+    getAll: () => httpClient.get('/api/cameras'),
     // Support fetching single camera if backend supports it, otherwise find in list
     getById: async (id) => {
-        const cameras = await httpClient.get('/cameras');
+        const cameras = await httpClient.get('/api/cameras');
         return cameras.find(c => c.id === parseInt(id));
     },
-    create: (cameraData) => httpClient.post('/cameras', cameraData),
-    update: (id, cameraData) => httpClient.put(`/cameras/${id}`, cameraData),
-    delete: (id) => httpClient.delete(`/cameras/${id}`),
-    updateModule: (cameraId, moduleKey, data) => httpClient.patch(`/cameras/${cameraId}/modules/${moduleKey}`, data),
+    create: (cameraData) => httpClient.post('/api/cameras', cameraData),
+    update: (id, cameraData) => httpClient.put(`/api/cameras/${id}`, cameraData),
+    delete: (id) => httpClient.delete(`/api/cameras/${id}`),
+    updateModule: (cameraId, moduleKey, data) => httpClient.patch(`/api/cameras/${cameraId}/modules/${moduleKey}`, data),
 };
 
 export default camerasApi;

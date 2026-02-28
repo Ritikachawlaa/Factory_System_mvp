@@ -425,16 +425,23 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                         const detClass = (det.class || "").toLowerCase();
                         const isPerson = detClass === 'person' || detClass === 'human';
                         const isFace = detClass === 'face' || (!isPerson && detClass !== ""); // Faces are often labeled with names or 'face'
+                        const isCrowd = detClass === 'crowd';
+                        const isTrack = detClass.includes('track id');
 
-                        const wantsHuman = activeModuleFilters.includes('human-detection');
+                        const wantsHuman = activeModuleFilters.includes('human-detection') || activeModuleFilters.includes('people-count');
                         const wantsFace = activeModuleFilters.includes('face-detection') || activeModuleFilters.includes('face-recognition');
+                        const wantsCrowd = activeModuleFilters.includes('crowd-density');
+                        const wantsTrack = activeModuleFilters.includes('auto-tracking');
 
                         // Logic: 
-                        // 1. If we only want human, and this is a face, SKIP.
-                        if (wantsHuman && !wantsFace && isFace) return;
-                        // 2. If we only want face, and this is a person, SKIP.
-                        if (wantsFace && !wantsHuman && isPerson) return;
-                        // 3. If we want both, show both (no skip).
+                        // 1. If we only want human, and this is a face/crowd/track, SKIP.
+                        if (wantsHuman && !wantsFace && !wantsCrowd && !wantsTrack && !isPerson) return;
+                        // 2. If we only want face, and this is a person/crowd/track, SKIP.
+                        if (wantsFace && !wantsHuman && !wantsCrowd && !wantsTrack && !isFace) return;
+                        // 3. If we only want crowd, and this is face/track, SKIP.
+                        if (wantsCrowd && !wantsHuman && !wantsFace && !wantsTrack && !isCrowd) return;
+                        // 4. If we only want tracking, and this is face/crowd, SKIP.
+                        if (wantsTrack && !wantsHuman && !wantsFace && !wantsCrowd && !isTrack) return;
                     }
 
                     // Scale them to the display coordinate system and add the letterbox/pillarbox offsets
@@ -443,7 +450,12 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                     const displayW = det.w * scaleX;
                     const displayH = det.h * scaleY;
 
-                    ctx.strokeStyle = '#00ffcc'; // neon cyan
+                    // Determine color based on class
+                    let targetColor = '#00ffcc'; // Default neon cyan
+                    if (det.class && det.class.toLowerCase().includes('track id')) targetColor = '#a855f7'; // Purple for Tracking
+                    if (det.class && det.class.toLowerCase() === 'crowd') targetColor = '#eab308'; // Yellow for Crowd Density
+
+                    ctx.strokeStyle = targetColor;
                     ctx.lineWidth = 2;
                     ctx.strokeRect(displayX, displayY, displayW, displayH);
 
@@ -451,10 +463,12 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                     if (det.class) {
                         ctx.font = '14px sans-serif';
                         // Label text format: class + optional confidence
-                        const labelText = det.confidence ? `${det.class} ${(det.confidence * 100).toFixed(0)}%` : det.class;
+                        // Crowd/Tracking often don't need confidence displayed if it's 100% or just an ID
+                        const showConf = det.confidence && det.confidence < 1.0;
+                        const labelText = showConf ? `${det.class} ${(det.confidence * 100).toFixed(0)}%` : det.class;
                         const textWidth = ctx.measureText(labelText).width;
 
-                        ctx.fillStyle = '#00ffcc';
+                        ctx.fillStyle = targetColor;
                         ctx.fillRect(displayX, displayY - 20, textWidth + 8, 20);
 
                         // Draw Label Text
@@ -462,6 +476,22 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                         ctx.fillText(labelText, displayX + 4, displayY - 5);
                     }
                 });
+
+                // Crowd Density Grid Overlay
+                if (activeModuleFilters.includes('crowd-density')) {
+                    const GRID_SIZE = 4;
+                    const cellW = canvas.width / GRID_SIZE;
+                    const cellH = canvas.height / GRID_SIZE;
+
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'; // Faint white grid
+                    ctx.lineWidth = 1;
+
+                    for (let i = 0; i < GRID_SIZE; i++) {
+                        for (let j = 0; j < GRID_SIZE; j++) {
+                            ctx.strokeRect(j * cellW, i * cellH, cellW, cellH);
+                        }
+                    }
+                }
             }
         };
 

@@ -7,12 +7,12 @@ import camerasApi from './cameras.api';
 
 const modulesApi = {
     // Get enabled modules for a camera
-    getForCamera: (cameraId) => httpClient.get(`/cameras/${cameraId}/modules`),
+    getForCamera: (cameraId) => httpClient.get(`/api/cameras/${cameraId}/modules`),
 
     // Enable/Disable a module
     toggleModule: (cameraId, moduleKey, active) => {
         const status = active ? 'active' : 'paused';
-        return httpClient.patch(`/cameras/${cameraId}/modules/${moduleKey}`, {
+        return httpClient.patch(`/api/cameras/${cameraId}/modules/${moduleKey}`, {
             enabled: active,
             status: status
         });
@@ -20,10 +20,22 @@ const modulesApi = {
 
     // Update module config
     updateConfig: (cameraId, moduleKey, config) => {
-        return httpClient.patch(`/cameras/${cameraId}/modules/${moduleKey}`, {
+        return httpClient.patch(`/api/cameras/${cameraId}/modules/${moduleKey}`, {
             enabled: true,
             status: 'active',
             config: config
+        });
+    },
+
+    activateModule: (cameraId, moduleKey) => {
+        return httpClient.patch(`/api/cameras/${cameraId}/modules/${moduleKey}`, {
+            is_active: true
+        });
+    },
+
+    deactivateModule: (cameraId, moduleKey) => {
+        return httpClient.patch(`/api/cameras/${cameraId}/modules/${moduleKey}`, {
+            is_active: false
         });
     }
 };

@@ -5,9 +5,11 @@ import Footer from '../Footer';
 import Sidebar from '../Sidebar';
 import VideoFeed from '../VideoFeed';
 import API_BASE_URL from '../../config';
-import HumanDetectionTrend from './modules/HumanDetectionTrend';
 import HumanAnalyticsDashboard from '../analytics/HumanAnalyticsDashboard';
 import FaceAnalyticsDashboard from '../analytics/FaceAnalyticsDashboard';
+import CrowdAnalyticsDashboard from '../analytics/CrowdAnalyticsDashboard';
+import TrackingAnalyticsDashboard from '../analytics/TrackingAnalyticsDashboard';
+import PeopleCountDashboard from '../analytics/PeopleCountDashboard';
 import modulesApi from '../../api/modules.api';
 
 
@@ -181,6 +183,12 @@ const CameraModuleDetail = () => {
                                 <HumanAnalyticsDashboard cameraId={cameraId} />
                             ) : moduleType === 'face-detection' ? (
                                 <FaceAnalyticsDashboard cameraId={cameraId} />
+                            ) : moduleType === 'crowd-density' ? (
+                                <CrowdAnalyticsDashboard cameraId={cameraId} />
+                            ) : moduleType === 'auto-tracking' ? (
+                                <TrackingAnalyticsDashboard cameraId={cameraId} />
+                            ) : moduleType === 'people-count' ? (
+                                <PeopleCountDashboard cameraId={cameraId} />
                             ) : (
                                 <div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed var(--panel-border)', borderRadius: '8px', marginTop: '1rem' }}>
                                     <span style={{ color: 'var(--text-secondary)' }}>Chart Placeholder - {config.label} Trends</span>

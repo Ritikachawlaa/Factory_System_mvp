@@ -16,10 +16,15 @@ class PeopleCountService:
         boxes = self.detector.detect(frame)
         count = len(boxes)
         events = []
+        boxes_output = []
         
         # Draw on frame
         for (x1, y1, x2, y2) in boxes:
             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 255), 2)
+            boxes_output.append({
+                "class": "person",  # Or whatever matches VideoFeed filter
+                "x": int(x1), "y": int(y1), "w": int(x2 - x1), "h": int(y2 - y1), "confidence": 1.0
+            })
         
         cv2.putText(frame, f"People Count: {count}", (20, 40), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
@@ -29,8 +34,8 @@ class PeopleCountService:
         if (count > 0 and now - self.last_log_time > self.LOG_INTERVAL) or (abs(count - self.last_count) > 2):
             event = {
                 "camera_id": camera_id,
-                "module_key": "people_count",
-                "label": "Crowd Density Update",
+                "module_key": "people-count",
+                "label": "People Count Update",
                 "confidence": 1.0,
                 "timestamp": now,
                 "meta": f"Detected: {count} people"
@@ -39,4 +44,4 @@ class PeopleCountService:
             self.last_log_time = now
             self.last_count = count
 
-        return frame, events
+        return frame, events, boxes_output
