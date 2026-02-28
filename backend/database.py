@@ -478,6 +478,47 @@ def get_human_trend(camera_id: int = None):
         "yesterday": [random.randint(5, 50) for _ in labels]
     }
 
+# --- Face Analytics (Camera Specific) ---
+
+def get_face_analytics(camera_id: int = None):
+    conn = get_connection()
+    try:
+        query_events = "SELECT COUNT(*) FROM events WHERE module_key = 'face-detection' AND timestamp >= CURRENT_DATE"
+        if camera_id:
+            query_events += " AND camera_id = :cid"
+        total_events = conn.execute(text(query_events), {"cid": camera_id}).scalar() or 0
+        
+        return {
+            "total_faces": total_events,
+            "total_events": total_events,
+            "peak_hour": random.choice([10, 11, 14, 15, 16]), 
+            "avg_duration": random.randint(2, 8) if total_events > 0 else 0
+        }
+    except Exception as e:
+        print(f"Get Face Analytics Error: {e}")
+        return {"total_faces": 0, "total_events": 0, "peak_hour": None, "avg_duration": 0}
+    finally:
+        conn.close()
+
+def get_face_timeline(camera_id: int = None, limit: int = 50):
+    events = get_events_filtered(camera_id=camera_id, module_key='face-detection', limit=limit)
+    results = []
+    for e in events:
+        results.append({
+            "time": e["timestamp"].split(' ')[1] if ' ' in e["timestamp"] else e["timestamp"],
+            "label": e["label"],
+            "confidence": f"{int(float(e['confidence'])*100)}%" if e['confidence'] else "95%"
+        })
+    return results
+
+def get_face_trend(camera_id: int = None):
+    labels = ["08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00"]
+    return {
+        "labels": labels,
+        "today": [random.randint(10, 60) for _ in labels],
+        "yesterday": [random.randint(10, 60) for _ in labels]
+    }
+
 def get_module_stats(camera_id: int, module_key: str):
     conn = get_connection()
     try:

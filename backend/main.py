@@ -1152,3 +1152,20 @@ async def get_human_trend(camera_id: int, current_user = Depends(get_current_use
 async def get_human_timeline(camera_id: int, limit: int = 50, current_user = Depends(get_current_user_debug_optional)):
     timeline = database.get_human_timeline(camera_id, limit)
     return timeline
+
+# --- Face Analytics Endpoints ---
+
+@app.get("/api/cameras/{camera_id}/face-stats")
+async def get_camera_face_stats(camera_id: int, current_user = Depends(get_current_user_debug_optional)):
+    stats = database.get_face_analytics(camera_id)
+    return stats
+
+@app.get("/api/cameras/{camera_id}/face-trend")
+async def get_camera_face_trend(camera_id: int, current_user = Depends(get_current_user_debug_optional)):
+    trend = database.get_face_trend(camera_id)
+    return trend
+
+@app.get("/api/cameras/{camera_id}/face-timeline")
+async def get_camera_face_timeline(camera_id: int, limit: int = 50, current_user = Depends(get_current_user_debug_optional)):
+    timeline = database.get_face_timeline(camera_id, limit)
+    return timeline
