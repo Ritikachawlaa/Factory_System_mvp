@@ -61,10 +61,11 @@ const FaceDetection = () => {
         return '#f59e0b';
     };
 
-    // Prepare chart data
+    // Prepare comparison chart data
     const chartData = (stats.trend?.labels || []).map((label, i) => ({
         time: label,
-        detections: stats.trend?.data?.[i] || 0
+        today: stats.trend?.today?.[i] || 0,
+        yesterday: stats.trend?.yesterday?.[i] || 0
     }));
 
     return (
@@ -102,11 +103,11 @@ const FaceDetection = () => {
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem', marginBottom: '2.5rem' }}>
                         {[
                             { label: "Total Faces Detected", value: stats.today_total, icon: '😊', color: '#a855f7' },
-                            { label: 'Model Precision', value: stats.accuracy, icon: '🎯', color: 'var(--success-color)' },
-                            { label: 'Active Sensors', value: stats.active_cameras, icon: '📹', color: 'var(--accent-cyan)' },
-                            { label: 'Scanning Rate', value: '30 FPS', icon: '⚡', color: '#f59e0b' }
+                            { label: 'Avg Duration', value: stats.avg_duration, icon: '⏱️', color: '#3b82f6' },
+                            { label: 'Peak Hour', value: stats.peak_hour, icon: '🔥', color: '#f59e0b' },
+                            { label: 'Total Events', value: stats.events_count, icon: '📋', color: '#10b981' },
                         ].map((item, idx) => (
-                            <div key={idx} className="glass-panel" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `2px solid ${item.color}` }}>
+                            <div key={idx} className="glass-panel" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderLeft: `4px solid ${item.color}` }}>
                                 <div>
                                     <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', textTransform: 'uppercase' }}>{item.label}</div>
                                     <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#fff', marginTop: '0.5rem' }}>{item.value || 0}</div>
@@ -132,24 +133,39 @@ const FaceDetection = () => {
                             </div>
 
                             {/* Analytics & Trends */}
-                            <div className="glass-panel" style={{ padding: '1.5rem', height: '350px', display: 'flex', flexDirection: 'column' }}>
-                                <h3 style={{ margin: '0 0 1.5rem 0', color: '#fff', fontSize: '1.1rem' }}>Face Detection Trends</h3>
+                            <div className="glass-panel" style={{ padding: '1.5rem', height: '400px', display: 'flex', flexDirection: 'column' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                                    <h3 style={{ margin: 0, color: '#fff', fontSize: '1.1rem' }}>Hourly Detection Comparison</h3>
+                                    <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem' }}>
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#a855f7' }}>
+                                            <span style={{ width: '8px', height: '8px', background: '#a855f7', borderRadius: '50%' }}></span> Today
+                                        </span>
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'rgba(255,255,255,0.4)' }}>
+                                            <span style={{ width: '8px', height: '8px', background: 'rgba(255,255,255,0.2)', borderRadius: '50%' }}></span> Yesterday
+                                        </span>
+                                    </div>
+                                </div>
                                 <ResponsiveContainer width="100%" height="100%">
                                     <AreaChart data={chartData}>
                                         <defs>
-                                            <linearGradient id="colorFace" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#a855f7" stopOpacity={0.4} />
+                                            <linearGradient id="colorToday" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#a855f7" stopOpacity={0.3} />
                                                 <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
                                             </linearGradient>
+                                            <linearGradient id="colorYesterday" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="rgba(255,255,255,0.2)" stopOpacity={0.1} />
+                                                <stop offset="95%" stopColor="rgba(255,255,255,0.2)" stopOpacity={0} />
+                                            </linearGradient>
                                         </defs>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                                        <XAxis dataKey="time" stroke="rgba(255,255,255,0.4)" fontSize={12} tickLine={false} axisLine={false} />
-                                        <YAxis stroke="rgba(255,255,255,0.4)" fontSize={12} tickLine={false} axisLine={false} />
+                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                                        <XAxis dataKey="time" stroke="rgba(255,255,255,0.3)" fontSize={12} tickLine={false} axisLine={false} />
+                                        <YAxis stroke="rgba(255,255,255,0.3)" fontSize={12} tickLine={false} axisLine={false} />
                                         <Tooltip
-                                            contentStyle={{ background: '#13111C', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
-                                            itemStyle={{ color: '#a855f7' }}
+                                            contentStyle={{ background: 'rgba(15, 23, 42, 0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', backdropFilter: 'blur(10px)' }}
+                                            itemStyle={{ color: '#fff' }}
                                         />
-                                        <Area type="monotone" dataKey="detections" stroke="#a855f7" strokeWidth={3} fillOpacity={1} fill="url(#colorFace)" />
+                                        <Area type="monotone" dataKey="yesterday" stroke="rgba(255,255,255,0.2)" strokeWidth={2} fillOpacity={1} fill="url(#colorYesterday)" />
+                                        <Area type="monotone" dataKey="today" stroke="#a855f7" strokeWidth={3} fillOpacity={1} fill="url(#colorToday)" />
                                     </AreaChart>
                                 </ResponsiveContainer>
                             </div>
