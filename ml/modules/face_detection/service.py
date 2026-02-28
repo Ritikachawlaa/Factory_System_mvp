@@ -50,6 +50,11 @@ class FaceDetectionService:
         boxes = []
 
         for (x, y, w, h, conf) in faces:
+            # Drawing on frame for "burned-in" boxes (redundancy for direct streams)
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 255), 2)
+            label = f"Face: {conf:.2f}"
+            cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 1)
+
             boxes.append({
                 "class": "Face",
                 "x": int(x), "y": int(y), "w": int(w), "h": int(h), 
