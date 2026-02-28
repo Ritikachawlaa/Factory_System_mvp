@@ -16,9 +16,9 @@ const HumanAnalyticsDashboard = ({ cameraId }) => {
         const fetchAnalytics = async () => {
             try {
                 const [statsRes, trendRes, timelineRes] = await Promise.all([
-                    httpClient.get(`/cameras/${cameraId}/human-stats`),
-                    httpClient.get(`/cameras/${cameraId}/human-trend`),
-                    httpClient.get(`/cameras/${cameraId}/human-timeline`)
+                    httpClient.get(`/api/cameras/${cameraId}/human-stats`),
+                    httpClient.get(`/api/cameras/${cameraId}/human-trend`),
+                    httpClient.get(`/api/cameras/${cameraId}/human-timeline`)
                 ]);
                 setStats(statsRes || { total_humans: 0, total_events: 0, peak_hour: null, avg_duration: 0 });
                 setTrend(trendRes || { labels: [], today: [], yesterday: [] });

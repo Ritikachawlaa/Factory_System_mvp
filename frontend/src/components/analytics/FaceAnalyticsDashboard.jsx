@@ -14,9 +14,9 @@ const FaceAnalyticsDashboard = ({ cameraId }) => {
         const fetchAnalytics = async () => {
             try {
                 const [statsRes, trendRes, timelineRes] = await Promise.all([
-                    httpClient.get(`/cameras/${cameraId}/face-stats`),
-                    httpClient.get(`/cameras/${cameraId}/face-trend`),
-                    httpClient.get(`/cameras/${cameraId}/face-timeline`)
+                    httpClient.get(`/api/cameras/${cameraId}/face-stats`),
+                    httpClient.get(`/api/cameras/${cameraId}/face-trend`),
+                    httpClient.get(`/api/cameras/${cameraId}/face-timeline`)
                 ]);
                 setStats(statsRes || { total_faces: 0, total_events: 0, peak_hour: null, avg_duration: 0 });
                 setTrend(trendRes || { labels: [], today: [], yesterday: [] });
