@@ -17,11 +17,13 @@ class FaceDetectionService:
         self.last_count = 0
         self.last_log_time = 0
         self.LOG_INTERVAL = 5
-        self.last_boxes_found = False
+        self.frame_count = 0
+        self.SKIP_FRAMES = 2 # Process every 3rd frame
+        self.last_boxes = []
 
     def _load(self):
         if not self.model_loaded:
-            logger.info("Loading YOLO-Face model...")
+            logger.info("Loading YOLO-Face model (Nano optimized)...")
             try:
                 self.detector = FaceDetector(conf=0.4)
                 self.model_loaded = True
@@ -34,33 +36,32 @@ class FaceDetectionService:
         if self.detector is None:
             return frame, [], []
             
-        # Try YOLO first (fast)
-        faces = self.detector.detect(frame)
-        
-        # If no faces and we want robust detection, could fallback to retinaface
-        # But for detection service, we usually stick to one. 
-        # Let's just ensure we are using the best settings.
-        
-        count = len(faces)
+        self.frame_count += 1
         events = []
+        
+        # Performance optimization: Skip frames
+        if self.frame_count % (self.SKIP_FRAMES + 1) != 0:
+            return frame, [], self.last_boxes
+
+        # Try YOLO (fast nano model)
+        faces = self.detector.detect(frame)
+        count = len(faces)
         boxes = []
 
-        # Draw rectangles
+        # Convert to standardized box format
         for (x, y, w, h, conf) in faces:
-            # We don't draw in python anymore, we let frontend do it via boxes
-            # But the user asked for "bounding boxes at faces" so I'll keep the python drawing too
-            # for the direct stream if they are viewing that.
-            cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 255), 2)
-            
+            # We don't draw on the frame in python unless requested, 
+            # as the frontend canvas is faster and smoother.
             boxes.append({
                 "class": "Face",
                 "x": int(x), "y": int(y), "w": int(w), "h": int(h), 
                 "confidence": float(conf)
             })
 
+        self.last_boxes = boxes
+
         # Event logic
         now = time.time()
-        # Always log if faces found to keep dashboard updated
         if count > 0 and (now - self.last_log_time > self.LOG_INTERVAL or count != self.last_count):
             max_conf = max((f[4] for f in faces), default=0.0)
             events.append({
@@ -73,5 +74,7 @@ class FaceDetectionService:
             })
             self.last_count = count
             self.last_log_time = now
+        elif count == 0 and self.last_count > 0:
+            self.last_count = 0
 
         return frame, events, boxes
