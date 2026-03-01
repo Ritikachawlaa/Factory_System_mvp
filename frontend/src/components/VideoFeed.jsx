@@ -244,17 +244,30 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                         const activeModuleFilters = typeof modules === 'string' ? modules.split(',').map(m => m.trim()) : [];
                         const heatmapActive = activeModuleFilters.includes('heatmap') || activeModuleFilters.includes('human-detection');
                         if (heatmapActive) {
-                            const newPoints = data.detections
-                                .filter(d => ['person', 'human', 'crowd'].includes((d.class || "").toLowerCase()))
-                                .map(d => ({
-                                    x: d.x + (d.w / 2),
-                                    y: d.y + (d.h / 2),
-                                    timestamp: Date.now()
-                                }));
+                            const newPoints = [];
+                            const ts = Date.now();
+                            data.detections.forEach(d => {
+                                const cls = (d.class || "").toLowerCase();
+                                // Only use full-body person detections, NOT faces
+                                if (cls !== 'person' && cls !== 'human') return;
+                                // Skip tiny boxes (likely face, not body)
+                                if (d.w < 30 || d.h < 30) return;
+
+                                // Scatter points across the full bounding box
+                                const numPoints = Math.max(3, Math.floor((d.w * d.h) / 2000));
+                                for (let i = 0; i < numPoints; i++) {
+                                    newPoints.push({
+                                        x: d.x + Math.random() * d.w,
+                                        y: d.y + Math.random() * d.h,
+                                        timestamp: ts
+                                    });
+                                }
+                            });
                             if (newPoints.length > 0) {
-                                setHeatmapPoints(prev => [...prev.slice(-1000), ...newPoints]);
+                                setHeatmapPoints(prev => [...prev.slice(-2000), ...newPoints]);
                             }
                         }
+
 
                         // Demo Polish: Show brief alert badge if detections are present
                         if (data.detections.length > 0) {
