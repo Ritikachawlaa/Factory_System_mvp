@@ -7,6 +7,9 @@ import json
 import random
 from typing import List, Tuple, Optional
 from sqlalchemy import create_engine, text, Column, Integer, String, DateTime, Float, Boolean, ForeignKey
+
+# Setup logger
+logger = logging.getLogger("database")
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
