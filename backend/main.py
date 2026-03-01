@@ -972,6 +972,8 @@ async def ingest_detection(event: DetectionSchema):
     )
     
     # Update ML engine health activity
+    global LAST_GLOBAL_ML_UPDATE
+    LAST_GLOBAL_ML_UPDATE = time.time()
     if event.camera_id not in ml_metrics:
         ml_metrics[event.camera_id] = {"inference_avg_ms": 0}
     ml_metrics[event.camera_id]["last_update"] = time.time()
@@ -997,6 +999,8 @@ def ingest_heartbeat(module_key: str, heartbeat: HeartbeatSchema):
     database.update_module_heartbeat(heartbeat.camera_id, module_key, heartbeat.status)
     
     # Update ML engine health activity
+    global LAST_GLOBAL_ML_UPDATE
+    LAST_GLOBAL_ML_UPDATE = time.time()
     if heartbeat.camera_id not in ml_metrics:
         ml_metrics[heartbeat.camera_id] = {"inference_avg_ms": 0}
     ml_metrics[heartbeat.camera_id]["last_update"] = time.time()
@@ -1070,6 +1074,7 @@ def get_ml_initial_state():
 ml_metrics = {} # {camera_id: {"inference_avg_ms": 0, "last_update": 0}}
 webrtc_metrics = {} # {camera_id: {"connection_time_ms": 0, "last_update": 0}}
 last_detection_time = {} # {camera_id: timestamp}
+LAST_GLOBAL_ML_UPDATE = 0  # Global timestamp: any ML activity sets this
 
 class MLMetricsPayload(BaseModel):
     camera_id: int
@@ -1077,6 +1082,8 @@ class MLMetricsPayload(BaseModel):
 
 @app.post("/api/metrics/ml")
 async def receive_ml_metrics(payload: MLMetricsPayload):
+    global LAST_GLOBAL_ML_UPDATE
+    LAST_GLOBAL_ML_UPDATE = time.time()
     ml_metrics[payload.camera_id] = {
         "inference_avg_ms": payload.inference_avg_ms,
         "last_update": time.time()
@@ -1123,12 +1130,17 @@ async def get_system_metrics():
 
 @app.get("/health/system")
 async def get_system_health(camera_id: int = 1):
-    # Detect ML Engine health (has it pinged in the last 15 seconds?)
+    # Detect ML Engine health: check per-camera OR global activity in last 30s
     ml_active = False
     now = time.time()
     
+    # Per-camera check
     metrics = ml_metrics.get(camera_id, {})
-    if now - metrics.get("last_update", 0) < 15:
+    if now - metrics.get("last_update", 0) < 30:
+        ml_active = True
+    
+    # Global fallback: if ANY ML endpoint was hit recently, engine is alive
+    if not ml_active and now - LAST_GLOBAL_ML_UPDATE < 30:
         ml_active = True
             
     # Count total websocket clients for THIS camera
@@ -1187,6 +1199,8 @@ async def broadcast_detection_stream(payload: DetectionStreamPayload):
     asyncio.create_task(detection_manager.broadcast(payload.dict()))
 
     # Update ML engine health activity
+    global LAST_GLOBAL_ML_UPDATE
+    LAST_GLOBAL_ML_UPDATE = time.time()
     if payload.camera_id not in ml_metrics:
         ml_metrics[payload.camera_id] = {"inference_avg_ms": 0}
     ml_metrics[payload.camera_id]["last_update"] = time.time()
