@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Header from './Header';
+import API_BASE_URL from '../config';
+import { useAuth } from '../context/AuthContext';
 
 import Footer from './Footer';
 
@@ -9,6 +11,27 @@ const AttendancePage = () => {
 
     // Employee State
     const [employees, setEmployees] = useState([]);
+    const { token } = useAuth();
+    const [isSaving, setIsSaving] = useState(false);
+
+    // Fetch Employees on Mount
+    useEffect(() => {
+        fetchEmployees();
+    }, []);
+
+    const fetchEmployees = async () => {
+        try {
+            const resp = await fetch(`${API_BASE_URL}/employees`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (resp.ok) {
+                const data = await resp.json();
+                setEmployees(data);
+            }
+        } catch (err) {
+            console.error("Failed to fetch employees:", err);
+        }
+    };
 
     // Modal States
     const [showAddModal, setShowAddModal] = useState(false);
@@ -80,10 +103,10 @@ const AttendancePage = () => {
     const handlePhotoUpload = (e) => {
         const file = e.target.files[0];
         if (file) {
+            // Keep the file object for uploading
             const reader = new FileReader();
             reader.onloadend = () => {
-                setNewEmployee({ ...newEmployee, photo: reader.result });
-                // setIsCameraOpen(false); // Removed
+                setNewEmployee({ ...newEmployee, photo: reader.result, photoFile: file });
             };
             reader.readAsDataURL(file);
         }
@@ -102,14 +125,41 @@ const AttendancePage = () => {
         }, 2000); // 2 second mock scan
     };
 
-    const handleAddEmployee = () => {
-        const newId = `EMP${String(employees.length + 1).padStart(3, '0')}`;
-        const employeeToAdd = { ...newEmployee, id: newId };
-        setEmployees([...employees, employeeToAdd]);
-        setShowAddModal(false);
-        setNewEmployee({ name: '', dept: 'Engineering', status: 'Active', photo: null, fingerprint: false }); // Reset form
-        // stopCamera(); // Removed
-        alert(`Employee Added Successfully!\nID: ${newId}`);
+    const handleAddEmployee = async () => {
+        if (!newEmployee.name || !newEmployee.photoFile) {
+            alert("Please provide at least a name and a photo.");
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            const formData = new FormData();
+            formData.append('name', newEmployee.name);
+            formData.append('dept', newEmployee.dept);
+            formData.append('status', newEmployee.status);
+            formData.append('file', newEmployee.photoFile);
+
+            const resp = await fetch(`${API_BASE_URL}/employees`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            });
+
+            if (resp.ok) {
+                alert("Employee Added Successfully!");
+                setShowAddModal(false);
+                setNewEmployee({ name: '', dept: 'Engineering', status: 'Active', photo: null, photoFile: null, fingerprint: false });
+                fetchEmployees(); // Refresh list
+            } else {
+                const err = await resp.json();
+                alert(`Failed to add employee: ${err.detail || 'Unknown error'}`);
+            }
+        } catch (err) {
+            console.error("Add Employee Error:", err);
+            alert("An error occurred while saving the employee.");
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const openAddModal = () => {
@@ -452,8 +502,15 @@ const AttendancePage = () => {
                                 />
                             </div>
 
-                            <button onClick={handleAddEmployee} style={{ width: '100%', padding: '1rem', background: 'var(--accent-cyan)', color: '#000', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', marginTop: '1rem' }}>
-                                Save Employee
+                            <button
+                                onClick={handleAddEmployee}
+                                disabled={isSaving}
+                                style={{
+                                    width: '100%', padding: '1rem', background: 'var(--accent-cyan)', color: '#000',
+                                    border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: isSaving ? 'default' : 'pointer',
+                                    marginTop: '1rem', opacity: isSaving ? 0.7 : 1
+                                }}>
+                                {isSaving ? "Saving..." : "Save Employee"}
                             </button>
                         </div>
                     </div>

@@ -49,6 +49,17 @@ def init_db():
                 severity VARCHAR(20) DEFAULT 'Low'
             )
         """))
+        # Add Employee Table Schema if missing (MVP)
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS employees (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(100) NOT NULL,
+                embedding BYTEA NOT NULL,
+                department VARCHAR(100) DEFAULT 'Engineering',
+                status VARCHAR(50) DEFAULT 'Active',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
         conn.commit()
         
         logger.info("Database Connection Check & Schema Verification Successful")
@@ -202,24 +213,31 @@ def update_module_status(camera_id: int, module_key: str, status: str, config: s
 
 # --- Employee Management ---
 
-def add_employee(name: str, embedding: np.ndarray):
+def add_employee(name: str, embedding: np.ndarray, dept: str = "Engineering", status: str = "Active"):
     conn = get_connection()
     try:
         emb_bytes = pickle.dumps(embedding)
-        stmt = text("INSERT INTO employees (name, embedding) VALUES (:n, :e)")
-        conn.execute(stmt, {"n": name, "e": emb_bytes})
+        stmt = text("INSERT INTO employees (name, embedding, department, status) VALUES (:n, :e, :d, :s)")
+        conn.execute(stmt, {"n": name, "e": emb_bytes, "d": dept, "s": status})
         conn.commit()
     finally:
         conn.close()
 
-def get_all_employees() -> List[Tuple[str, np.ndarray, int]]:
+def get_all_employees():
     conn = get_connection()
     try:
-        rows = conn.execute(text("SELECT name, embedding, id FROM employees")).fetchall()
+        # Get all fields for the frontend
+        rows = conn.execute(text("SELECT name, embedding, id, department, status FROM employees")).fetchall()
         employees = []
-        for name, emb_bytes, emp_id in rows:
+        for name, emb_bytes, emp_id, dept, status in rows:
             embedding = pickle.loads(emb_bytes)
-            employees.append((name, embedding, emp_id))
+            employees.append({
+                "id": emp_id,
+                "name": name,
+                "embedding": embedding,
+                "dept": dept,
+                "status": status
+            })
         return employees
     finally:
         conn.close()

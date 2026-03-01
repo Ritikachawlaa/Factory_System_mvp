@@ -563,19 +563,35 @@ def get_employees():
     employees = database.get_all_employees()
     results = []
     for e in employees:
-        # e = (name, embedding, id)
-        name = e[0]
-        emp_id = e[2]
+        # e is now a dict from get_all_employees
+        name = e["name"]
+        emp_id = e["id"]
+        dept = e["dept"]
+        status = e["status"]
+        
         image_url = None
         if name.startswith("Visitor_"):
             filename = f"{name}.jpg"
             if os.path.exists(os.path.join(VISITORS_DIR, filename)):
                 image_url = f"http://localhost:8000/visitors/{filename}"
-        results.append({"id": emp_id, "name": name, "image_url": image_url})
+                
+        results.append({
+            "id": emp_id, 
+            "name": name, 
+            "dept": dept, 
+            "status": status,
+            "image_url": image_url
+        })
     return results
 
 @app.post("/employees")
-async def add_employee(name: str = Form(...), file: UploadFile = File(...), current_user = Depends(get_current_user)):
+async def add_employee(
+    name: str = Form(...), 
+    dept: str = Form("Engineering"),
+    status: str = Form("Active"),
+    file: UploadFile = File(...), 
+    current_user = Depends(get_current_user)
+):
     contents = await file.read()
     
     # Process image for embedding directly
@@ -583,7 +599,7 @@ async def add_employee(name: str = Form(...), file: UploadFile = File(...), curr
     if embedding is None:
         raise HTTPException(status_code=400, detail="No face detected in the image")
     
-    database.add_employee(name, embedding)
+    database.add_employee(name, embedding, dept, status)
     recognition.load_known_faces()
     
     return {"message": f"Employee {name} added"}

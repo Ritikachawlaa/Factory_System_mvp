@@ -43,9 +43,8 @@ class FaceRecognitionService:
             # Draw on frame (only if not in crop-mode or if we want to draw on the original frame)
             # For integrated mode, run_ml handles drawing
             if detection_frame is None:
-                color = (0, 255, 0) if name != "Unknown" else (0, 0, 255)
                 cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
-                cv2.putText(frame, f"{display_label} ({score:.2f})", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+                cv2.putText(frame, f"{display_label} ({score:.2f})", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
             
             bounding_boxes.append({
                 "id": tracked_info["track_id"] if tracked_info else None,

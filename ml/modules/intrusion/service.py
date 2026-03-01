@@ -106,9 +106,10 @@ class IntrusionService:
                         # We just want the best name in this crop.
                         results = recognition.identify_faces(face_crop)
                         if results:
-                            # Pick best
-                            best_name = results[0][0] # (name, score, box)
-                            name = self.cache.update(obj_id, best_name)
+                            # Pick best: (name, emp_id, score, box)
+                            best_name, emp_id, score, box = results[0]
+                            display_name = f"{best_name} (ID: {emp_id})" if emp_id else best_name
+                            name = self.cache.update(obj_id, display_name)
                         else:
                             name = self.cache.update(obj_id, "Unknown")
                     

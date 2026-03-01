@@ -180,8 +180,9 @@ def identify_faces(frame):
 
 def recognize_faces(frame):
     detections = identify_faces(frame)
-    for name, score, (x, y, w, h) in detections:
+    for name, emp_id, score, (x, y, w, h) in detections:
         color = (0, 255, 0) if name != "Unknown" else (0, 0, 255)
         cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
-        cv2.putText(frame, f"{name} ({score:.2f})", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+        label = f"{name} (ID: {emp_id})" if emp_id else name
+        cv2.putText(frame, f"{label} ({score:.2f})", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
     return frame

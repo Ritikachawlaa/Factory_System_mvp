@@ -75,8 +75,10 @@ class RegionEntranceService:
                     if now - last_time > 1.0 and face_crop.size > 0:
                         results = recognition.identify_faces(face_crop)
                         if results:
-                            best_name = results[0][0]
-                            name, event = self.presence.update_identity(obj_id, best_name, camera_id)
+                            # Pick best: (name, id, score, box)
+                            best_name, emp_id, score, box = results[0]
+                            display_name = f"{best_name} (ID: {emp_id})" if emp_id else best_name
+                            name, event = self.presence.update_identity(obj_id, display_name, camera_id)
                         else:
                             name, event = self.presence.update_identity(obj_id, "Unknown", camera_id)
                         
