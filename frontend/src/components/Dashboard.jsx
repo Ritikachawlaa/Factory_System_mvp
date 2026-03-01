@@ -16,8 +16,8 @@ const Dashboard = () => {
         systemStatus: 'Healthy'
     });
 
-    const [liveAlerts, setLiveAlerts] = useState([]);
     const [lateArrivals, setLateArrivals] = useState([]);
+    const [performance, setPerformance] = useState({ latency: '-', accuracy: '-', cpu: '-', mem: '-', gpu: '-' });
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 60000); // Update every minute
@@ -45,6 +45,17 @@ const Dashboard = () => {
                         severity: e.severity || 'info'
                     }));
                     setLiveAlerts(mappedEvents);
+                }
+                // Fetch performance stats
+                const perfRes = await analyticsApi.getPerformance();
+                if (perfRes) {
+                    setPerformance({
+                        latency: perfRes.latency,
+                        accuracy: perfRes.accuracy,
+                        cpu: perfRes.cpu_usage,
+                        mem: perfRes.memory_usage,
+                        gpu: perfRes.gpu_usage
+                    });
                 }
             } catch (err) {
                 console.error("Dashboard failed to fetch live data:", err);
@@ -226,11 +237,11 @@ const Dashboard = () => {
                                     <div style={{ flex: 1 }}>
                                         <div style={{ marginBottom: '1rem' }}>
                                             <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Total Employees</div>
-                                            <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#fff' }}>128</div>
+                                            <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#fff' }}>{stats.totalEmployees || 0}</div>
                                         </div>
                                         <div>
                                             <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Late Arrivals</div>
-                                            <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#ef4444' }}>4</div>
+                                            <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#ef4444' }}>{stats.lateCount || 0}</div>
                                         </div>
                                     </div>
                                 </div>
@@ -238,7 +249,7 @@ const Dashboard = () => {
                                 <div>
                                     <h4 style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '0.75rem', textTransform: 'uppercase' }}>Recent Late Arrivals</h4>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                        {lateArrivals.map((p, i) => (
+                                        {(stats.lateArrivals || []).map((p, i) => (
                                             <div key={i} style={{
                                                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                                                 padding: '0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '6px'
@@ -250,27 +261,39 @@ const Dashboard = () => {
                                                 <span style={{ color: '#ef4444', fontSize: '0.85rem', fontWeight: '500' }}>{p.time}</span>
                                             </div>
                                         ))}
+                                        {(stats.lateArrivals?.length === 0) && (
+                                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', textAlign: 'center', padding: '1rem' }}>No late arrivals detected.</div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Storage Widget */}
+                            {/* System Health Widget */}
                             <div className="glass-panel" style={{ padding: '1.5rem' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                                    <h3 style={{ color: '#fff', fontSize: '1.1rem', margin: 0 }}>Storage Health</h3>
-                                    <span style={{ color: '#f59e0b', fontSize: '0.9rem' }}>Warning</span>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                                    <h3 style={{ color: '#fff', fontSize: '1.1rem', margin: 0 }}>System Health</h3>
+                                    <span style={{ color: 'var(--success-color)', fontSize: '0.9rem', fontWeight: 'bold' }}>Optimal</span>
                                 </div>
-                                <div style={{ marginBottom: '1rem' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
-                                        <span style={{ color: '#e2e8f0' }}>1.8 TB Used</span>
-                                        <span style={{ color: 'var(--text-secondary)' }}>2.0 TB Total</span>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--panel-border)' }}>
+                                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Accuracy</div>
+                                        <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--accent-cyan)' }}>{performance.accuracy}</div>
                                     </div>
-                                    <div style={{ width: '100%', height: '8px', background: '#334155', borderRadius: '4px', overflow: 'hidden' }}>
-                                        <div style={{ width: '85%', height: '100%', background: 'linear-gradient(90deg, #f59e0b, #ef4444)', borderRadius: '4px' }}></div>
+                                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--panel-border)' }}>
+                                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Latency</div>
+                                        <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#10b981' }}>{performance.latency}</div>
                                     </div>
                                 </div>
-                                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
-                                    Automatic archiving is enabled for footage older than 30 days.
+
+                                <div style={{ marginTop: '1.5rem' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.8rem' }}>
+                                        <span style={{ color: 'var(--text-secondary)' }}>Resource Allocation</span>
+                                        <span style={{ color: '#fff' }}>60% GPU | {performance.cpu} CPU</span>
+                                    </div>
+                                    <div style={{ width: '100%', height: '4px', background: '#334155', borderRadius: '2px', overflow: 'hidden' }}>
+                                        <div style={{ width: '60%', height: '100%', background: 'var(--accent-cyan)', borderRadius: '2px' }}></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

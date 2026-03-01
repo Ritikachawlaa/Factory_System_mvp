@@ -22,6 +22,7 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
     const [authError, setAuthError] = useState(false);
     const [isOffline, setIsOffline] = useState(false);
     const [isMediaServeDead, setIsMediaServeDead] = useState(false);
+    const [heatmapPoints, setHeatmapPoints] = useState([]); // Array of {x, y, intensity, timestamp}
 
     // Performance Tracking & Alerts
     const [showMetrics, setShowMetrics] = useState(false);
@@ -239,6 +240,21 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                     if (data.detections && Array.isArray(data.detections)) {
                         setDetections(data.detections);
 
+                        // Accumulate Heatmap Points
+                        const activeModuleFilters = typeof modules === 'string' ? modules.split(',').map(m => m.trim()) : [];
+                        if (activeModuleFilters.includes('heatmap')) {
+                            const newPoints = data.detections
+                                .filter(d => ['person', 'human', 'crowd'].includes((d.class || "").toLowerCase()))
+                                .map(d => ({
+                                    x: d.x + (d.w / 2),
+                                    y: d.y + (d.h / 2),
+                                    timestamp: Date.now()
+                                }));
+                            if (newPoints.length > 0) {
+                                setHeatmapPoints(prev => [...prev.slice(-500), ...newPoints]); // Keep last 500 points for performance
+                            }
+                        }
+
                         // Demo Polish: Show brief alert badge if detections are present
                         if (data.detections.length > 0) {
                             setShowDetectionAlert(true);
@@ -432,6 +448,7 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                         const wantsFace = activeModuleFilters.includes('face-detection') || activeModuleFilters.includes('face-recognition');
                         const wantsCrowd = activeModuleFilters.includes('crowd-density');
                         const wantsTrack = activeModuleFilters.includes('auto-tracking');
+                        const isHeatmapActive = activeModuleFilters.includes('heatmap');
 
                         const isBackgroundModule = isFace || isTrack; // Always show faces/tracks if possible
 
@@ -439,6 +456,7 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                         // 1. If it's a background module (Face/Track), ALWAYS show it.
                         // 2. Otherwise, check if user specifically wants this module.
                         if (!isBackgroundModule) {
+                            if (isHeatmapActive && (isPerson || isCrowd)) return; // Don't show boxes if heatmap is drawing them
                             if (wantsHuman && !isPerson) return;
                             if (wantsCrowd && !isCrowd) return;
                             // Add other filters as needed
@@ -479,6 +497,34 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                         ctx.fillText(labelText, displayX + 4, displayY - 5);
                     }
                 });
+
+                // --- HEATMAP RENDERING ---
+                if (activeModuleFilters.includes('heatmap') && heatmapPoints.length > 0) {
+                    const now = Date.now();
+                    const decayTime = 30000; // 30 seconds persistence
+
+                    // Filter out old points
+                    const currentPoints = heatmapPoints.filter(p => now - p.timestamp < decayTime);
+
+                    // Group nearby points to find "hot" spots
+                    // For a cleaner viz, we'll draw individual radial gradients with alpha
+                    currentPoints.forEach(p => {
+                        const dx = offsetX + (p.x * scaleX);
+                        const dy = offsetY + (p.y * scaleY);
+                        const age = now - p.timestamp;
+                        const opacity = Math.max(0, 1 - (age / decayTime)) * 0.4;
+
+                        const gradient = ctx.createRadialGradient(dx, dy, 0, dx, dy, 30);
+                        gradient.addColorStop(0, `rgba(255, 69, 0, ${opacity})`); // Orange-Red center
+                        gradient.addColorStop(0.5, `rgba(255, 215, 0, ${opacity * 0.5})`); // Gold middle
+                        gradient.addColorStop(1, 'rgba(0, 0, 255, 0)'); // Blue/Transparent edge
+
+                        ctx.fillStyle = gradient;
+                        ctx.beginPath();
+                        ctx.arc(dx, dy, 30, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
+                }
 
                 // Crowd Density Grid Overlay
                 if (activeModuleFilters.includes('crowd-density')) {

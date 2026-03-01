@@ -266,6 +266,7 @@ def run_camera_inference(camera, client):
             if service:
                 try:
                     result = service.process_frame(frame_resized, camera_id=cam_id)
+                    # Support both (frame, events) and (frame, events, boxes)
                     if len(result) == 3:
                         _, events, boxes = result
                         if boxes:

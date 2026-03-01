@@ -9,7 +9,6 @@ import LabourCountingPanel from '../components/panels/LabourCountingPanel';
 import LoiteringDetectionPanel from '../components/panels/LoiteringDetectionPanel';
 import IntrusionDetectionPanel from '../components/panels/IntrusionDetectionPanel';
 import HeatMapPanel from '../components/panels/HeatMapPanel';
-import FallDetectionPanel from '../components/panels/FallDetectionPanel';
 import HumanDetectionPanel from '../components/panels/HumanDetectionPanel';
 
 // Single source of truth for AI Modules
@@ -104,15 +103,6 @@ export const MODULE_REGISTRY = {
         icon: '🚪',
         panelComponent: EntryExitPanel,
         description: 'Monitor entry and exit points.',
-        supportsAlerts: true,
-        supportsStats: true
-    },
-    'fall-detection': {
-        key: 'fall-detection',
-        label: 'Fall Detection',
-        icon: '⚠️',
-        panelComponent: FallDetectionPanel,
-        description: 'Detect persons falling to send instantaneous medical alerts.',
         supportsAlerts: true,
         supportsStats: true
     },
