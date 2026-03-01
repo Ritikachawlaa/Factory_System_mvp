@@ -9,6 +9,7 @@ const analyticsApi = {
     getDetections: (type, limit = 20) => httpClient.get('/detections', { params: { type, limit } }),
     getViolations: () => httpClient.get('/violations'),
     clearViolations: () => httpClient.delete('/violations'),
+    getAuditLogs: (limit = 100) => httpClient.get('/api/audit-logs', { params: { limit } }),
 };
 
 export default analyticsApi;

@@ -1,16 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import analyticsApi from '../../api/analytics.api';
 
 const StorageSettings = () => {
-    // Mock data for storage
-    const [storageStats] = useState({
-        total: 5000, // GB
-        used: 3450, // GB
-        pending: 1550, // GB
-        recordings: 120, // Hours
-        integrity: 'Healthy'
+    const [storageStats, setStorageStats] = useState({
+        total: '0 TB',
+        used: '0 TB',
+        available: '0 TB',
+        percent: 0,
+        est_hours: 0,
+        integrity: 'Checking...'
     });
+    const [loading, setLoading] = useState(true);
 
-    const usedPercentage = (storageStats.used / storageStats.total) * 100;
+    useEffect(() => {
+        const fetchStorage = async () => {
+            try {
+                const data = await analyticsApi.getStats('system');
+                if (data && data.storage) {
+                    setStorageStats(data.storage);
+                }
+            } catch (error) {
+                console.error("Failed to fetch storage stats:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchStorage();
+    }, []);
+
+    const usedPercentage = storageStats.percent;
 
     return (
         <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', height: '100%' }}>
@@ -40,15 +58,15 @@ const StorageSettings = () => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
                         <span style={{ color: 'var(--text-secondary)' }}>Total Storage</span>
-                        <span style={{ color: '#fff' }}>{storageStats.total / 1000} TB</span>
+                        <span style={{ color: '#fff' }}>{storageStats.total}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
                         <span style={{ color: 'var(--text-secondary)' }}>Used Space</span>
-                        <span style={{ color: 'var(--accent-cyan)' }}>{(storageStats.used / 1000).toFixed(1)} TB</span>
+                        <span style={{ color: 'var(--accent-cyan)' }}>{storageStats.used}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
                         <span style={{ color: 'var(--text-secondary)' }}>Available</span>
-                        <span style={{ color: '#fff' }}>{(storageStats.pending / 1000).toFixed(1)} TB</span>
+                        <span style={{ color: '#fff' }}>{storageStats.available}</span>
                     </div>
                 </div>
             </div>
@@ -70,7 +88,7 @@ const StorageSettings = () => {
                     </button>
                 </div>
                 <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
-                    Est. Recording Time Remaining: <b>{Math.floor(storageStats.pending * 0.5)} Hours</b>
+                    Est. Recording Time Remaining: <b>{storageStats.est_hours} Hours</b>
                 </div>
             </div>
         </div>

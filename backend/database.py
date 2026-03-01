@@ -36,10 +36,29 @@ def init_db():
     try:
         conn = get_connection()
         conn.execute(text("SELECT 1"))
-        logger.info(f"Database Connection Check Successful. Version: {version[0]}")
+        
+        # Ensure tables exist (Basic Schema management for MVP)
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS audit_logs (
+                id SERIAL PRIMARY KEY,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                username VARCHAR(100),
+                action VARCHAR(100),
+                target VARCHAR(255),
+                ip_address VARCHAR(45),
+                severity VARCHAR(20) DEFAULT 'Low'
+            )
+        """))
+        conn.commit()
+        
+        logger.info("Database Connection Check & Schema Verification Successful")
+        return True
     except Exception as e:
-        print(f"ERROR: Database Connectivity Check Failed: {e}")
+        print(f"ERROR: Database Connectivity Check/Schema Failed: {e}")
         return False
+    finally:
+        if 'conn' in locals():
+            conn.close()
 
 def get_db_timestamp():
     """Helper for consistent timestamp formatting."""
@@ -996,6 +1015,44 @@ def update_system_setting(key: str, value: str):
             stmt = text("INSERT INTO system_settings (key, value) VALUES (:k, :v)")
         conn.execute(stmt, {"k": key, "v": value})
         conn.commit()
+    finally:
+        conn.close()
+
+# --- Audit Logs ---
+
+def add_audit_log(username: str, action: str, target: str, ip: str, severity: str = "Low"):
+    conn = get_connection()
+    try:
+        stmt = text("""
+            INSERT INTO audit_logs (username, action, target, ip_address, severity)
+            VALUES (:u, :a, :t, :ip, :s)
+        """)
+        conn.execute(stmt, {"u": username, "a": action, "t": target, "ip": ip, "s": severity})
+        conn.commit()
+    except Exception as e:
+        print(f"Add Audit Log Error: {e}")
+    finally:
+        conn.close()
+
+def get_audit_logs(limit: int = 100):
+    conn = get_connection()
+    try:
+        stmt = text("SELECT id, timestamp, username, action, target, ip_address, severity FROM audit_logs ORDER BY id DESC LIMIT :lim")
+        rows = conn.execute(stmt, {"lim": limit}).fetchall()
+        return [
+            {
+                "id": r[0],
+                "timestamp": str(r[1]),
+                "user": r[2],
+                "action": r[3],
+                "target": r[4],
+                "ip": r[5],
+                "severity": r[6]
+            } for r in rows
+        ]
+    except Exception as e:
+        print(f"Get Audit Logs Error: {e}")
+        return []
     finally:
         conn.close()
 

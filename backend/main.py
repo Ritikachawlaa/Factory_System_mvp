@@ -471,6 +471,10 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     access_token = create_access_token(
         data={"sub": user[0], "role": user[2]}, expires_delta=access_token_expires
     )
+    
+    # Audit Log: Login
+    database.add_audit_log(user[0], "Login", "System", "127.0.0.1", "Low")
+    
     return {"access_token": access_token, "token_type": "bearer", "role": user[2]}
 
 
@@ -550,6 +554,10 @@ def create_camera(cam: CameraCreate, current_user = Depends(get_current_user)):
     if not cam.source or not cam.source.strip():
         raise HTTPException(status_code=400, detail="Camera source cannot be empty")
     database.add_camera(cam.name, cam.source, cam.stream_path)
+    
+    # Audit Log: Add Camera
+    database.add_audit_log(current_user[0], "Add Camera", cam.name, "127.0.0.1", "Medium")
+    
     return {"message": "Camera added"}
 
 @app.delete("/cameras/{cam_id}")
@@ -560,6 +568,10 @@ def delete_camera(cam_id: int, current_user = Depends(get_current_user)):
 @app.put("/cameras/{cam_id}")
 def update_camera(cam_id: int, cam: CameraCreate, current_user = Depends(get_current_user)):
     database.update_camera(cam_id, cam.name, cam.source, cam.stream_path)
+    
+    # Audit Log: Update Camera
+    database.add_audit_log(current_user[0], "Update Camera", cam.name, "127.0.0.1", "Low")
+    
     return {"message": "Camera updated"}
 
 
@@ -771,6 +783,9 @@ async def update_module_state(cam_id: int, module_key: str, update: ModuleConfig
     
     database.update_module_status(cam_id, module_key, new_status, config_str)
     
+    # Audit Log: Toggle Module
+    database.add_audit_log("Admin", f"{'Enabled' if update.enabled else 'Disabled'} Module", f"{module_key} on Cam {cam_id}", "127.0.0.1", "Low")
+    
     # Broadcast Event via WS
     await manager.broadcast({
         "type": "MODULE_UPDATE",
@@ -862,18 +877,30 @@ def get_system_stats():
     total, used, free = shutil.disk_usage("/")
     usage_percent = (used / total) * 100
     
-    # Mock dynamic CPU/RAM for liveliness (since psutil might not be installed)
-    import random
-    cpu = random.randint(15, 45)
-    mem = random.randint(10, 30) / 10
+    # Estimate recording time (Mock logic based on free space: eg 1GB ~ 1 Hour loop)
+    # Convert free to GB
+    free_gb = free / (1024**3)
+    est_hours = int(free_gb * 0.5) # Arbitrary factor for demonstration
     
     return {
         "uptime": "99.9%",
-        "cpu_usage": f"{cpu}%",
-        "memory_usage": f"{mem}GB",
+        "cpu_usage": f"{random.randint(15, 45)}%",
+        "memory_usage": f"{(random.randint(10, 30) / 10)}GB",
         "status": "Online",
-        "disk_usage": f"{usage_percent:.1f}% Full" # Frontend expects the text shown in UI "75% Full"
+        "disk_usage": f"{usage_percent:.1f}% Full",
+        "storage": {
+            "total": f"{total / (1024**4):.1f} TB",
+            "used": f"{used / (1024**4):.1f} TB",
+            "available": f"{free / (1024**4):.1f} TB",
+            "percent": int(usage_percent),
+            "est_hours": est_hours,
+            "integrity": "Healthy"
+        }
     }
+
+@app.get("/api/audit-logs")
+def get_audit_logs_endpoint(limit: int = 100, current_user = Depends(get_current_user)):
+    return database.get_audit_logs(limit)
 
 @app.get("/stats/human_detection")
 def get_global_human_stats_endpoint():

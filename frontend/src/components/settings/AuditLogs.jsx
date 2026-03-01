@@ -1,25 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import analyticsApi from '../../api/analytics.api';
 
 const AuditLogs = () => {
     const [searchTerm, setSearchTerm] = useState('');
+    const [logs, setLogs] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    const logs = [
-        { id: 1, timestamp: '2025-01-18 10:15:23', user: 'Admin (Ritik)', action: 'Login', target: 'System', ip: '192.168.1.10' },
-        { id: 2, timestamp: '2025-01-18 10:20:45', user: 'Admin (Ritik)', action: 'Update Camera', target: 'Gate Camera 1', ip: '192.168.1.10' },
-        { id: 3, timestamp: '2025-01-18 11:05:12', user: 'Supervisor (John)', action: 'View Playback', target: 'Warehouse Cam', ip: '192.168.1.15' },
-        { id: 4, timestamp: '2025-01-18 11:30:00', user: 'System', action: 'Auto-Backup', target: 'Daily Backup', ip: 'localhost' },
-        { id: 5, timestamp: '2025-01-18 12:45:33', user: 'Admin (Ritik)', action: 'Export Report', target: 'Attendance_Jan.pdf', ip: '192.168.1.10' },
-        { id: 6, timestamp: '2025-01-18 13:00:10', user: 'Security (Guard)', action: 'Flag Incident', target: 'Intrusion Alert #442', ip: '192.168.1.20' },
-    ];
-
-    const filteredLogs = logs.filter(log =>
-        log.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.action.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    useEffect(() => {
+        const fetchLogs = async () => {
+            try {
+                const data = await analyticsApi.getAuditLogs();
+                setLogs(data);
+            } catch (error) {
+                console.error("Failed to fetch audit logs:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchLogs();
+    }, []);
 
     const handleExport = () => {
         alert('Exporting Audit Logs to PDF...');
     };
+
+    const filteredLogs = (logs || []).filter(log =>
+        (log.user?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+        (log.action?.toLowerCase() || "").includes(searchTerm.toLowerCase())
+    );
+
+    if (loading) {
+        return <div className="glass-panel" style={{ padding: '2rem', textAlign: 'center', color: '#fff' }}>Loading logs...</div>;
+    }
 
     return (
         <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', height: '100%' }}>
