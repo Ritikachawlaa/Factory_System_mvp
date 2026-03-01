@@ -45,13 +45,17 @@ def get_embedding_from_bytes(image_bytes):
             logger.error("DeepFace is NOT installed on this server. Cannot generate embeddings.")
             return None
 
-        # Convert bytes to numpy array
+        # Convert bytes to PIL Image and normalize to RGB
         image = Image.open(io.BytesIO(image_bytes))
+        image = image.convert('RGB') # Fix: Standardize to RGB (drops alpha channel if any)
         image_np = np.array(image)
+        
         # Convert RGB to BGR for OpenCV/DeepFace
         image_bgr = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
         
-        # Try opencv first for speed and lower resource usage on backend
+        logger.info(f"Generating embedding for image size {image_np.shape}")
+
+        # Try 1: OpenCV (Fast)
         try:
             results = DeepFace.represent(
                 img_path=image_bgr,
@@ -62,9 +66,10 @@ def get_embedding_from_bytes(image_bytes):
             if results:
                 return np.array(results[0]["embedding"])
         except Exception as e:
-            logger.warning(f"OpenCV face detection failed, trying retinaface: {e}")
+            logger.warning(f"OpenCV face detection failed: {str(e)}")
             
-            # Retinaface is more robust but heavier
+        # Try 2: Retinaface (Robust)
+        try:
             results = DeepFace.represent(
                 img_path=image_bgr,
                 model_name=MODEL_NAME,
@@ -73,8 +78,27 @@ def get_embedding_from_bytes(image_bytes):
             )
             if results:
                 return np.array(results[0]["embedding"])
+        except Exception as e:
+            logger.warning(f"Retinaface face detection failed: {str(e)}")
+
+        # Try 3: Last Resort - Relaxed Detection (returns embedding regardless of face found)
+        # We only do this if prior attempts failed but we want to be helpful
+        try:
+            logger.warning("Attempting relaxed detection (enforce_detection=False)")
+            results = DeepFace.represent(
+                img_path=image_bgr,
+                model_name=MODEL_NAME,
+                enforce_detection=False,
+                detector_backend='opencv'
+            )
+            if results:
+                logger.info("Generated embedding using relaxed detection.")
+                return np.array(results[0]["embedding"])
+        except Exception as e:
+            logger.error(f"Relaxed detection also failed: {str(e)}")
+
     except Exception as e:
-        logger.error(f"Error generating embedding on Backend: {str(e)}")
+        logger.error(f"Critical error generating embedding: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
     return None
