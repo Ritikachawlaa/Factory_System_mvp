@@ -34,8 +34,47 @@ const AttendancePage = () => {
     const stats = { totalEmployees: employees.length, present: 0, onLeave: 0, late: 0 };
     const logs = [];
 
-    const handleDownload = () => {
-        alert(`Downloading ${reportFilter === 'week' ? 'Weekly' : 'Monthly'} Report...`);
+    const [showExportMenu, setShowExportMenu] = useState(false);
+    const exportMenuRef = useRef(null);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (exportMenuRef.current && !exportMenuRef.current.contains(event.target)) {
+                setShowExportMenu(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleExportCSV = () => {
+        const headers = ['ID', 'Employee', 'Department', 'Status'];
+        const csvContent = [
+            headers.join(','),
+            ...employees.map(emp => [
+                `"${emp.id}"`,
+                `"${emp.name}"`,
+                `"${emp.dept}"`,
+                `"${emp.status}"`
+            ].join(','))
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `CAMAI_Attendance_Report_${reportFilter}_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setShowExportMenu(false);
+    };
+
+    const handleExportPDF = () => {
+        window.print();
+        setShowExportMenu(false);
     };
 
     const handlePhotoUpload = (e) => {
@@ -170,18 +209,71 @@ const AttendancePage = () => {
 
                     {/* REPORTS VIEW */}
                     {activeTab === 'reports' && (
-                        <div className="glass-panel" style={{ padding: '2rem' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                        <div className="glass-panel attendance-report-container" style={{ padding: '2rem' }}>
+                            <style>
+                                {`
+                                @media print {
+                                    nav, .header, .sidebar, .sidebar-container, .export-controls, footer, .header-container { display: none !important; }
+                                    .attendance-report-container { background: white !important; color: black !important; padding: 0 !important; width: 100% !important; height: auto !important; position: absolute !important; top: 0 !important; left: 0 !important; }
+                                    .attendance-report-container .glass-panel { background: white !important; border: none !important; }
+                                    .attendance-report-container h3 { color: black !important; }
+                                    .attendance-report-container div { color: black !important; }
+                                }
+                                `}
+                            </style>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }} className="export-controls">
                                 <h3 style={{ color: '#fff', fontSize: '1.2rem' }}>Attendance Reports</h3>
-                                <div style={{ display: 'flex', gap: '1rem' }}>
-                                    <select value={reportFilter} onChange={(e) => setReportFilter(e.target.value)}
-                                        style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid var(--panel-border)', borderRadius: '6px' }}>
-                                        <option value="week">This Week</option>
-                                        <option value="month">This Month</option>
+                                <div style={{ display: 'flex', gap: '1rem', position: 'relative' }}>
+                                    <select
+                                        value={reportFilter}
+                                        onChange={(e) => setReportFilter(e.target.value)}
+                                        style={{
+                                            padding: '0.5rem',
+                                            background: '#0f172a',
+                                            color: '#fff',
+                                            border: '1px solid var(--panel-border)',
+                                            borderRadius: '6px',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        <option value="week" style={{ background: '#0f172a', color: '#fff' }}>This Week</option>
+                                        <option value="month" style={{ background: '#0f172a', color: '#fff' }}>This Month</option>
                                     </select>
-                                    <button onClick={handleDownload} style={{ padding: '0.5rem 1rem', background: 'var(--accent-cyan)', color: '#000', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
-                                        Download Report ⬇
-                                    </button>
+
+                                    <div ref={exportMenuRef}>
+                                        <button
+                                            onClick={() => setShowExportMenu(!showExportMenu)}
+                                            style={{ padding: '0.5rem 1rem', background: 'var(--accent-cyan)', color: '#000', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}
+                                        >
+                                            Download Report ⬇
+                                        </button>
+
+                                        {showExportMenu && (
+                                            <div style={{
+                                                position: 'absolute', top: '110%', right: 0, width: '150px',
+                                                background: 'rgba(15, 23, 42, 0.95)', border: '1px solid var(--panel-border)',
+                                                borderRadius: '8px', zIndex: 1000, boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+                                                backdropFilter: 'blur(10px)', padding: '0.5rem'
+                                            }}>
+                                                <button
+                                                    onClick={handleExportPDF}
+                                                    style={{ width: '100%', padding: '0.75rem', background: 'transparent', border: 'none', color: '#fff', textAlign: 'left', cursor: 'pointer', borderRadius: '4px', fontSize: '0.9rem' }}
+                                                    onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                                                    onMouseOut={(e) => e.target.style.background = 'transparent'}
+                                                >
+                                                    📄 Export as PDF
+                                                </button>
+                                                <button
+                                                    onClick={handleExportCSV}
+                                                    style={{ width: '100%', padding: '0.75rem', background: 'transparent', border: 'none', color: '#fff', textAlign: 'left', cursor: 'pointer', borderRadius: '4px', fontSize: '0.9rem' }}
+                                                    onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                                                    onMouseOut={(e) => e.target.style.background = 'transparent'}
+                                                >
+                                                    📊 Export as CSV
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
