@@ -253,11 +253,20 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                                 // Skip tiny boxes (likely face, not body)
                                 if (d.w < 30 || d.h < 30) return;
 
-                                // Scatter points across the full bounding box
-                                const numPoints = Math.max(3, Math.floor((d.w * d.h) / 2000));
+                                // CENTER-CENTRIC VERTICAL SCATTER:
+                                // Instead of scattering across the whole width, we concentrate on the vertical axis
+                                const centerX = d.x + (d.w / 2);
+
+                                // Number of points based on height (verticality emphasized)
+                                const numPoints = Math.max(5, Math.floor(d.h / 15));
+
                                 for (let i = 0; i < numPoints; i++) {
+                                    // Horizontal: Weighted heavily towards the center (sin distribution)
+                                    // This prevents the "horizontal bar" look and keeps it centered on the human figure
+                                    const hSpread = (Math.random() - 0.5) * (Math.random() - 0.5) * (d.w * 0.6);
+
                                     newPoints.push({
-                                        x: d.x + Math.random() * d.w,
+                                        x: centerX + hSpread,
                                         y: d.y + Math.random() * d.h,
                                         timestamp: ts
                                     });
@@ -267,6 +276,7 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                                 setHeatmapPoints(prev => [...prev.slice(-2000), ...newPoints]);
                             }
                         }
+
 
 
                         // Demo Polish: Show brief alert badge if detections are present
