@@ -316,9 +316,9 @@ def run_camera_inference(camera, client):
                     )
                     
                     if faces:
-                        name = faces[0]["class"]
-                        if name != "Unknown":
-                            final_label = f"{name} (ID {track_id})"
+                        display_label = faces[0]["class"] # This is now "Name (ID: X)"
+                        if "Unknown" not in display_label:
+                            final_label = f"{display_label} [TID {track_id}]"
                     
                     if events:
                         for event in events:
@@ -326,9 +326,9 @@ def run_camera_inference(camera, client):
 
                 # Check IntegrationService for persistent name even if face recognition didn't run this frame
                 if track_id:
-                    persisted_name = integration_service.get_identity(track_id)
-                    if persisted_name:
-                        final_label = f"{persisted_name} (ID {track_id})"
+                    persisted_identity = integration_service.get_identity(track_id)
+                    if persisted_identity and "Unknown" not in persisted_identity:
+                        final_label = f"{persisted_identity} [TID {track_id}]"
 
                 # Add the tracked box with integrated label
                 aggregated_boxes.append({

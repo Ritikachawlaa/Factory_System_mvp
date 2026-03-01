@@ -20,31 +20,36 @@ class FaceRecognitionService:
         """
         target_img = detection_frame if detection_frame is not None else frame
         
-        # detection: (name, score, (x, y, w, h))
+        # detection: (name, emp_id, score, (x, y, w, h))
         detection_results = recognition.identify_faces(target_img)
         events = []
         bounding_boxes = []
         current_time = time.time()
 
-        for name, score, (x, y, w, h) in detection_results:
+        for name, emp_id, score, (x, y, w, h) in detection_results:
             # If we are in a crop, x/y are relative to the crop
             # If we are in full frame, they are absolute
             
+            # Format label
+            display_label = name
+            if name != "Unknown" and emp_id is not None:
+                display_label = f"{name} (ID: {emp_id})"
+
             # Link to Track ID via IntegrationService if info provided
             if tracked_info and "track_id" in tracked_info:
                 from utils.integration_service import integration_service
-                integration_service.update_identity(tracked_info["track_id"], name)
+                integration_service.update_identity(tracked_info["track_id"], display_label)
 
             # Draw on frame (only if not in crop-mode or if we want to draw on the original frame)
             # For integrated mode, run_ml handles drawing
             if detection_frame is None:
                 color = (0, 255, 0) if name != "Unknown" else (0, 0, 255)
                 cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
-                cv2.putText(frame, f"{name} ({score:.2f})", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+                cv2.putText(frame, f"{display_label} ({score:.2f})", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
             
             bounding_boxes.append({
                 "id": tracked_info["track_id"] if tracked_info else None,
-                "class": name,
+                "class": display_label,
                 "x": int(x), "y": int(y), "w": int(w), "h": int(h), "confidence": float(score)
             })
 
@@ -62,7 +67,7 @@ class FaceRecognitionService:
                     "label": label,
                     "confidence": float(score),
                     "timestamp": current_time,
-                    "meta": f"Name: {name}",
+                    "meta": f"Name: {name}, ID: {emp_id}",
                 }
                 events.append(event)
                 self.last_events[name] = current_time

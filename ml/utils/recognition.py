@@ -9,6 +9,7 @@ from deepface import DeepFace
 # Global State
 known_face_encodings = []
 known_face_names = []
+known_face_ids = []
 latest_accuracy = 0.0
 latest_latency = 0.0
 
@@ -21,7 +22,7 @@ def load_known_faces():
     """
     Load faces from the Backend API.
     """
-    global known_face_encodings, known_face_names
+    global known_face_encodings, known_face_names, known_face_ids
     print("ML: Loading known faces from Backend API...")
     try:
         url = f"{BACKEND_URL}/api/ml/initial-state"
@@ -33,13 +34,16 @@ def load_known_faces():
         
         known_face_encodings = []
         known_face_names = []
+        known_face_ids = []
         
         for e in employees:
             name = e["name"]
+            emp_id = e["id"]
             embedding = e["embedding"]
             # embedding comes as list from JSON
             known_face_encodings.append(embedding)
             known_face_names.append(name)
+            known_face_ids.append(emp_id)
             
         print(f"ML: Loaded {len(known_face_names)} faces.")
     except Exception as e:
@@ -98,9 +102,9 @@ def process_frame(frame, modules=None):
 
 def identify_faces(frame):
     """
-    Returns list of (name, score, (x, y, w, h))
+    Returns list of (name, id, score, (x, y, w, h))
     """
-    global known_face_encodings, known_face_names
+    global known_face_encodings, known_face_names, known_face_ids
     
     detections = []
     
@@ -122,6 +126,7 @@ def identify_faces(frame):
             
             # Match
             name = "Unknown"
+            emp_id = None
             best_score = 0.0
             
             if len(known_face_encodings) > 0:
@@ -134,13 +139,14 @@ def identify_faces(frame):
                     if score > best_score and score > 0.35: 
                         best_score = score
                         name = known_face_names[i]
+                        emp_id = known_face_ids[i]
             
             x = int(region['x'])
             y = int(region['y'])
             w = int(region['w'])
             h = int(region['h'])
             
-            detections.append((name, best_score, (x, y, w, h)))
+            detections.append((name, emp_id, best_score, (x, y, w, h)))
             
     except Exception as e:
         # Fallback to opencv if retinaface fails
@@ -155,6 +161,7 @@ def identify_faces(frame):
                 embedding = res["embedding"]
                 region = res["facial_area"]
                 name = "Unknown"
+                emp_id = None
                 best_score = 0.0
                 if len(known_face_encodings) > 0:
                     a = np.array(embedding)
@@ -164,7 +171,8 @@ def identify_faces(frame):
                         if score > best_score and score > 0.35: 
                             best_score = score
                             name = known_face_names[i]
-                detections.append((name, best_score, (int(region['x']), int(region['y']), int(region['w']), int(region['h']))))
+                            emp_id = known_face_ids[i]
+                detections.append((name, emp_id, best_score, (int(region['x']), int(region['y']), int(region['w']), int(region['h']))))
         except:
             pass
         

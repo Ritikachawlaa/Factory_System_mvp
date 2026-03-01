@@ -11,3 +11,4 @@ dotenv
 requests
 psutil
 httpx
+Pillow
