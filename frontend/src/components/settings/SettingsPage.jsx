@@ -62,26 +62,10 @@ const SettingsPage = () => {
                     {/* System Configuration & Diagnostics (Moved to Bottom) */}
                     <div className="glass-panel" style={{ padding: '1.5rem', marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
 
-                        {/* System Info */}
                         <div style={{ display: 'flex', gap: '3rem' }}>
-                            <div>
-                                <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', textTransform: 'uppercase', marginBottom: '0.5rem', letterSpacing: '1px' }}>System Configuration</h3>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.9rem' }}>
-                                    <div style={{ color: '#e2e8f0' }}>Firmware: <span style={{ fontFamily: 'monospace', color: 'var(--accent-cyan)' }}>v5.2.1</span></div>
-                                    <div style={{ color: 'var(--text-secondary)' }}>Last Update: 2 days ago</div>
-                                </div>
-                            </div>
-
-                            {/* Backup Info */}
-                            <div>
-                                <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', textTransform: 'uppercase', marginBottom: '0.5rem', letterSpacing: '1px' }}>Backup Status</h3>
-                                <div style={{ fontSize: '0.9rem', color: '#fff', display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                                    <span style={{ color: 'var(--success-color)', fontWeight: 'bold' }}>Complete</span>
-                                    <span style={{ color: 'var(--text-secondary)' }}>1.2TB / 5TB</span>
-                                </div>
-                                <div style={{ width: '150px', height: '4px', background: '#334155', borderRadius: '2px', marginTop: '0.5rem' }}>
-                                    <div style={{ width: '24%', height: '100%', background: 'var(--accent-cyan)', borderRadius: '2px' }}></div>
-                                </div>
+                            {/* System Status Placeholder */}
+                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                                System initialized and synchronized with cloud.
                             </div>
                         </div>
 

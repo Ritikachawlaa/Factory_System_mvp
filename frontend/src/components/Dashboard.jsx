@@ -83,22 +83,10 @@ const Dashboard = () => {
                                 {currentTime.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                             </div>
                             <h2 style={{ fontSize: '2.5rem', fontWeight: '800', margin: 0 }} className="text-gradient">
-                                Command Center
-                                <span style={{
-                                    fontSize: '0.8rem', verticalAlign: 'middle', marginLeft: '1rem',
-                                    padding: '4px 8px', borderRadius: '4px',
-                                    background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444',
-                                    border: '1px solid rgba(239, 68, 68, 0.4)'
-                                }}>
-                                    DEV ENVIRONMENT
-                                </span>
+                                Dashboard
                             </h2>
                         </div>
                         <div style={{ textAlign: 'right', display: 'flex', gap: '1rem' }}>
-                            <div className="glass-panel" style={{ padding: '0.75rem 1.5rem', textAlign: 'center' }}>
-                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>System Uptime</div>
-                                <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff' }}>24d : 12h : 45m</div>
-                            </div>
                             <button onClick={() => navigate('/audit-logs')} className="glass-panel" style={{
                                 padding: '0.75rem 1.5rem', background: 'rgba(255,255,255,0.05)',
                                 border: '1px solid var(--panel-border)', cursor: 'pointer',

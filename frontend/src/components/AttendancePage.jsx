@@ -8,13 +8,7 @@ const AttendancePage = () => {
     const [reportFilter, setReportFilter] = useState('week'); // week, month
 
     // Employee State
-    const [employees, setEmployees] = useState([
-        { id: 'EMP001', name: 'John Doe', dept: 'Engineering', status: 'Active', photo: null, fingerprint: true },
-        { id: 'EMP002', name: 'Alice Smith', dept: 'Marketing', status: 'Active', photo: null, fingerprint: true },
-        { id: 'EMP003', name: 'Bob Johnson', dept: 'Sales', status: 'Active', photo: null, fingerprint: false },
-        { id: 'EMP004', name: 'Clara Oswald', dept: 'HR', status: 'On Leave', photo: null, fingerprint: false },
-        { id: 'EMP005', name: 'David Tennant', dept: 'Engineering', status: 'Active', photo: null, fingerprint: true },
-    ]);
+    const [employees, setEmployees] = useState([]);
 
     // Modal States
     const [showAddModal, setShowAddModal] = useState(false);
@@ -37,14 +31,8 @@ const AttendancePage = () => {
     const fileInputRef = useRef(null);
 
     // Mock Data for Dashboard
-    const stats = { totalEmployees: employees.length, present: 112, onLeave: 8, late: 4 };
-    const logs = [
-        { id: 101, name: 'John Doe', time: '08:55 AM', status: 'On Time', device: 'Main Entrance #1' },
-        { id: 102, name: 'Alice Smith', time: '09:02 AM', status: 'Late', device: 'Main Entrance #1' },
-        { id: 103, name: 'Bob Johnson', time: '08:45 AM', status: 'On Time', device: 'Rear Exit #2' },
-        { id: 104, name: 'Clara Oswald', time: '09:10 AM', status: 'Late', device: 'Main Entrance #2' },
-        { id: 105, name: 'David Tennant', time: '08:50 AM', status: 'On Time', device: 'Main Entrance #1' },
-    ];
+    const stats = { totalEmployees: employees.length, present: 0, onLeave: 0, late: 0 };
+    const logs = [];
 
     const handleDownload = () => {
         alert(`Downloading ${reportFilter === 'week' ? 'Weekly' : 'Monthly'} Report...`);
