@@ -607,8 +607,11 @@ async def add_employee(
         # Process image for embedding directly
         embedding = recognition.get_embedding_from_bytes(contents)
         if embedding is None:
-            logger.warning(f"No face detected for employee {name}")
-            raise HTTPException(status_code=400, detail="No face detected in the image")
+            logger.warning(f"Embedding generation failed for employee {name}")
+            # Try to give a bit more detail if we can infer it
+            # (In a real system we'd check if the library is loaded)
+            err_msg = "No face detected in the image. Please try a clearer photo or a different angle."
+            raise HTTPException(status_code=400, detail=err_msg)
         
         database.add_employee(name, embedding, dept, status)
         recognition.load_known_faces()
@@ -619,10 +622,9 @@ async def add_employee(
         raise he
     except Exception as e:
         logger.error(f"Critical error in add_employee: {str(e)}")
-        # Log traceback if possible via traceback module
         import traceback
         logger.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal Server Error during registration. Please check server logs.")
 
 @app.delete("/employees/{emp_id}")
 def delete_employee(emp_id: int, current_user = Depends(get_current_user)):

@@ -37,10 +37,10 @@ const AttendancePage = () => {
     const [showAddModal, setShowAddModal] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState(null); // For View Modal
 
-    // Camera State Removed in favor of file upload only
-    // const [isCameraOpen, setIsCameraOpen] = useState(false);
-    // const videoRef = useRef(null);
-    // const canvasRef = useRef(null);
+    // Camera State
+    const [isCameraOpen, setIsCameraOpen] = useState(false);
+    const videoRef = useRef(null);
+    const canvasRef = useRef(null);
 
     // New Employee Form State
     const [newEmployee, setNewEmployee] = useState({
@@ -112,8 +112,49 @@ const AttendancePage = () => {
         }
     };
 
-    // Camera Functions Removed
-    // startCamera, stopCamera, capturePhoto
+    // Camera Functions
+    const startCamera = async () => {
+        setIsCameraOpen(true);
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+            }
+        } catch (err) {
+            console.error("Error accessing camera:", err);
+            alert("Could not access camera. Please check permissions.");
+            setIsCameraOpen(false);
+        }
+    };
+
+    const stopCamera = () => {
+        if (videoRef.current && videoRef.current.srcObject) {
+            const tracks = videoRef.current.srcObject.getTracks();
+            tracks.forEach(track => track.stop());
+            videoRef.current.srcObject = null;
+        }
+        setIsCameraOpen(false);
+    };
+
+    const capturePhoto = () => {
+        if (videoRef.current && canvasRef.current) {
+            const context = canvasRef.current.getContext('2d');
+            canvasRef.current.width = videoRef.current.videoWidth;
+            canvasRef.current.height = videoRef.current.videoHeight;
+            context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
+
+            const imageData = canvasRef.current.toDataURL('image/jpeg');
+
+            // Convert dataURL to File object for the backend
+            fetch(imageData)
+                .then(res => res.blob())
+                .then(blob => {
+                    const file = new File([blob], "capture.jpg", { type: "image/jpeg" });
+                    setNewEmployee({ ...newEmployee, photo: imageData, photoFile: file });
+                    stopCamera();
+                });
+        }
+    };
 
     // Fingerprint Simulation
     const handleScanFingerprint = () => {
@@ -166,7 +207,12 @@ const AttendancePage = () => {
         setShowAddModal(true);
     };
 
-    // Cleanup camera useEffect Removed
+    // Cleanup camera
+    useEffect(() => {
+        return () => {
+            if (isCameraOpen) stopCamera();
+        };
+    }, [isCameraOpen]);
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-dark)' }}>
@@ -476,6 +522,11 @@ const AttendancePage = () => {
                                 <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Photograph</label>
 
                                 <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+                                    <button
+                                        onClick={isCameraOpen ? stopCamera : startCamera}
+                                        style={{ flex: 1, padding: '0.5rem', background: 'rgba(255,255,255,0.1)', border: '1px solid var(--panel-border)', color: '#fff', borderRadius: '4px', cursor: 'pointer' }}>
+                                        {isCameraOpen ? "❌ Close Camera" : "📸 Open Camera"}
+                                    </button>
                                     <button onClick={() => fileInputRef.current.click()} style={{ flex: 1, padding: '0.5rem', background: 'rgba(255,255,255,0.1)', border: '1px solid var(--panel-border)', color: '#fff', borderRadius: '4px', cursor: 'pointer' }}>
                                         📁 Upload Photo
                                     </button>
@@ -484,7 +535,27 @@ const AttendancePage = () => {
                                 {/* Preview Area */}
                                 <div style={{ border: '2px dashed var(--panel-border)', padding: '1rem', borderRadius: '6px', textAlign: 'center', background: 'rgba(0,0,0,0.2)', minHeight: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
 
-                                    {newEmployee.photo ? (
+                                    {isCameraOpen ? (
+                                        <div style={{ position: 'relative', width: '100%' }}>
+                                            <video
+                                                ref={videoRef}
+                                                autoPlay
+                                                playsInline
+                                                style={{ width: '100%', borderRadius: '4px', background: '#000' }}
+                                            />
+                                            <button
+                                                onClick={capturePhoto}
+                                                style={{
+                                                    position: 'absolute', bottom: '10px', left: '50%', transform: 'translateX(-50%)',
+                                                    padding: '0.5rem 1rem', background: 'var(--accent-cyan)', color: '#000',
+                                                    border: 'none', borderRadius: '50px', fontWeight: 'bold', cursor: 'pointer',
+                                                    boxShadow: '0 4px 15px rgba(0,0,0,0.5)'
+                                                }}>
+                                                Capture Photo
+                                            </button>
+                                            <canvas ref={canvasRef} style={{ display: 'none' }} />
+                                        </div>
+                                    ) : newEmployee.photo ? (
                                         <img src={newEmployee.photo} alt="Preview" style={{ width: '150px', height: '150px', borderRadius: '50%', objectFit: 'cover', border: '4px solid var(--accent-cyan)' }} />
                                     ) : (
                                         <div style={{ color: 'var(--text-secondary)' }}>
