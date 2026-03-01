@@ -1130,16 +1130,25 @@ async def get_system_metrics():
 
 @app.get("/health/system")
 async def get_system_health(camera_id: int = 1):
-    # Detect ML Engine health: check per-camera OR global activity in last 30s
+    # Detect ML Engine health using multiple signals
     ml_active = False
     now = time.time()
     
-    # Per-camera check
-    metrics = ml_metrics.get(camera_id, {})
-    if now - metrics.get("last_update", 0) < 30:
-        ml_active = True
+    # Signal 1: Check if camera has active modules in the database
+    try:
+        active_modules = database.get_camera_modules(camera_id)
+        if any(m.get("status") == "active" for m in active_modules):
+            ml_active = True
+    except Exception:
+        pass
     
-    # Global fallback: if ANY ML endpoint was hit recently, engine is alive
+    # Signal 2: Per-camera metric updates
+    if not ml_active:
+        metrics = ml_metrics.get(camera_id, {})
+        if now - metrics.get("last_update", 0) < 30:
+            ml_active = True
+    
+    # Signal 3: Global fallback from any ML endpoint
     if not ml_active and now - LAST_GLOBAL_ML_UPDATE < 30:
         ml_active = True
             
