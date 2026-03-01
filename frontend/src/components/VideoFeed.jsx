@@ -480,7 +480,6 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                         // 1. If it's a background module (Face/Track), ALWAYS show it.
                         // 2. Otherwise, check if user specifically wants this module.
                         if (!isBackgroundModule) {
-                            if (isHeatmapActive && (isPerson || isCrowd)) return; // Don't show boxes if heatmap is drawing them
                             if (wantsHuman && !isPerson) return;
                             if (wantsCrowd && !isCrowd) return;
                             // Add other filters as needed
@@ -532,7 +531,7 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
 
                     // Build intensity grid: accumulate recent points into cells
                     const grid = new Float32Array(GRID_COLS * GRID_ROWS);
-                    const ACCUMULATION_WINDOW = 10000; // 10s of history for faster response
+                    const ACCUMULATION_WINDOW = 4000; // Fast decay: 4s window
 
                     heatmapPoints.forEach(p => {
                         const age = now - p.timestamp;
@@ -542,9 +541,9 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                         const row = Math.floor(p.y / cellH);
                         if (col < 0 || col >= GRID_COLS || row < 0 || row >= GRID_ROWS) return;
 
-                        // High weight = color appears in seconds
+                        // Medium weight for responsive but stable build-up
                         const freshness = 1 - (age / ACCUMULATION_WINDOW);
-                        grid[row * GRID_COLS + col] += freshness * 0.4;
+                        grid[row * GRID_COLS + col] += freshness * 0.3;
                     });
 
                     // Render intensity grid
@@ -583,7 +582,7 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                             }
 
                             // Alpha grows with intensity to make it "grow darker" (more opaque) against the video
-                            const alpha = Math.min(intensity * 0.8, 0.7);
+                            const alpha = Math.min(intensity * 0.6, 0.55);
 
                             // Draw a soft radial blob for each cell
                             const radius = Math.max(displayCellW, displayCellH) * 1.5;
