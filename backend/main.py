@@ -535,7 +535,24 @@ async def update_user_password(username: str, data: UserPasswordUpdate, current_
     raise HTTPException(status_code=404, detail="User not found")
 
 
-# --- Camera Endpoints ---
+# --- Camera Endpoints (Legacy - used by ML Engine) ---
+@app.get("/cameras")
+def get_cameras_legacy():
+    """Legacy endpoint used by the ML engine on EC2. Do NOT remove."""
+    cameras = database.get_cameras()
+    results = []
+    for cam in cameras:
+        mods = database.get_camera_modules(cam['id'])
+        formatted_mods = []
+        for m in mods:
+            formatted_mods.append({
+                "key": m["key"],
+                "status": m["status"],
+                "config": m["config"]
+            })
+        cam["modules"] = formatted_mods
+        results.append(cam)
+    return results
 
 
 
@@ -594,11 +611,7 @@ async def register_employee(file: UploadFile = File(...), name: str = Form(...))
     recognition.load_known_faces()
     return {"message": f"Employee {name} registered successfully"}
 
-@app.put("/employees/{emp_id}")
-def update_employee(emp_id: int, emp: EmployeeUpdate):
-    database.update_employee(emp_id, emp.name)
-    recognition.load_known_faces()
-    return {"message": "Employee updated"}
+
 
 # --- Camera & Module Endpoints ---
 
