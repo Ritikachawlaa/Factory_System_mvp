@@ -873,14 +873,18 @@ def get_dashboard_stats():
 
 @app.get("/stats/system")
 def get_system_stats():
-    # Real Disk Usage
-    total, used, free = shutil.disk_usage("/")
+    # Real Disk Usage (Use current directory's drive for better Windows accuracy)
+    total, used, free = shutil.disk_usage(".")
     usage_percent = (used / total) * 100
     
-    # Estimate recording time (Mock logic based on free space: eg 1GB ~ 1 Hour loop)
-    # Convert free to GB
+    def format_size(bytes_val):
+        if bytes_val >= (1024**4):
+            return f"{bytes_val / (1024**4):.1f} TB"
+        return f"{bytes_val / (1024**3):.1f} GB"
+
+    # Estimate recording time
     free_gb = free / (1024**3)
-    est_hours = int(free_gb * 0.5) # Arbitrary factor for demonstration
+    est_hours = int(free_gb * 0.5)
     
     return {
         "uptime": "99.9%",
@@ -889,9 +893,9 @@ def get_system_stats():
         "status": "Online",
         "disk_usage": f"{usage_percent:.1f}% Full",
         "storage": {
-            "total": f"{total / (1024**4):.1f} TB",
-            "used": f"{used / (1024**4):.1f} TB",
-            "available": f"{free / (1024**4):.1f} TB",
+            "total": format_size(total),
+            "used": format_size(used),
+            "available": format_size(free),
             "percent": int(usage_percent),
             "est_hours": est_hours,
             "integrity": "Healthy"

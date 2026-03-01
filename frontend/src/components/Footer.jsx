@@ -13,7 +13,7 @@ const Footer = () => {
             textAlign: 'center',
             gap: '0.5rem'
         }}>
-            <div style={{ maxWidth: '60%', width: '100%', margin: '0 auto' }}>
+            <div style={{ maxWidth: '30%', width: '100%', margin: '0 auto' }}>
                 <div style={{ marginBottom: '1rem' }}>
                     <h4 style={{ color: '#fff', fontSize: '1rem', margin: '0 0 0.25rem 0', fontWeight: '600' }}>
                         CAMAI – Intelligent Vision. Smarter Security.
