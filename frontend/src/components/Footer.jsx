@@ -19,11 +19,7 @@ const Footer = () => {
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', margin: 0 }}>
                         AI-Powered Real-Time Surveillance & Smart Monitoring Solutions.
                     </p>
-                </div>
-
-                {/* Centre: Mission Statement */}
-                <div style={{ flex: '1 1 auto', textAlign: 'center' }}>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', fontStyle: 'italic', margin: 0 }}>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontStyle: 'italic', margin: '0.2rem 0 0 0' }}>
                         Built for modern security and intelligent infrastructure.
                     </p>
                 </div>
