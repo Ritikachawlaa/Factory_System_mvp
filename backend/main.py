@@ -22,6 +22,7 @@ from pydantic import BaseModel
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from starlette.requests import Request
+from sqlalchemy import text
 
 import database
 import recognition
@@ -70,8 +71,10 @@ app.add_middleware(
     allow_origins=[
         "https://www.camai.in",
         "https://camai.in",
+        "https://api.camai.in",
         "http://localhost:3000",
-        "http://localhost:5173"
+        "http://localhost:5173",
+        "http://127.0.0.1:5173"
     ],
     allow_credentials=True,
     allow_methods=["*"],

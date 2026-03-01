@@ -3,7 +3,7 @@ import React from 'react';
 const Footer = () => {
     return (
         <footer style={{
-            padding: '2rem 1rem',
+            padding: '1.5rem 0.5rem',
             background: 'rgba(15, 23, 42, 0.4)',
             backdropFilter: 'blur(10px)',
             borderTop: '1px solid var(--panel-border)',
@@ -11,11 +11,11 @@ const Footer = () => {
             flexDirection: 'column',
             alignItems: 'center',
             textAlign: 'center',
-            gap: '1rem'
+            gap: '0.5rem'
         }}>
-            <div style={{ maxWidth: '800px', width: '100%' }}>
-                <div style={{ marginBottom: '1.5rem' }}>
-                    <h4 style={{ color: '#fff', fontSize: '1.2rem', margin: '0 0 0.5rem 0', fontWeight: '600' }}>
+            <div style={{ maxWidth: '400px', width: '100%' }}>
+                <div style={{ marginBottom: '1rem' }}>
+                    <h4 style={{ color: '#fff', fontSize: '1rem', margin: '0 0 0.25rem 0', fontWeight: '600' }}>
                         CAMAI – Intelligent Vision. Smarter Security.
                     </h4>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: '0.25rem 0' }}>
