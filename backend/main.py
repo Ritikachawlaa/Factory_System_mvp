@@ -970,6 +970,12 @@ async def ingest_detection(event: DetectionSchema):
         timestamp=event.timestamp,
         meta=meta_str
     )
+    
+    # Update ML engine health activity
+    if event.camera_id not in ml_metrics:
+        ml_metrics[event.camera_id] = {"inference_avg_ms": 0}
+    ml_metrics[event.camera_id]["last_update"] = time.time()
+
     if success:
         await manager.broadcast({
             "type": "EVENT",
@@ -989,6 +995,11 @@ def ingest_heartbeat(module_key: str, heartbeat: HeartbeatSchema):
     Receive liveness heartbeat from ML engine.
     """
     database.update_module_heartbeat(heartbeat.camera_id, module_key, heartbeat.status)
+    
+    # Update ML engine health activity
+    if heartbeat.camera_id not in ml_metrics:
+        ml_metrics[heartbeat.camera_id] = {"inference_avg_ms": 0}
+    ml_metrics[heartbeat.camera_id]["last_update"] = time.time()
     return {"status": "ok"}
 
 @app.post("/api/evidence/from-ml")
@@ -1174,6 +1185,12 @@ async def broadcast_detection_stream(payload: DetectionStreamPayload):
         
     # Process broadcast in background to keep ML engine fast and responsive
     asyncio.create_task(detection_manager.broadcast(payload.dict()))
+
+    # Update ML engine health activity
+    if payload.camera_id not in ml_metrics:
+        ml_metrics[payload.camera_id] = {"inference_avg_ms": 0}
+    ml_metrics[payload.camera_id]["last_update"] = time.time()
+    
     return {"status": "broadcast_success"}
 
 # --- WebRTC Signaling (MediaMTX Proxy) ---

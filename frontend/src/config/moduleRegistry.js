@@ -22,8 +22,8 @@ export const MODULE_REGISTRY = {
         supportsAlerts: true,
         supportsStats: true,
         permissions: {
-            view: ['admin', 'supervisor', 'operator', 'viewer'],
-            control: ['admin', 'supervisor']
+            view: ['superadmin', 'admin', 'supervisor', 'operator', 'viewer'],
+            control: ['superadmin', 'admin', 'supervisor']
         }
     },
     'ppe-detection': {
@@ -35,8 +35,8 @@ export const MODULE_REGISTRY = {
         supportsAlerts: true,
         supportsStats: true,
         permissions: {
-            view: ['admin', 'supervisor', 'operator', 'viewer'],
-            control: ['admin', 'supervisor']
+            view: ['superadmin', 'admin', 'supervisor', 'operator', 'viewer'],
+            control: ['superadmin', 'admin', 'supervisor']
         }
     },
     'object-detection': {
@@ -57,8 +57,8 @@ export const MODULE_REGISTRY = {
         supportsAlerts: true,
         supportsStats: true,
         permissions: {
-            view: ['admin', 'supervisor', 'operator'],
-            control: ['admin', 'supervisor']
+            view: ['superadmin', 'admin', 'supervisor', 'operator'],
+            control: ['superadmin', 'admin', 'supervisor']
         }
     },
     'object-detection-abandoned': {
@@ -160,8 +160,8 @@ export const MODULE_REGISTRY = {
         supportsAlerts: false,
         supportsStats: false,
         permissions: {
-            view: ['admin', 'supervisor', 'operator', 'viewer'],
-            control: ['admin', 'supervisor']
+            view: ['superadmin', 'admin', 'supervisor', 'operator', 'viewer'],
+            control: ['superadmin', 'admin', 'supervisor']
         }
     }
 };
