@@ -539,7 +539,7 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
 
                     // Render intensity grid
                     ctx.save();
-                    ctx.globalCompositeOperation = 'screen';
+                    // Using default composite operation (source-over) so colors build saturation
 
                     const displayCellW = renderWidth / GRID_COLS;
                     const displayCellH = renderHeight / GRID_ROWS;
@@ -547,34 +547,36 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                     for (let r = 0; r < GRID_ROWS; r++) {
                         for (let c = 0; c < GRID_COLS; c++) {
                             const intensity = Math.min(grid[r * GRID_COLS + c], 1.0);
-                            if (intensity < 0.01) continue; // Skip empty cells
+                            if (intensity < 0.05) continue; // Slightly higher threshold for cleaner onset
 
                             const dx = offsetX + c * displayCellW;
                             const dy = offsetY + r * displayCellH;
 
-                            // Color gradient: low=blue -> mid=yellow -> high=red
+                            // Color gradient: light/transparent (low) -> deep/dark (high)
                             let red, green, blue;
-                            if (intensity < 0.33) {
-                                const t = intensity / 0.33;
-                                red = Math.floor(0 + t * 50);
-                                green = Math.floor(100 * t);
-                                blue = Math.floor(200 * (1 - t * 0.5));
-                            } else if (intensity < 0.66) {
-                                const t = (intensity - 0.33) / 0.33;
-                                red = Math.floor(50 + t * 205);
-                                green = Math.floor(100 + t * 80);
-                                blue = Math.floor(100 * (1 - t));
-                            } else {
-                                const t = (intensity - 0.66) / 0.34;
+                            if (intensity < 0.3) {
+                                const t = intensity / 0.3;
+                                red = Math.floor(0 + t * 100);
+                                green = Math.floor(255);
+                                blue = Math.floor(255 * (1 - t * 0.5));
+                            } else if (intensity < 0.7) {
+                                const t = (intensity - 0.3) / 0.4;
                                 red = 255;
-                                green = Math.floor(180 * (1 - t));
+                                green = Math.floor(255 * (1 - t));
+                                blue = 0;
+                            } else {
+                                const t = (intensity - 0.7) / 0.3;
+                                // Shift to a darker, more saturated red/maroon
+                                red = Math.floor(255 * (1 - t * 0.4));
+                                green = 0;
                                 blue = 0;
                             }
 
-                            const alpha = Math.min(intensity * 0.7, 0.65);
+                            // Alpha grows with intensity to make it "grow darker" (more opaque) against the video
+                            const alpha = Math.min(intensity * 0.8, 0.7);
 
                             // Draw a soft radial blob for each cell
-                            const radius = Math.max(displayCellW, displayCellH) * 1.2;
+                            const radius = Math.max(displayCellW, displayCellH) * 1.5;
                             const cx = dx + displayCellW / 2;
                             const cy = dy + displayCellH / 2;
                             const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
