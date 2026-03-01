@@ -17,6 +17,7 @@ const Dashboard = () => {
     });
 
     const [lateArrivals, setLateArrivals] = useState([]);
+    const [liveAlerts, setLiveAlerts] = useState([]);
     const [performance, setPerformance] = useState({ latency: '-', accuracy: '-', cpu: '-', mem: '-', gpu: '-' });
 
     useEffect(() => {
