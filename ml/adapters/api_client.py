@@ -123,3 +123,13 @@ class APIClient:
         except requests.exceptions.RequestException as e:
             logger.error(f"GET /cameras failed: {e}")
             return []
+
+    def get_setting(self, key):
+        url = f"{self.base_url}/settings/{key}"
+        try:
+            response = self.session.get(url, timeout=5)
+            response.raise_for_status()
+            return response.json().get("value")
+        except requests.exceptions.RequestException as e:
+            logger.error(f"GET /settings/{key} failed: {e}")
+            return None

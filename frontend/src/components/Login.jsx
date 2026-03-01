@@ -25,8 +25,8 @@ const Login = () => {
             }
         } catch (e) {
             console.error(e);
-            if (e.response && e.response.status === 401) {
-                setError('Invalid credentials');
+            if (e.response && e.response.data && e.response.data.detail) {
+                setError(e.response.data.detail);
             } else {
                 setError('Connection failed');
             }
@@ -69,7 +69,7 @@ const Login = () => {
                         display: 'block'
                     }} />
                     <h2 style={{ fontSize: '1.75rem', fontWeight: '600', marginBottom: '0.5rem', letterSpacing: '-0.5px' }}>Welcome Back</h2>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Vision AI Security System</p>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>CamAI Security System</p>
                 </div>
 
                 <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>

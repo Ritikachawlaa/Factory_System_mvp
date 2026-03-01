@@ -433,15 +433,17 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                         const wantsCrowd = activeModuleFilters.includes('crowd-density');
                         const wantsTrack = activeModuleFilters.includes('auto-tracking');
 
+                        const isBackgroundModule = isFace || isTrack; // Always show faces/tracks if possible
+
                         // Logic: 
-                        // 1. If we only want human, and this is a face/crowd/track, SKIP.
-                        if (wantsHuman && !wantsFace && !wantsCrowd && !wantsTrack && !isPerson) return;
-                        // 2. If we only want face, and this is a person/crowd/track, SKIP.
-                        if (wantsFace && !wantsHuman && !wantsCrowd && !wantsTrack && !isFace) return;
-                        // 3. If we only want crowd, and this is face/track, SKIP.
-                        if (wantsCrowd && !wantsHuman && !wantsFace && !wantsTrack && !isCrowd) return;
-                        // 4. If we only want tracking, and this is face/crowd, SKIP.
-                        if (wantsTrack && !wantsHuman && !wantsFace && !wantsCrowd && !isTrack) return;
+                        // 1. If it's a background module (Face/Track), ALWAYS show it.
+                        // 2. Otherwise, check if user specifically wants this module.
+                        if (!isBackgroundModule) {
+                            if (wantsHuman && !isPerson) return;
+                            if (wantsCrowd && !isCrowd) return;
+                            // Add other filters as needed
+                            if (!wantsHuman && !wantsCrowd) return;
+                        }
                     }
 
                     // Scale them to the display coordinate system and add the letterbox/pillarbox offsets
@@ -453,7 +455,8 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                     // Determine color based on class
                     let targetColor = '#00ffcc'; // Default neon cyan
                     if (det.class && det.class.toLowerCase().includes('track id')) targetColor = '#a855f7'; // Purple for Tracking
-                    if (det.class && det.class.toLowerCase() === 'crowd') targetColor = '#eab308'; // Yellow for Crowd Density
+                    if (det.class && det.class.toLowerCase() === 'crowd') targetColor = '#ef4444'; // Red for Crowd
+                    if (det.class && det.class.toLowerCase() === 'person' && det.is_crowd === false) targetColor = '#10b981'; // Green for normal person
 
                     ctx.strokeStyle = targetColor;
                     ctx.lineWidth = 2;

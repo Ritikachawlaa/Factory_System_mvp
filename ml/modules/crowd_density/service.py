@@ -33,10 +33,17 @@ class CrowdDensityService:
             except Exception as e:
                 logger.error(f"Crowd Density model load failed: {e}")
 
-    def process_frame(self, frame, camera_id=0):
+    def process_frame(self, frame, camera_id=0, config=None):
         self._load()
         if self.detector is None:
             return frame, []
+
+        # Get threshold from config or default to 5
+        threshold = 5
+        if config and isinstance(config, dict):
+            threshold = int(config.get("threshold", 5))
+        elif isinstance(config, str) and config.isdigit():
+            threshold = int(config)
 
         boxes, grid, density = self.detector.detect(frame)
         count = len(boxes)
@@ -44,15 +51,22 @@ class CrowdDensityService:
         bounding_boxes = []
         h, w = frame.shape[:2]
 
+        # Determine color and label based on threshold
+        is_crowd = count > threshold
+        box_color = (0, 0, 255) if is_crowd else (0, 255, 0) # Red if crowd, Green if not
+        label = "Crowd" if is_crowd else "Person"
+
         # Draw person boxes
         for (x1, y1, x2, y2) in boxes:
-            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 255), 2)
+            cv2.rectangle(frame, (x1, y1), (x2, y2), box_color, 2)
             bounding_boxes.append({
-                "class": "Crowd",
-                "x": int(x1), "y": int(y1), "w": int(x2 - x1), "h": int(y2 - y1), "confidence": 1.0
+                "class": label,
+                "x": int(x1), "y": int(y1), "w": int(x2 - x1), "h": int(y2 - y1), 
+                "confidence": 1.0,
+                "is_crowd": is_crowd
             })
 
-        # Draw grid overlay (same style as Phase-1 repo)
+        # Draw grid overlay
         cell_w = int(w / GRID_SIZE)
         cell_h = int(h / GRID_SIZE)
         for i in range(GRID_SIZE):
@@ -63,30 +77,41 @@ class CrowdDensityService:
                               (255, 255, 255), 1)
                 cell_count = int(grid[i][j])
                 if cell_count > 0:
+                    text_color = (0, 0, 255) if cell_count >= DENSITY_ALERT_THRESHOLD else (0, 255, 0)
                     cv2.putText(frame, str(cell_count),
                                 (j * cell_w + 5, i * cell_h + 20),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, text_color, 2)
 
-        cv2.putText(frame, f"People: {count}  Density: {density:.6f}", (20, 40),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
+        cv2.putText(frame, f"People: {count}/{threshold}  Density: {density:.4f}", (20, 40),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
         # Event logic
         now = time.time()
         hot_cells = int(np.sum(grid >= DENSITY_ALERT_THRESHOLD))
-        changed = abs(count - self.last_count) >= COUNT_CHANGE_THRESHOLD
-        timed = now - self.last_log_time > self.LOG_INTERVAL
-
-        if (hot_cells > 0 or changed or (count > 0 and timed)):
-            label = "High Crowd Density" if hot_cells > 0 else "Crowd Density Update"
+        
+        # Trigger event if above threshold or significant change
+        if is_crowd:
+            event_label = "Crowd Detected"
             events.append({
                 "camera_id": camera_id,
                 "module_key": "crowd-density",
-                "label": label,
+                "label": event_label,
                 "confidence": 1.0,
                 "timestamp": now,
-                "meta": f"Count: {count}, Hot cells: {hot_cells}"
+                "meta": f"Count: {count}, Threshold: {threshold}"
             })
             self.last_count = count
             self.last_log_time = now
+        elif count > 0 and (now - self.last_log_time > self.LOG_INTERVAL):
+             # Periodic update even if not crowd
+             events.append({
+                "camera_id": camera_id,
+                "module_key": "crowd-density",
+                "label": "Density Update",
+                "confidence": 1.0,
+                "timestamp": now,
+                "meta": f"Count: {count}, Threshold: {threshold}"
+            })
+             self.last_log_time = now
 
         return frame, events, bounding_boxes

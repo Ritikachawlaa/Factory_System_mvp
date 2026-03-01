@@ -1,0 +1,42 @@
+
+import time
+import logging
+
+logger = logging.getLogger("integration_service")
+
+class IntegrationService:
+    """
+    Maintains cross-module state, specifically mapping Track IDs to Recognized Identities.
+    """
+    def __init__(self):
+        # track_id -> {"name": str, "last_seen": timestamp}
+        self.track_identities = {}
+        self.IDENTITY_TIMEOUT = 300 # Keep identity for 5 minutes if track is lost/regained
+
+    def update_identity(self, track_id: int, name: str):
+        if not name or name == "Unknown":
+            return
+            
+        self.track_identities[track_id] = {
+            "name": name,
+            "last_seen": time.time()
+        }
+        logger.debug(f"Integration: Linked Track ID {track_id} to identity: {name}")
+
+    def get_identity(self, track_id: int) -> str:
+        data = self.track_identities.get(track_id)
+        if data:
+            # Check timeout
+            if time.time() - data["last_seen"] < self.IDENTITY_TIMEOUT:
+                return data["name"]
+        return None
+
+    def cleanup(self):
+        now = time.time()
+        to_delete = [tid for tid, data in self.track_identities.items() 
+                     if now - data["last_seen"] > self.IDENTITY_TIMEOUT]
+        for tid in to_delete:
+            del self.track_identities[tid]
+
+# Global instance
+integration_service = IntegrationService()

@@ -459,8 +459,8 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     # user is (username, password_hash, role)
     if not user or not verify_password(form_data.password, user[1]):
         raise HTTPException(
-            status_code=400,
-            detail="Incorrect username or password",
+            status_code=401,
+            detail="wrong login id and password",
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)

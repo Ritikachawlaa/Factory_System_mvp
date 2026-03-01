@@ -36,7 +36,7 @@ const Header = () => {
                     color: 'var(--accent-cyan)',
                     letterSpacing: '1px'
                 }}>
-                    Vision <span style={{ color: '#fff' }}>AI</span>
+                    Cam<span style={{ color: '#fff' }}>AI</span>
                 </div>
             </div>
 

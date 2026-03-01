@@ -22,19 +22,19 @@ class FaceDetector(BaseDetector):
         """Return list of (x, y, w, h, confidence) face rectangles."""
         is_gpu = self.device.type == "cuda"
         
-        # Optimizations: 
-        # imgsz=320 for speed
+        # Optimizations for small/far faces:
+        # imgsz=640 (increased from 320) for better resolution of distant subjects
+        # conf=0.15 (lowered) to pick up smaller features
         # iou=0.5 to allow boxes for faces close together
-        # max_det=100 explicitly allowing up to 100 people at once
         results = self.model(
             frame, 
-            conf=self.conf, 
+            conf=0.15, # Lowered specifically for small faces
             iou=0.5,
             max_det=100,
             verbose=False, 
             device=self.device, 
             half=is_gpu, 
-            imgsz=320
+            imgsz=640 # Increased resolution
         )[0]
         
         detections = []

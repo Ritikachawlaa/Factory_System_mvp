@@ -46,8 +46,34 @@ const CrowdAnalyticsDashboard = ({ cameraId }) => {
 
     const peakHourFormatted = stats.peak_hour !== null ? `${stats.peak_hour.toString().padStart(2, '0')}:00` : '--:--';
 
+    const handleThresholdChange = async (val) => {
+        try {
+            await httpClient.patch(`/api/cameras/${cameraId}/modules/crowd-density`, {
+                config: { threshold: val }
+            });
+            // Update local ref or notification? 
+        } catch (e) {
+            console.error("Failed to update crowd threshold", e);
+        }
+    };
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%' }}>
+
+            {/* Config & Summary Row */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div style={{ color: '#fff', fontSize: '0.9rem', fontWeight: '500' }}>Crowd Threshold:</div>
+                    <input
+                        type="number"
+                        defaultValue={5}
+                        onChange={(e) => handleThresholdChange(e.target.value)}
+                        style={{ width: '60px', padding: '0.4rem', background: '#0f172a', border: '1px solid #334155', color: '#fff', borderRadius: '4px', textAlign: 'center' }}
+                    />
+                    <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem' }}>Alert when people count exceeds this value</div>
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--success-color)' }}>● System Synchronized</div>
+            </div>
 
             {/* Summary Cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
