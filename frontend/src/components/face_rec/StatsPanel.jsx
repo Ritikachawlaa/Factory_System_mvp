@@ -38,12 +38,12 @@ const StatsPanel = () => {
                     letterSpacing: '1px'
                 }}>Events Log</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.85rem' }}>
-                    {events.length === 0 ? (
+                    {!Array.isArray(events) || events.length === 0 ? (
                         <span style={{ color: 'var(--text-secondary)' }}>No recent events</span>
                     ) : (
                         events.map((e, i) => {
-                            const msg = e.message || e.label || 'Unknown event';
-                            const timeStr = e.time || e.timestamp || '';
+                            const msg = e?.message || e?.label || 'Unknown event';
+                            const timeStr = e?.time || e?.timestamp || '';
                             const isUnknown = typeof msg === 'string' && msg.includes('Unknown');
 
                             return (
@@ -66,7 +66,7 @@ const StatsPanel = () => {
                     letterSpacing: '1px'
                 }}>Detected Statistics</h3>
                 <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '0.5rem', paddingBottom: '0.5rem' }}>
-                    {stats.chart_data && stats.chart_data.map((h, i) => (
+                    {Array.isArray(stats?.chart_data) && stats.chart_data.map((h, i) => (
                         <div key={i} style={{
                             width: '100%',
                             height: `${h}%`,
@@ -93,11 +93,11 @@ const StatsPanel = () => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.9rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ color: 'var(--text-secondary)' }}>Accuracy</span>
-                        <span style={{ color: 'var(--success-color)' }}>{perf.accuracy}</span>
+                        <span style={{ color: 'var(--success-color)' }}>{perf?.accuracy || '-'}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ color: 'var(--text-secondary)' }}>Latency</span>
-                        <span style={{ color: 'var(--success-color)' }}>{perf.latency}</span>
+                        <span style={{ color: 'var(--success-color)' }}>{perf?.latency || '-'}</span>
                     </div>
                 </div>
             </div>

@@ -50,7 +50,7 @@ const CameraModuleDetail = () => {
 
         // Listen for external changes (or self-updates reflected back)
         const handleEvent = (event) => {
-            if (event.type === 'STATUS_CHANGE' && event.data.moduleKey === moduleType) {
+            if ((event.type === 'STATUS_CHANGE' || event.type === 'MODULE_UPDATE') && event.data.moduleKey === moduleType) {
                 setModuleStatus(event.data.status);
             }
         };

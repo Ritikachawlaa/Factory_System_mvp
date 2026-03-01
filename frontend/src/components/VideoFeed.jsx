@@ -498,32 +498,41 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                     }
                 });
 
-                // --- HEATMAP RENDERING ---
+                // --- HEATMAP RENDERING (Optimized) ---
                 if (activeModuleFilters.includes('heatmap') && heatmapPoints.length > 0) {
                     const now = Date.now();
-                    const decayTime = 30000; // 30 seconds persistence
+                    const decayTime = 30000;
 
-                    // Filter out old points
-                    const currentPoints = heatmapPoints.filter(p => now - p.timestamp < decayTime);
+                    // 1. Filter and Limit Points
+                    const currentPoints = heatmapPoints
+                        .filter(p => now - p.timestamp < decayTime)
+                        .slice(-300); // Limit to last 300 points for performance
 
-                    // Group nearby points to find "hot" spots
-                    // For a cleaner viz, we'll draw individual radial gradients with alpha
+                    // 2. Pre-render a single "heat point" to a small offscreen canvas once
+                    // (For simplicity in this component, we can just use a simple arc if createRadialGradient is too slow)
+                    // But actually, even drawing the same gradient 300 times is much faster than 1000.
+                    // Let's use a simpler rendering style:
+
+                    ctx.save();
+                    ctx.globalCompositeOperation = 'screen'; // additive effect
+
                     currentPoints.forEach(p => {
                         const dx = offsetX + (p.x * scaleX);
                         const dy = offsetY + (p.y * scaleY);
                         const age = now - p.timestamp;
-                        const opacity = Math.max(0, 1 - (age / decayTime)) * 0.4;
+                        const opacity = Math.max(0, 1 - (age / decayTime)) * 0.3;
 
-                        const gradient = ctx.createRadialGradient(dx, dy, 0, dx, dy, 30);
-                        gradient.addColorStop(0, `rgba(255, 69, 0, ${opacity})`); // Orange-Red center
-                        gradient.addColorStop(0.5, `rgba(255, 215, 0, ${opacity * 0.5})`); // Gold middle
-                        gradient.addColorStop(1, 'rgba(0, 0, 255, 0)'); // Blue/Transparent edge
+                        // Use a simpler fill style if performance is still an issue
+                        const gradient = ctx.createRadialGradient(dx, dy, 0, dx, dy, 25);
+                        gradient.addColorStop(0, `rgba(255, 69, 0, ${opacity})`);
+                        gradient.addColorStop(1, 'rgba(0, 0, 255, 0)');
 
                         ctx.fillStyle = gradient;
                         ctx.beginPath();
-                        ctx.arc(dx, dy, 30, 0, Math.PI * 2);
+                        ctx.arc(dx, dy, 25, 0, Math.PI * 2);
                         ctx.fill();
                     });
+                    ctx.restore();
                 }
 
                 // Crowd Density Grid Overlay

@@ -10,6 +10,9 @@ const analyticsApi = {
     getViolations: () => httpClient.get('/violations'),
     clearViolations: () => httpClient.delete('/violations'),
     getAuditLogs: (limit = 100) => httpClient.get('/api/audit-logs', { params: { limit } }),
+    clearStorage: () => httpClient.post('/api/storage/clear'),
+    checkIntegrity: () => httpClient.post('/api/storage/integrity'),
+    runDiagnostic: () => httpClient.post('/api/system/diagnostic'),
 };
 
 export default analyticsApi;

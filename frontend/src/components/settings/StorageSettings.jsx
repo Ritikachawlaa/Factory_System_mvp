@@ -30,6 +30,25 @@ const StorageSettings = () => {
 
     const usedPercentage = storageStats.percent;
 
+    const handleClear = async () => {
+        if (!window.confirm("Are you sure you want to clear old footages? This action cannot be undone.")) return;
+        try {
+            const res = await analyticsApi.clearStorage();
+            alert(res.message || "Old footages cleared.");
+        } catch (e) {
+            alert("Failed to clear storage: " + (e.response?.data?.detail || e.message));
+        }
+    };
+
+    const handleIntegrity = async () => {
+        try {
+            const res = await analyticsApi.checkIntegrity();
+            alert(res.message || "Integrity check completed.");
+        } catch (e) {
+            alert("Failed to run integrity check: " + (e.response?.data?.detail || e.message));
+        }
+    };
+
     return (
         <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', height: '100%' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -74,16 +93,20 @@ const StorageSettings = () => {
             <div style={{ borderTop: '1px solid var(--panel-border)', paddingTop: '1rem' }}>
                 <h4 style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>Storage Actions</h4>
                 <div style={{ display: 'flex', gap: '1rem' }}>
-                    <button style={{
-                        flex: 1, padding: '0.5rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444',
-                        border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem'
-                    }}>
+                    <button
+                        onClick={handleClear}
+                        style={{
+                            flex: 1, padding: '0.5rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444',
+                            border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem'
+                        }}>
                         Clear Old Footages
                     </button>
-                    <button style={{
-                        flex: 1, padding: '0.5rem', background: 'rgba(255, 255, 255, 0.05)', color: '#fff',
-                        border: '1px solid var(--panel-border)', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem'
-                    }}>
+                    <button
+                        onClick={handleIntegrity}
+                        style={{
+                            flex: 1, padding: '0.5rem', background: 'rgba(255, 255, 255, 0.05)', color: '#fff',
+                            border: '1px solid var(--panel-border)', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem'
+                        }}>
                         Check Integrity
                     </button>
                 </div>

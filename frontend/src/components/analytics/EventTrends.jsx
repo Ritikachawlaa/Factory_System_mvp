@@ -8,19 +8,24 @@ const EventTrends = () => {
     useEffect(() => {
         const fetchTrends = async () => {
             try {
-                // analyticsApi.getStats('trends') returns { labels: [], data: [] }
-                // Backend endpoint /stats/trends must exist or be mapped.
-                // Assuming backend aligns with previous fetch.
                 const response = await analyticsApi.getStats('trends');
                 if (response) {
-                    setData(response);
+                    // Handle case where backend returns simple array [10, 20, ...]
+                    if (Array.isArray(response)) {
+                        const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].slice(0, response.length);
+                        setData({ labels, data: response });
+                    } else if (response.labels && response.data) {
+                        setData(response);
+                    }
                 }
-            } catch (e) { console.error(e); }
+            } catch (e) { console.error("Trend fetch error:", e); }
         };
         fetchTrends();
     }, []);
 
-    const maxVal = Math.max(...(data.data.length ? data.data : [100]));
+    const dataPoints = Array.isArray(data?.data) ? data.data : [];
+    const labels = Array.isArray(data?.labels) ? data.labels : [];
+    const maxVal = Math.max(...(dataPoints.length ? dataPoints : [100]));
 
     return (
         <div className="glass-panel" style={{ padding: '1.5rem', flex: 1 }}>
@@ -32,8 +37,9 @@ const EventTrends = () => {
             <div style={{ height: '200px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-around', gap: '8px', paddingBottom: '20px', position: 'relative' }}>
 
                 {/* Bars */}
-                {data.labels.map((label, i) => {
-                    const h = (data.data[i] / maxVal) * 100;
+                {labels.map((label, i) => {
+                    const val = dataPoints[i] || 0;
+                    const h = (val / maxVal) * 100;
                     return (
                         <div key={i} style={{
                             flex: 1,
@@ -54,7 +60,7 @@ const EventTrends = () => {
                                 position: 'absolute', top: '-20px', left: 0, right: 0,
                                 textAlign: 'center', fontSize: '0.7rem', color: '#fff'
                             }}>
-                                {data.data[i]}
+                                {val}
                             </div>
                         </div>
                     );

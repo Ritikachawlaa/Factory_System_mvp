@@ -113,13 +113,15 @@ const CameraDashboard = () => {
                     ...prev
                 ].slice(0, 10));
             }
-            if (event.type === 'STATUS_CHANGE') {
+            if (event.type === 'STATUS_CHANGE' || event.type === 'MODULE_UPDATE') {
+                const moduleKey = event.data.moduleKey;
+                const newStatus = event.data.status;
                 setCamera(prev => {
                     if (!prev) return prev;
                     return {
                         ...prev,
                         modules: prev.modules.map(m =>
-                            m.key === event.data.moduleKey ? { ...m, status: event.data.status } : m
+                            m.key === moduleKey ? { ...m, status: newStatus } : m
                         )
                     };
                 });

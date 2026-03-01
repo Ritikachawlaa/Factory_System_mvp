@@ -38,13 +38,15 @@ const CrowdAnalyticsDashboard = ({ cameraId }) => {
     if (loading) return <div style={{ color: '#fff', padding: '2rem' }}>Loading Crowd Analytics...</div>;
 
     // Prepare chart data
-    const chartData = trend.labels.map((label, i) => ({
+    const chartData = (trend?.labels || []).map((label, i) => ({
         time: label,
-        Today: trend.today[i],
-        Yesterday: trend.yesterday[i]
+        Today: (trend?.today || [])[i] || 0,
+        Yesterday: (trend?.yesterday || [])[i] || 0
     }));
 
-    const peakHourFormatted = stats.peak_hour !== null ? `${stats.peak_hour.toString().padStart(2, '0')}:00` : '--:--';
+    const peakHourFormatted = stats?.peak_hour !== null && stats?.peak_hour !== undefined
+        ? `${stats.peak_hour.toString().padStart(2, '0')}:00`
+        : '--:--';
 
     const handleThresholdChange = async (val) => {
         try {
@@ -112,7 +114,7 @@ const CrowdAnalyticsDashboard = ({ cameraId }) => {
                 <div className="glass-panel" style={{ flex: 1, padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
                     <h3 style={{ color: '#fff', fontSize: '1rem', marginBottom: '1rem' }}>Density Updates</h3>
                     <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                        {timeline.length > 0 ? timeline.map((entry, idx) => (
+                        {Array.isArray(timeline) && timeline.length > 0 ? timeline.map((entry, idx) => (
                             <TimelineEntry key={idx} entry={entry} />
                         )) : (
                             <div style={{ color: 'rgba(255,255,255,0.3)', textAlign: 'center', marginTop: '2rem' }}>No crowd events today</div>

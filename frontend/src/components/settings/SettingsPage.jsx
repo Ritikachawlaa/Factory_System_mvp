@@ -70,16 +70,25 @@ const SettingsPage = () => {
                         </div>
 
                         {/* Action */}
-                        <button style={{
-                            padding: '0.75rem 1.5rem',
-                            background: 'rgba(6, 182, 212, 0.1)',
-                            border: '1px solid var(--accent-cyan)',
-                            color: 'var(--accent-cyan)',
-                            borderRadius: '6px',
-                            cursor: 'pointer',
-                            fontSize: '0.9rem',
-                            fontWeight: 'bold'
-                        }}>Run Diagnostic</button>
+                        <button
+                            onClick={async () => {
+                                try {
+                                    const res = await (await import('../../api/analytics.api')).default.runDiagnostic();
+                                    alert(res.message || "Diagnostic complete.");
+                                } catch (e) {
+                                    alert("Diagnostic failed: " + (e.response?.data?.detail || e.message));
+                                }
+                            }}
+                            style={{
+                                padding: '0.75rem 1.5rem',
+                                background: 'rgba(6, 182, 212, 0.1)',
+                                border: '1px solid var(--accent-cyan)',
+                                color: 'var(--accent-cyan)',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                fontSize: '0.9rem',
+                                fontWeight: 'bold'
+                            }}>Run Diagnostic</button>
                     </div>
 
                 </div>
