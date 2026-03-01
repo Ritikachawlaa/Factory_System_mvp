@@ -240,9 +240,10 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                     if (data.detections && Array.isArray(data.detections)) {
                         setDetections(data.detections);
 
-                        // Accumulate Heatmap Points
+                        // Accumulate Heatmap Points (uses human-detection as base data)
                         const activeModuleFilters = typeof modules === 'string' ? modules.split(',').map(m => m.trim()) : [];
-                        if (activeModuleFilters.includes('heatmap')) {
+                        const heatmapActive = activeModuleFilters.includes('heatmap') || activeModuleFilters.includes('human-detection');
+                        if (heatmapActive) {
                             const newPoints = data.detections
                                 .filter(d => ['person', 'human', 'crowd'].includes((d.class || "").toLowerCase()))
                                 .map(d => ({
@@ -251,7 +252,7 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                                     timestamp: Date.now()
                                 }));
                             if (newPoints.length > 0) {
-                                setHeatmapPoints(prev => [...prev.slice(-500), ...newPoints]); // Keep last 500 points for performance
+                                setHeatmapPoints(prev => [...prev.slice(-1000), ...newPoints]);
                             }
                         }
 
@@ -508,7 +509,7 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
 
                     // Build intensity grid: accumulate recent points into cells
                     const grid = new Float32Array(GRID_COLS * GRID_ROWS);
-                    const ACCUMULATION_WINDOW = 15000; // 15s of history
+                    const ACCUMULATION_WINDOW = 10000; // 10s of history for faster response
 
                     heatmapPoints.forEach(p => {
                         const age = now - p.timestamp;
@@ -518,9 +519,9 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                         const row = Math.floor(p.y / cellH);
                         if (col < 0 || col >= GRID_COLS || row < 0 || row >= GRID_ROWS) return;
 
-                        // Recent points contribute more; older points fade
+                        // High weight = color appears in seconds
                         const freshness = 1 - (age / ACCUMULATION_WINDOW);
-                        grid[row * GRID_COLS + col] += freshness * 0.15;
+                        grid[row * GRID_COLS + col] += freshness * 0.4;
                     });
 
                     // Render intensity grid
