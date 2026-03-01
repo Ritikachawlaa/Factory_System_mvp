@@ -60,6 +60,14 @@ def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """))
+        
+        # Schema Migration: Add department and status if they don't exist
+        try:
+             conn.execute(text("ALTER TABLE employees ADD COLUMN IF NOT EXISTS department VARCHAR(100) DEFAULT 'Engineering'"))
+             conn.execute(text("ALTER TABLE employees ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Active'"))
+        except Exception as e:
+             logger.warning(f"Schema migration (optional columns) warning: {e}")
+
         conn.commit()
         
         logger.info("Database Connection Check & Schema Verification Successful")

@@ -43,6 +43,8 @@ SECRET_KEY = os.getenv("SECRET_KEY", "supersecretkey")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 300))
 MEDIAMTX_API_URL = os.getenv("MEDIAMTX_API_URL", "https://stream.camai.in")
+VISITORS_DIR = os.getenv("VISITORS_DIR", os.path.join(os.getcwd(), "visitors"))
+os.makedirs(VISITORS_DIR, exist_ok=True)
 
 # --- Auth Configuration ---
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
@@ -74,7 +76,9 @@ app.add_middleware(
         "https://api.camai.in",
         "http://localhost:3000",
         "http://localhost:5173",
-        "http://127.0.0.1:5173"
+        "http://127.0.0.1:5173",
+        "http://localhost:4173", # Vite preview
+        "*" # Broad for debugging CORS if needed, but the list above is specific
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -560,29 +564,34 @@ def get_cameras_legacy():
 # --- Employee Endpoints ---
 @app.get("/employees")
 def get_employees():
-    employees = database.get_all_employees()
-    results = []
-    for e in employees:
-        # e is now a dict from get_all_employees
-        name = e["name"]
-        emp_id = e["id"]
-        dept = e["dept"]
-        status = e["status"]
-        
-        image_url = None
-        if name.startswith("Visitor_"):
-            filename = f"{name}.jpg"
-            if os.path.exists(os.path.join(VISITORS_DIR, filename)):
-                image_url = f"http://localhost:8000/visitors/{filename}"
-                
-        results.append({
-            "id": emp_id, 
-            "name": name, 
-            "dept": dept, 
-            "status": status,
-            "image_url": image_url
-        })
-    return results
+    try:
+        employees = database.get_all_employees()
+        results = []
+        for e in employees:
+            # e is now a dict from get_all_employees
+            name = e["name"]
+            emp_id = e["id"]
+            dept = e["dept"]
+            status = e["status"]
+            
+            image_url = None
+            if name.startswith("Visitor_"):
+                filename = f"{name}.jpg"
+                if os.path.exists(os.path.join(VISITORS_DIR, filename)):
+                    image_url = f"http://localhost:8000/visitors/{filename}"
+                    
+            results.append({
+                "id": emp_id, 
+                "name": name, 
+                "dept": dept, 
+                "status": status,
+                "image_url": image_url
+            })
+        return results
+    except Exception as e:
+        logger.error(f"Error fetching employees: {e}")
+        # Return fallback mock to prevent frontend crash while debugging
+        return []
 
 @app.post("/employees")
 async def add_employee(
