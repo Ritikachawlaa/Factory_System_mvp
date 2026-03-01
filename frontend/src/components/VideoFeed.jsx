@@ -498,42 +498,84 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                     }
                 });
 
-                // --- HEATMAP RENDERING (Optimized) ---
+                // --- HEATMAP RENDERING (Time-Weighted Intensity) ---
                 if (activeModuleFilters.includes('heatmap') && heatmapPoints.length > 0) {
                     const now = Date.now();
-                    const decayTime = 30000;
+                    const GRID_COLS = 40;
+                    const GRID_ROWS = 30;
+                    const cellW = video.videoWidth / GRID_COLS;
+                    const cellH = video.videoHeight / GRID_ROWS;
 
-                    // 1. Filter and Limit Points
-                    const currentPoints = heatmapPoints
-                        .filter(p => now - p.timestamp < decayTime)
-                        .slice(-300); // Limit to last 300 points for performance
+                    // Build intensity grid: accumulate recent points into cells
+                    const grid = new Float32Array(GRID_COLS * GRID_ROWS);
+                    const ACCUMULATION_WINDOW = 15000; // 15s of history
 
-                    // 2. Pre-render a single "heat point" to a small offscreen canvas once
-                    // (For simplicity in this component, we can just use a simple arc if createRadialGradient is too slow)
-                    // But actually, even drawing the same gradient 300 times is much faster than 1000.
-                    // Let's use a simpler rendering style:
-
-                    ctx.save();
-                    ctx.globalCompositeOperation = 'screen'; // additive effect
-
-                    currentPoints.forEach(p => {
-                        const dx = offsetX + (p.x * scaleX);
-                        const dy = offsetY + (p.y * scaleY);
+                    heatmapPoints.forEach(p => {
                         const age = now - p.timestamp;
-                        const opacity = Math.max(0, 1 - (age / decayTime)) * 0.3;
+                        if (age > ACCUMULATION_WINDOW) return;
 
-                        // Use a simpler fill style if performance is still an issue
-                        const gradient = ctx.createRadialGradient(dx, dy, 0, dx, dy, 25);
-                        gradient.addColorStop(0, `rgba(255, 69, 0, ${opacity})`);
-                        gradient.addColorStop(1, 'rgba(0, 0, 255, 0)');
+                        const col = Math.floor(p.x / cellW);
+                        const row = Math.floor(p.y / cellH);
+                        if (col < 0 || col >= GRID_COLS || row < 0 || row >= GRID_ROWS) return;
 
-                        ctx.fillStyle = gradient;
-                        ctx.beginPath();
-                        ctx.arc(dx, dy, 25, 0, Math.PI * 2);
-                        ctx.fill();
+                        // Recent points contribute more; older points fade
+                        const freshness = 1 - (age / ACCUMULATION_WINDOW);
+                        grid[row * GRID_COLS + col] += freshness * 0.15;
                     });
+
+                    // Render intensity grid
+                    ctx.save();
+                    ctx.globalCompositeOperation = 'screen';
+
+                    const displayCellW = renderWidth / GRID_COLS;
+                    const displayCellH = renderHeight / GRID_ROWS;
+
+                    for (let r = 0; r < GRID_ROWS; r++) {
+                        for (let c = 0; c < GRID_COLS; c++) {
+                            const intensity = Math.min(grid[r * GRID_COLS + c], 1.0);
+                            if (intensity < 0.01) continue; // Skip empty cells
+
+                            const dx = offsetX + c * displayCellW;
+                            const dy = offsetY + r * displayCellH;
+
+                            // Color gradient: low=blue -> mid=yellow -> high=red
+                            let red, green, blue;
+                            if (intensity < 0.33) {
+                                const t = intensity / 0.33;
+                                red = Math.floor(0 + t * 50);
+                                green = Math.floor(100 * t);
+                                blue = Math.floor(200 * (1 - t * 0.5));
+                            } else if (intensity < 0.66) {
+                                const t = (intensity - 0.33) / 0.33;
+                                red = Math.floor(50 + t * 205);
+                                green = Math.floor(100 + t * 80);
+                                blue = Math.floor(100 * (1 - t));
+                            } else {
+                                const t = (intensity - 0.66) / 0.34;
+                                red = 255;
+                                green = Math.floor(180 * (1 - t));
+                                blue = 0;
+                            }
+
+                            const alpha = Math.min(intensity * 0.7, 0.65);
+
+                            // Draw a soft radial blob for each cell
+                            const radius = Math.max(displayCellW, displayCellH) * 1.2;
+                            const cx = dx + displayCellW / 2;
+                            const cy = dy + displayCellH / 2;
+                            const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+                            gradient.addColorStop(0, `rgba(${red}, ${green}, ${blue}, ${alpha})`);
+                            gradient.addColorStop(1, `rgba(${red}, ${green}, ${blue}, 0)`);
+
+                            ctx.fillStyle = gradient;
+                            ctx.beginPath();
+                            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    }
                     ctx.restore();
                 }
+
 
                 // Crowd Density Grid Overlay
                 if (activeModuleFilters.includes('crowd-density')) {
