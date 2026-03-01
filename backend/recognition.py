@@ -1,9 +1,5 @@
 import logging
-import cv2
-import numpy as np
 import io
-from deepface import DeepFace
-from PIL import Image
 
 # Setup logger
 logger = logging.getLogger("recognition")
@@ -23,6 +19,8 @@ def load_models():
     """
     Pre-warm DeepFace model on the backend for registration.
     """
+    import numpy as np
+    from deepface import DeepFace
     try:
         dummy_img = np.zeros((160, 160, 3), dtype=np.uint8)
         DeepFace.represent(dummy_img, model_name=MODEL_NAME, enforce_detection=False)
@@ -34,6 +32,10 @@ def get_embedding_from_bytes(image_bytes):
     """
     Generate embedding for a single face image from bytes using DeepFace.
     """
+    import cv2
+    import numpy as np
+    from deepface import DeepFace
+    from PIL import Image
     try:
         # Convert bytes to numpy array
         image = Image.open(io.BytesIO(image_bytes))

@@ -305,7 +305,7 @@ def verify_password(plain_password, hashed_password):
 def get_password_hash(password):
     return pwd_context.hash(password)
 
-def create_access_token(data: dict, expires_delta: timedelta | None = None):
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -344,7 +344,8 @@ async def get_current_user_debug_optional(token: Optional[str] = Depends(oauth2_
 async def startup_event():
     database.init_db()
     print("Startup: Database initialized. Settings use file-based fallback if DB table unavailable.")
-    recognition.load_models()
+    # Defer heavy model loading to a background thread to prevent startup timeout/blocking
+    asyncio.create_task(asyncio.to_thread(recognition.load_models))
     # Start WS Heartbeat
     asyncio.create_task(detection_manager.heartbeat_worker())
 
