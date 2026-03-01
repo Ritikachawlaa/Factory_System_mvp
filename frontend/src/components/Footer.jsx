@@ -3,38 +3,42 @@ import React from 'react';
 const Footer = () => {
     return (
         <footer style={{
-            padding: '1.5rem 0.5rem',
-            background: 'rgba(15, 23, 42, 0.4)',
-            backdropFilter: 'blur(10px)',
+            padding: '1rem 2rem',
+            background: 'rgba(15, 23, 42, 0.6)',
+            backdropFilter: 'blur(12px)',
             borderTop: '1px solid var(--panel-border)',
             display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            textAlign: 'center',
-            gap: '0.5rem'
+            justifyContent: 'center'
         }}>
-            <div style={{ maxWidth: '30%', width: '100%', margin: '0 auto' }}>
-                <div style={{ marginBottom: '1rem' }}>
-                    <h4 style={{ color: '#fff', fontSize: '1rem', margin: '0 0 0.25rem 0', fontWeight: '600' }}>
+            <div style={{ maxWidth: '95%', width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '2rem', flexWrap: 'wrap' }}>
+                {/* Left Side: Branding & AI Slogan */}
+                <div style={{ flex: '1 1 300px', textAlign: 'left' }}>
+                    <h4 style={{ color: '#fff', fontSize: '0.9rem', margin: '0 0 0.1rem 0', fontWeight: '600' }}>
                         CAMAI – Intelligent Vision. Smarter Security.
                     </h4>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: '0.25rem 0' }}>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', margin: 0 }}>
                         AI-Powered Real-Time Surveillance & Smart Monitoring Solutions.
                     </p>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: '0 0.5rem 0 0' }}>
+                </div>
+
+                {/* Centre: Mission Statement */}
+                <div style={{ flex: '1 1 200px', textAlign: 'center' }}>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', fontStyle: 'italic', margin: 0 }}>
                         Built for modern security and intelligent infrastructure.
                     </p>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '2rem', color: 'var(--accent-cyan)', fontSize: '0.9rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-                    <span>📧 support@camai.in</span>
-                    <span>📍 India</span>
-                </div>
-
-                <div style={{ padding: '1rem 0', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
-                    <span style={{ color: '#475569', fontSize: '0.8rem' }}>© 2026 CAMAI. All Rights Reserved.</span>
-                    <a href="#" style={{ color: '#475569', fontSize: '0.8rem', textDecoration: 'none' }}>Privacy Policy</a>
-                    <a href="#" style={{ color: '#475569', fontSize: '0.8rem', textDecoration: 'none' }}>Terms & Conditions</a>
+                {/* Right Side: Contact, Copyright & Links */}
+                <div style={{ flex: '1 1 350px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.35rem', textAlign: 'right' }}>
+                    <div style={{ display: 'flex', gap: '1.5rem', color: 'var(--accent-cyan)', fontSize: '0.75rem' }}>
+                        <span>📧 support@camai.in</span>
+                        <span>📍 India</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', color: '#475569', fontSize: '0.7rem' }}>
+                        <span>© 2026 CAMAI. All Rights Reserved.</span>
+                        <a href="#" style={{ color: '#475569', textDecoration: 'none' }}>Privacy Policy</a>
+                        <a href="#" style={{ color: '#475569', textDecoration: 'none' }}>Terms & Conditions</a>
+                    </div>
                 </div>
             </div>
         </footer>
