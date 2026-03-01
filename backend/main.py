@@ -78,7 +78,6 @@ app.add_middleware(
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "http://localhost:4173", # Vite preview
-        "*" # Broad for debugging CORS if needed, but the list above is specific
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -601,17 +600,29 @@ async def add_employee(
     file: UploadFile = File(...), 
     current_user = Depends(get_current_user)
 ):
-    contents = await file.read()
-    
-    # Process image for embedding directly
-    embedding = recognition.get_embedding_from_bytes(contents)
-    if embedding is None:
-        raise HTTPException(status_code=400, detail="No face detected in the image")
-    
-    database.add_employee(name, embedding, dept, status)
-    recognition.load_known_faces()
-    
-    return {"message": f"Employee {name} added"}
+    try:
+        contents = await file.read()
+        logger.info(f"Adding employee {name} in {dept}")
+        
+        # Process image for embedding directly
+        embedding = recognition.get_embedding_from_bytes(contents)
+        if embedding is None:
+            logger.warning(f"No face detected for employee {name}")
+            raise HTTPException(status_code=400, detail="No face detected in the image")
+        
+        database.add_employee(name, embedding, dept, status)
+        recognition.load_known_faces()
+        
+        logger.info(f"Successfully added employee {name}")
+        return {"message": f"Employee {name} added"}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Critical error in add_employee: {str(e)}")
+        # Log traceback if possible via traceback module
+        import traceback
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 @app.delete("/employees/{emp_id}")
 def delete_employee(emp_id: int, current_user = Depends(get_current_user)):

@@ -32,28 +32,26 @@ def get_embedding_from_bytes(image_bytes):
     """
     Generate embedding for a single face image from bytes using DeepFace.
     """
-    import cv2
-    import numpy as np
-    from deepface import DeepFace
-    from PIL import Image
     try:
+        import cv2
+        import numpy as np
+        from PIL import Image
+        import io
+        
+        # Check if deepface is installed
+        try:
+            from deepface import DeepFace
+        except ImportError:
+            logger.error("DeepFace is NOT installed on this server. Cannot generate embeddings.")
+            return None
+
         # Convert bytes to numpy array
         image = Image.open(io.BytesIO(image_bytes))
         image_np = np.array(image)
         # Convert RGB to BGR for OpenCV/DeepFace
         image_bgr = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
         
-        results = DeepFace.represent(
-            img_path=image_bgr,
-            model_name=MODEL_NAME,
-            enforce_detection=True,
-            detector_backend='retinaface'
-        )
-        if results:
-            return np.array(results[0]["embedding"])
-    except Exception as e:
-        logger.error(f"Error generating embedding on Backend: {e}")
-        # Try fallback with simpler detector
+        # Try opencv first for speed and lower resource usage on backend
         try:
             results = DeepFace.represent(
                 img_path=image_bgr,
@@ -63,8 +61,22 @@ def get_embedding_from_bytes(image_bytes):
             )
             if results:
                 return np.array(results[0]["embedding"])
-        except:
-            pass
+        except Exception as e:
+            logger.warning(f"OpenCV face detection failed, trying retinaface: {e}")
+            
+            # Retinaface is more robust but heavier
+            results = DeepFace.represent(
+                img_path=image_bgr,
+                model_name=MODEL_NAME,
+                enforce_detection=True,
+                detector_backend='retinaface'
+            )
+            if results:
+                return np.array(results[0]["embedding"])
+    except Exception as e:
+        logger.error(f"Error generating embedding on Backend: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
     return None
 
 def process_frame(frame, modules=None):
