@@ -605,13 +605,11 @@ async def add_employee(
         logger.info(f"Adding employee {name} in {dept}")
         
         # Process image for embedding directly
-        embedding = recognition.get_embedding_from_bytes(contents)
+        embedding, error_detail = recognition.get_embedding_from_bytes(contents)
         if embedding is None:
-            logger.warning(f"Embedding generation failed for employee {name}")
-            # Try to give a bit more detail if we can infer it
-            # (In a real system we'd check if the library is loaded)
-            err_msg = "No face detected in the image. Please try a clearer photo or a different angle."
-            raise HTTPException(status_code=400, detail=err_msg)
+            logger.warning(f"Embedding generation failed for employee {name}: {error_detail}")
+            # Relay the specific error detail to help debugging
+            raise HTTPException(status_code=400, detail=f"AI Error: {error_detail}")
         
         database.add_employee(name, embedding, dept, status)
         recognition.load_known_faces()

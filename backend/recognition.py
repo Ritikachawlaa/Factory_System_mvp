@@ -31,7 +31,9 @@ def load_models():
 def get_embedding_from_bytes(image_bytes):
     """
     Generate embedding for a single face image from bytes using DeepFace.
+    Returns (embedding, error_detail_string)
     """
+    errors = []
     try:
         import cv2
         import numpy as np
@@ -43,8 +45,9 @@ def get_embedding_from_bytes(image_bytes):
             from deepface import DeepFace
             logger.info(f"DeepFace version: {getattr(DeepFace, '__version__', 'unknown')}")
         except ImportError:
-            logger.error("DeepFace is NOT installed on this server. Cannot generate embeddings.")
-            return None
+            msg = "DeepFace is NOT installed on this server. Run 'pip install deepface' on the server."
+            logger.error(msg)
+            return None, msg
 
         # Convert bytes to PIL Image and normalize to RGB
         try:
@@ -54,8 +57,9 @@ def get_embedding_from_bytes(image_bytes):
             image_bgr = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
             logger.info(f"Image decoded successfully. Shape: {image_np.shape}")
         except Exception as e:
-            logger.error(f"Failed to decode image: {str(e)}")
-            return None
+            msg = f"Failed to decode image data: {str(e)}"
+            logger.error(msg)
+            return None, msg
         
         # Try 1: OpenCV (Fast)
         try:
@@ -68,9 +72,10 @@ def get_embedding_from_bytes(image_bytes):
             )
             if results and len(results) > 0:
                 logger.info("OpenCV detection successful.")
-                return np.array(results[0]["embedding"])
+                return np.array(results[0]["embedding"]), None
         except Exception as e:
-            logger.warning(f"Attempt 1 (OpenCV) failed: {str(e)}")
+            errors.append(f"OpenCV failed: {str(e)}")
+            logger.warning(errors[-1])
             
         # Try 2: Retinaface (Robust)
         try:
@@ -83,9 +88,10 @@ def get_embedding_from_bytes(image_bytes):
             )
             if results and len(results) > 0:
                 logger.info("Retinaface detection successful.")
-                return np.array(results[0]["embedding"])
+                return np.array(results[0]["embedding"]), None
         except Exception as e:
-            logger.warning(f"Attempt 2 (Retinaface) failed: {str(e)}")
+            errors.append(f"Retinaface failed: {str(e)}")
+            logger.warning(errors[-1])
 
         # Try 3: Relaxed Detection (returns embedding regardless of face found)
         try:
@@ -98,11 +104,12 @@ def get_embedding_from_bytes(image_bytes):
             )
             if results and len(results) > 0:
                 logger.info("Relaxed detection successful.")
-                return np.array(results[0]["embedding"])
+                return np.array(results[0]["embedding"]), None
         except Exception as e:
-            logger.error(f"Attempt 3 (Relaxed) failed: {str(e)}")
+            errors.append(f"Relaxed failed: {str(e)}")
+            logger.error(errors[-1])
 
-        # Try 4: Absolute Last Resort - skip detection entirely if the library supports it or try 'skip' backend
+        # Try 4: Absolute Last Resort - 'skip' backend
         try:
             logger.info("Attempt 4: 'skip' detector backend...")
             results = DeepFace.represent(
@@ -113,17 +120,21 @@ def get_embedding_from_bytes(image_bytes):
             )
             if results and len(results) > 0:
                 logger.info("Skip-detector successful.")
-                return np.array(results[0]["embedding"])
+                return np.array(results[0]["embedding"]), None
         except Exception as e:
-            logger.error(f"Attempt 4 (Skip) failed: {str(e)}")
+            errors.append(f"Skip-detector failed: {str(e)}")
+            logger.error(errors[-1])
 
     except Exception as e:
-        logger.error(f"CRITICAL failure in get_embedding_from_bytes: {str(e)}")
+        msg = f"CRITICAL failure in get_embedding_from_bytes: {str(e)}"
+        logger.error(msg)
         import traceback
         logger.error(traceback.format_exc())
+        return None, msg
     
-    logger.error("All embedding attempts failed. Returning None.")
-    return None
+    final_error = " | ".join(errors)
+    logger.error(f"All embedding attempts failed: {final_error}")
+    return None, f"All detection methods failed. Errors: {final_error}"
 
 def process_frame(frame, modules=None):
     # Backend processing is normally done via separate ML service.
