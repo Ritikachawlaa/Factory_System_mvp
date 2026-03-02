@@ -25,6 +25,9 @@ from modules.face_detection.service import FaceDetectionService
 from modules.crowd_density.service import CrowdDensityService
 from modules.auto_tracking.service import AutoTrackingService
 from modules.labour_counting.service import LabourCountingService
+from modules.ppe_detection.service import PPEDetectionService
+from modules.object_abandonment.service import ObjectAbandonmentService
+from modules.object_removal.service import ObjectRemovalService
 from utils.integration_service import integration_service
 
 # Load Env
@@ -47,7 +50,10 @@ SERVICES = {
     "face-detection": FaceDetectionService(),
     "crowd-density": CrowdDensityService(),
     "auto-tracking": AutoTrackingService(),
-    "labour-counting": LabourCountingService()
+    "labour-counting": LabourCountingService(),
+    "ppe-detection": PPEDetectionService(),
+    "object-abandonment": ObjectAbandonmentService(),
+    "object-removal": ObjectRemovalService()
 }
 
 class SafeCapture:
