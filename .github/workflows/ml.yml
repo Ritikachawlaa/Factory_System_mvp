@@ -16,8 +16,9 @@ jobs:
 
           cd ~/Factory_System_mvp
 
-          git checkout -- .
-          git pull origin main
+          git fetch origin main
+          git reset --hard origin/main
+          git clean -fd
 
           cd ml
 
