@@ -20,7 +20,7 @@ class PPEDetectionService:
         if not self.model_loaded:
             logger.info("Loading PPE Detection model ...")
             try:
-                self.detector = PPEDetector(conf=0.4)
+                self.detector = PPEDetector(conf=0.3)
                 self.model_loaded = True
                 logger.info("PPE Detection model loaded.")
             except Exception as e:
@@ -39,6 +39,9 @@ class PPEDetectionService:
             return frame, [], []
 
         persons, ppe_items = self.detector.detect_all(frame)
+        if len(persons) > 0 or len(ppe_items) > 0:
+            logger.debug(f"PPE Detection: {len(persons)} persons, {len(ppe_items)} ppe items found")
+            
         events = []
         bounding_boxes = []
 
@@ -51,6 +54,8 @@ class PPEDetectionService:
             px1, py1, px2, py2, p_conf, _ = p_box
             helmet_present = False
             vest_present = False
+            gloves_present = False
+            boots_present = False
 
             person_ppe_boxes = []
             for i_box in ppe_items:
@@ -61,6 +66,10 @@ class PPEDetectionService:
                         helmet_present = True
                     if "vest" in label:
                         vest_present = True
+                    if "gloves" in label:
+                        gloves_present = True
+                    if "boots" in label or "shoes" in label:
+                        boots_present = True
                     
                     person_ppe_boxes.append({
                         "class": label,
@@ -68,10 +77,11 @@ class PPEDetectionService:
                     })
 
             # ... drawing logic ...
-            color = (0, 255, 0) if (helmet_present and vest_present) else (0, 0, 255)
+            is_compliant = helmet_present and vest_present and gloves_present and boots_present
+            color = (0, 255, 0) if is_compliant else (0, 0, 255)
             cv2.rectangle(frame, (px1, py1), (px2, py2), color, 2)
             
-            p_label = "Compliant" if (helmet_present and vest_present) else "Non-Compliant"
+            p_label = "Compliant" if is_compliant else "Non-Compliant"
             cv2.putText(frame, p_label, (px1, py1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
             bounding_boxes.append({
@@ -79,12 +89,14 @@ class PPEDetectionService:
                 "x": int(px1), "y": int(py1), "w": int(px2 - px1), "h": int(py2 - py1), "confidence": p_conf
             })
 
-            if not (helmet_present and vest_present):
+            if not is_compliant:
                 now = time.time()
                 if now - self.last_log_time > self.LOG_INTERVAL:
                     missing = []
                     if not helmet_present: missing.append("Helmet")
                     if not vest_present: missing.append("Vest")
+                    if not gloves_present: missing.append("Gloves")
+                    if not boots_present: missing.append("Shoes")
                     
                     events.append({
                         "camera_id": camera_id,
@@ -92,7 +104,7 @@ class PPEDetectionService:
                         "label": "PPE Violation",
                         "confidence": float(p_conf),
                         "timestamp": now,
-                        "metadata": {
+                        "meta": {
                             "message": f"Missing: {', '.join(missing)}",
                             "boxes": [
                                 {
