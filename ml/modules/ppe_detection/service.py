@@ -52,29 +52,30 @@ class PPEDetectionService:
             helmet_present = False
             vest_present = False
 
+            person_ppe_boxes = []
             for i_box in ppe_items:
                 if self.is_inside(p_box, i_box):
                     ix1, iy1, ix2, iy2, i_conf, cls_id = i_box
-                    label = ppe_names.get(cls_id, "unknown").lower()
+                    label = ppe_names.get(cls_id, "Unknown").lower()
                     if "helmet" in label:
                         helmet_present = True
                     if "vest" in label:
                         vest_present = True
                     
-                    # Add PPE bounding box
-                    bounding_boxes.append({
+                    person_ppe_boxes.append({
                         "class": label,
-                        "x": int(ix1), "y": int(iy1), "w": int(ix2 - ix1), "h": int(iy2 - iy1), "confidence": i_conf
+                        "x": int(ix1), "y": int(iy1), "w": int(ix2 - ix1), "h": int(iy2 - iy1)
                     })
 
+            # ... drawing logic ...
             color = (0, 255, 0) if (helmet_present and vest_present) else (0, 0, 255)
             cv2.rectangle(frame, (px1, py1), (px2, py2), color, 2)
             
-            label = "Compliant" if (helmet_present and vest_present) else "Non-Compliant"
-            cv2.putText(frame, label, (px1, py1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+            p_label = "Compliant" if (helmet_present and vest_present) else "Non-Compliant"
+            cv2.putText(frame, p_label, (px1, py1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
             bounding_boxes.append({
-                "class": f"Person ({label})",
+                "class": f"Person ({p_label})",
                 "x": int(px1), "y": int(py1), "w": int(px2 - px1), "h": int(py2 - py1), "confidence": p_conf
             })
 
@@ -89,9 +90,17 @@ class PPEDetectionService:
                         "camera_id": camera_id,
                         "module_key": "ppe-detection",
                         "label": "PPE Violation",
-                        "confidence": p_conf,
+                        "confidence": float(p_conf),
                         "timestamp": now,
-                        "meta": f"Missing: {', '.join(missing)}"
+                        "metadata": {
+                            "message": f"Missing: {', '.join(missing)}",
+                            "boxes": [
+                                {
+                                    "class": "Person",
+                                    "x": int(px1), "y": int(py1), "w": int(px2 - px1), "h": int(py2 - py1)
+                                }
+                            ] + person_ppe_boxes
+                        }
                     })
                     self.last_log_time = now
 

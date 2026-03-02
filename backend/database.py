@@ -1008,17 +1008,118 @@ def delete_evidence(event_id: int):
     finally:
         conn.close()
 
-# --- Violations ---
+# --- PPE Analytics ---
 
-def get_violations():
-    return get_events_filtered(module_key='ppe-detection')
-
-def clear_violations():
+def get_ppe_analytics(camera_id: int = None):
     conn = get_connection()
     try:
-        stmt = text("DELETE FROM events WHERE module_key = 'ppe-detection'")
-        conn.execute(stmt)
-        conn.commit()
+        query = "SELECT label, metadata FROM events WHERE module_key = 'ppe-detection' AND timestamp >= CURRENT_DATE"
+        params = {}
+        if camera_id:
+            query += " AND camera_id = :cid"
+            params["cid"] = camera_id
+            
+        rows = conn.execute(text(query), params).fetchall()
+        
+        total_violations = len(rows)
+        type_counts = {"Helmet": 0, "Vest": 0, "Gloves": 0, "Shoes": 0}
+        
+        for label, meta in rows:
+            # Labels: "Missing Helmet", "Missing Vest", etc.
+            if "Helmet" in label: type_counts["Helmet"] += 1
+            if "Vest" in label: type_counts["Vest"] += 1
+            if "Gloves" in label: type_counts["Gloves"] += 1
+            if "Shoes" in label: type_counts["Shoes"] += 1
+            
+        top_type = max(type_counts.items(), key=lambda x: x[1])[0] if total_violations > 0 else "None"
+        
+        # Calculate safety score: Start with 100, deduct based on violations
+        # In a real scenario, this would be based on occupancy vs violations
+        safety_score = max(0, 100 - (total_violations * 2))
+        
+        return {
+            "total_violations": total_violations,
+            "type_counts": type_counts,
+            "top_violation_type": top_type,
+            "avg_resolution_time": "5.2m", # Mocked for now
+            "safety_score": safety_score
+        }
+    except Exception as e:
+        print(f"Get PPE Analytics Error: {e}")
+        return {"total_violations": 0, "type_counts": {}, "top_violation_type": "None", "avg_resolution_time": "-", "safety_score": 100}
+    finally:
+        conn.close()
+
+def get_ppe_timeline(camera_id: int = None, limit: int = 50):
+    events = get_events_filtered(camera_id=camera_id, module_key='ppe-detection', limit=limit)
+    results = []
+    for e in events:
+        # Parse metadata for bounding boxes if present
+        metadata = e.get("metadata")
+        boxes = []
+        if metadata:
+            try:
+                # Expecting JSON string or dict
+                if isinstance(metadata, str):
+                    meta_data = json.loads(metadata)
+                else:
+                    meta_data = metadata
+                boxes = meta_data.get("boxes", [])
+            except:
+                pass
+
+        results.append({
+            "id": e.get("id"),
+            "time": e["timestamp"].split(' ')[1] if ' ' in e["timestamp"] else e["timestamp"],
+            "label": e["label"],
+            "severity": e["severity"],
+            "confidence": f"{int(float(e['confidence'])*100)}%" if e['confidence'] else "95%",
+            "boxes": boxes
+        })
+    return results
+
+def get_ppe_trend(camera_id: int = None):
+    conn = get_connection()
+    try:
+        query = "SELECT timestamp FROM events WHERE module_key = 'ppe-detection' AND timestamp >= datetime('now', '-1 day')"
+        if "postgresql" in str(conn.engine.url):
+             query = "SELECT timestamp FROM events WHERE module_key = 'ppe-detection' AND timestamp >= CURRENT_DATE - INTERVAL '1 day'"
+             
+        params = {}
+        if camera_id:
+            query += " AND camera_id = :cid"
+            params["cid"] = camera_id
+            
+        rows = conn.execute(text(query), params).fetchall()
+        
+        from datetime import datetime
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        
+        labels_hours = ["08", "10", "12", "14", "16", "18", "20"]
+        labels = [f"{h}:00" for h in labels_hours]
+        
+        today_data = {h: 0 for h in labels_hours}
+        yesterday_data = {h: 0 for h in labels_hours}
+        
+        for r in rows:
+            ts_str = str(r[0])
+            hr = ts_str[11:13]
+            
+            if hr in today_data:
+                if ts_str.startswith(today_str):
+                    today_data[hr] += 1
+                else:
+                    yesterday_data[hr] += 1
+                    
+        return {
+            "labels": labels,
+            "today": [today_data[h] for h in labels_hours],
+            "yesterday": [yesterday_data[h] for h in labels_hours]
+        }
+    except Exception as e:
+        print(f"Get PPE Trend Error: {e}")
+        labels = ["08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00"]
+        return {"labels": labels, "today": [0]*7, "yesterday": [0]*7}
     finally:
         conn.close()
 

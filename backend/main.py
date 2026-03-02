@@ -753,6 +753,20 @@ def api_crowd_trend(camera_id: int):
 def api_crowd_timeline(camera_id: int):
     return database.get_crowd_timeline(camera_id)
 
+# --- PPE Analytics Endpoints ---
+
+@app.get("/api/cameras/{camera_id}/ppe-stats")
+def api_ppe_stats(camera_id: int):
+    return database.get_ppe_analytics(camera_id)
+
+@app.get("/api/cameras/{camera_id}/ppe-trend")
+def api_ppe_trend(camera_id: int):
+    return database.get_ppe_trend(camera_id)
+
+@app.get("/api/cameras/{camera_id}/ppe-timeline")
+def api_ppe_timeline(camera_id: int):
+    return database.get_ppe_timeline(camera_id)
+
 # --- Auto Tracking Analytics Endpoints ---
 
 @app.get("/api/cameras/{camera_id}/tracking-stats")
@@ -1003,14 +1017,14 @@ async def ingest_detection(event: DetectionSchema):
     """
     Receive detection events from external ML engine.
     """
-    # Parse metadata to string
+    # Parse metadata to string (standard JSON for frontend compatibility)
     meta_str = None
     if event.metadata:
-        # If the dict contains a 'meta' key (from our APIClient), use that directly
+        # If the dict contains a 'meta' key, use that branch
         if 'meta' in event.metadata:
-            meta_str = str(event.metadata['meta'])
+            meta_str = json.dumps(event.metadata['meta'])
         else:
-            meta_str = str(event.metadata)
+            meta_str = json.dumps(event.metadata)
 
     success = database.log_external_detection(
         camera_id=event.camera_id,

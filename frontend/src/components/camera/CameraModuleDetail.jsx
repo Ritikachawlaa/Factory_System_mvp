@@ -10,6 +10,7 @@ import FaceAnalyticsDashboard from '../analytics/FaceAnalyticsDashboard';
 import CrowdAnalyticsDashboard from '../analytics/CrowdAnalyticsDashboard';
 import TrackingAnalyticsDashboard from '../analytics/TrackingAnalyticsDashboard';
 import PeopleCountDashboard from '../analytics/PeopleCountDashboard';
+import PPEAnalyticsDashboard from '../analytics/PPEAnalyticsDashboard';
 import modulesApi from '../../api/modules.api';
 
 
@@ -189,6 +190,8 @@ const CameraModuleDetail = () => {
                                 <TrackingAnalyticsDashboard cameraId={cameraId} />
                             ) : moduleType === 'people-count' ? (
                                 <PeopleCountDashboard cameraId={cameraId} />
+                            ) : moduleType === 'ppe-detection' ? (
+                                <PPEAnalyticsDashboard cameraId={cameraId} />
                             ) : (
                                 <div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed var(--panel-border)', borderRadius: '8px', marginTop: '1rem' }}>
                                     <span style={{ color: 'var(--text-secondary)' }}>Chart Placeholder - {config.label} Trends</span>
