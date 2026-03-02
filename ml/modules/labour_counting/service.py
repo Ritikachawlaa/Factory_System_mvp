@@ -106,8 +106,14 @@ class LabourCountingService:
                 "camera_id": camera_id,
                 "module_key": "labour-counting",
                 "label": "Workforce Sync",
+                "confidence": 1.0,
                 "timestamp": now,
-                "meta": f"Red: {red_count}, Green: {green_count}, Total: {len(tracks)}"
+                "meta": {
+                    "total_count": len(tracks),
+                    "red_vests": red_count,
+                    "green_vests": green_count,
+                    "boxes": bounding_boxes
+                }
             })
             self.last_log_time = now
 

@@ -93,7 +93,11 @@ class ObjectRemovalService:
                         "label": f"{removal_type} Removal",
                         "confidence": 1.0,
                         "timestamp": now,
-                        "meta": f"Object {data['label']} removed. Suspicious: {not data['person_nearby_last']}"
+                        "meta": {
+                            "message": f"Object {data['label']} removed. Suspicious: {not data['person_nearby_last']}",
+                            "type": removal_type,
+                            "object_type": data['label']
+                        }
                     })
                     
                     del self.registry[obj_key]

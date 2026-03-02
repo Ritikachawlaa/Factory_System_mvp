@@ -767,6 +767,48 @@ def api_ppe_trend(camera_id: int):
 def api_ppe_timeline(camera_id: int):
     return database.get_ppe_timeline(camera_id)
 
+# --- Labour Analytics Endpoints ---
+
+@app.get("/api/cameras/{camera_id}/labour-stats")
+def api_labour_stats(camera_id: int):
+    return database.get_labour_analytics(camera_id)
+
+@app.get("/api/cameras/{camera_id}/labour-trend")
+def api_labour_trend(camera_id: int):
+    return database.get_labour_trend(camera_id)
+
+@app.get("/api/cameras/{camera_id}/labour-timeline")
+def api_labour_timeline(camera_id: int):
+    return database.get_labour_timeline(camera_id)
+
+# --- Object Abandonment Analytics Endpoints ---
+
+@app.get("/api/cameras/{camera_id}/abandonment-stats")
+def api_abandonment_stats(camera_id: int):
+    return database.get_abandonment_analytics(camera_id)
+
+@app.get("/api/cameras/{camera_id}/abandonment-trend")
+def api_abandonment_trend(camera_id: int):
+    return database.get_abandonment_trend(camera_id)
+
+@app.get("/api/cameras/{camera_id}/abandonment-timeline")
+def api_abandonment_timeline(camera_id: int):
+    return database.get_abandonment_timeline(camera_id)
+
+# --- Object Removal Analytics Endpoints ---
+
+@app.get("/api/cameras/{camera_id}/removal-stats")
+def api_removal_stats(camera_id: int):
+    return database.get_removal_analytics(camera_id)
+
+@app.get("/api/cameras/{camera_id}/removal-trend")
+def api_removal_trend(camera_id: int):
+    return database.get_removal_trend(camera_id)
+
+@app.get("/api/cameras/{camera_id}/removal-timeline")
+def api_removal_timeline(camera_id: int):
+    return database.get_removal_timeline(camera_id)
+
 # --- Auto Tracking Analytics Endpoints ---
 
 @app.get("/api/cameras/{camera_id}/tracking-stats")

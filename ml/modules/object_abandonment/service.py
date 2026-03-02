@@ -90,9 +90,17 @@ class ObjectAbandonmentService:
                         "camera_id": camera_id,
                         "module_key": "object-abandonment",
                         "label": "Abandoned Object",
-                        "confidence": conf,
+                        "confidence": float(conf),
                         "timestamp": now,
-                        "meta": f"Object {self.detector.model.names[cls_id]} left for {int(static_time)}s"
+                        "meta": {
+                            "message": f"Object {self.detector.model.names[cls_id]} left for {int(static_time)}s",
+                            "duration": int(static_time),
+                            "object_type": self.detector.model.names[cls_id],
+                            "boxes": [{
+                                "class": self.detector.model.names[cls_id],
+                                "x": int(x1), "y": int(y1), "w": int(x2 - x1), "h": int(y2 - y1)
+                            }]
+                        }
                     })
                     self.last_log_time = now
 
