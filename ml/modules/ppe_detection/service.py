@@ -71,14 +71,24 @@ class PPEDetectionService:
                     if "boots" in label or "shoes" in label:
                         boots_present = True
                     
-                    person_ppe_boxes.append({
-                        "class": label,
-                        "x": int(ix1), "y": int(iy1), "w": int(ix2 - ix1), "h": int(iy2 - iy1)
-                    })
+                    # Assign distinct colors
+                    color_ppe = (255, 255, 0) # Cyan for helmet
+                    if "vest" in label: color_ppe = (0, 165, 255) # Orange
+                    elif "gloves" in label: color_ppe = (255, 0, 255) # Magenta
+                    elif "boots" in label or "shoes" in label: color_ppe = (0, 255, 255) # Yellow
                     
                     # Draw PPE item box
-                    cv2.rectangle(frame, (ix1, iy1), (ix2, iy2), (255, 255, 0), 1)
-                    cv2.putText(frame, label, (ix1, iy1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 0), 1)
+                    cv2.rectangle(frame, (ix1, iy1), (ix2, iy2), color_ppe, 1)
+                    cv2.putText(frame, label, (ix1, iy1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.4, color_ppe, 1)
+
+                    # Add to detection stream
+                    detection_item = {
+                        "class": label.capitalize(),
+                        "x": int(ix1), "y": int(iy1), "w": int(ix2 - ix1), "h": int(iy2 - iy1),
+                        "confidence": float(i_conf)
+                    }
+                    bounding_boxes.append(detection_item)
+                    person_ppe_boxes.append(detection_item)
 
             # ... drawing logic ...
             missing = []
