@@ -75,14 +75,28 @@ class PPEDetectionService:
                         "class": label,
                         "x": int(ix1), "y": int(iy1), "w": int(ix2 - ix1), "h": int(iy2 - iy1)
                     })
+                    
+                    # Draw PPE item box
+                    cv2.rectangle(frame, (ix1, iy1), (ix2, iy2), (255, 255, 0), 1)
+                    cv2.putText(frame, label, (ix1, iy1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 0), 1)
 
             # ... drawing logic ...
-            is_compliant = helmet_present and vest_present and gloves_present and boots_present
+            missing = []
+            if not helmet_present: missing.append("Helmet")
+            if not vest_present: missing.append("Vest")
+            if not gloves_present: missing.append("Gloves")
+            if not boots_present: missing.append("Shoes")
+            
+            is_compliant = len(missing) == 0
             color = (0, 255, 0) if is_compliant else (0, 0, 255)
             cv2.rectangle(frame, (px1, py1), (px2, py2), color, 2)
             
-            p_label = "Compliant" if is_compliant else "Non-Compliant"
-            cv2.putText(frame, p_label, (px1, py1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+            if is_compliant:
+                p_label = "Compliant"
+            else:
+                p_label = f"Non-Compliant (Missing: {', '.join(missing)})"
+                
+            cv2.putText(frame, p_label, (px1, py1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
             bounding_boxes.append({
                 "class": f"Person ({p_label})",
