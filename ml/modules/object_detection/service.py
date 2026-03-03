@@ -25,10 +25,7 @@ class ObjectDetectionService:
             except Exception as e:
                 logger.error(f"Object Detection model load failed: {e}")
 
-    def process_frame(self, frame, camera_id=0):
-        self._load()
-        if self.detector is None:
-            return frame, [], []
+
 
     def process_frame(self, frame, camera_id=0):
         self._load()

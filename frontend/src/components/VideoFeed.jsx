@@ -464,26 +464,36 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                     if (activeModuleFilters.length > 0) {
                         const detClass = (det.class || "").toLowerCase();
                         const isPerson = detClass === 'person' || detClass === 'human';
-                        const isFace = detClass === 'face' || (!isPerson && detClass !== ""); // Faces are often labeled with names or 'face'
                         const isCrowd = detClass === 'crowd';
-                        const isTrack = detClass.includes('track id');
+                        const isTrack = detClass.includes('track id') || det.track_id !== undefined;
 
                         const wantsHuman = activeModuleFilters.includes('human-detection') || activeModuleFilters.includes('people-count');
                         const wantsFace = activeModuleFilters.includes('face-detection') || activeModuleFilters.includes('face-recognition');
                         const wantsCrowd = activeModuleFilters.includes('crowd-density');
                         const wantsTrack = activeModuleFilters.includes('auto-tracking');
+                        const wantsObject = activeModuleFilters.includes('object-detection') || activeModuleFilters.includes('object-abandonment');
+
                         const isHeatmapActive = activeModuleFilters.includes('heatmap');
 
-                        const isBackgroundModule = isFace || isTrack; // Always show faces/tracks if possible
+                        // Refined Class checks
+                        const isFace = detClass === 'face' || (wantsFace && !isPerson && !isCrowd && !isTrack && detClass !== "");
+                        const isBackgroundModule = (isFace && wantsFace) || isTrack;
 
-                        // Logic: 
-                        // 1. If it's a background module (Face/Track), ALWAYS show it.
-                        // 2. Otherwise, check if user specifically wants this module.
+                        // Visibility Logic: 
+                        // If it's a specific wanted type or if general object detection is active
                         if (!isBackgroundModule) {
-                            if (wantsHuman && !isPerson) return;
-                            if (wantsCrowd && !isCrowd) return;
-                            // Add other filters as needed
-                            if (!wantsHuman && !wantsCrowd) return;
+                            if (wantsObject) {
+                                // Show everything if object detection is active
+                            } else {
+                                if (wantsHuman && !isPerson) return;
+                                if (wantsCrowd && !isCrowd) return;
+
+                                // Specific guard for people count vs general objects
+                                if (!wantsHuman && !wantsCrowd && !wantsFace && !wantsTrack) {
+                                    // If we are here, it's some other module, likely we don't want these boxes
+                                    return;
+                                }
+                            }
                         }
                     }
 
