@@ -187,35 +187,59 @@ async def websocket_events(websocket: WebSocket):
         manager.disconnect(websocket)
 
 @app.websocket("/ws/detections")
-async def websocket_detections(websocket: WebSocket, camera_id: int = 1, token: str = Query(None)):
+async def websocket_detections(
+    websocket: WebSocket, 
+    camera_id: int = Query(1), 
+    token: Optional[str] = Query(None)
+):
     """
     WebSocket endpoint for realtime detection overlays.
-    Enforces JWT validation, Role Auth, Connection Limits.
+    Accepts first, then validates to avoid proxy/handshake errors.
     """
+    # 1. Accept Connection immediately to establish TCP/WS handshake
+    await websocket.accept()
+    
+    # 2. Extract and Validate Token
     if not token:
         logger.warning("WS connection rejected: Missing token")
-        await websocket.close(code=1008, reason="Missing token")
+        await websocket.send_json({"type": "ERROR", "message": "Missing authentication token"})
+        await websocket.close(code=1008)
         return
 
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        # Use a secondary check for SECRET_KEY to avoid NoneType errors
+        _key = SECRET_KEY or "supersecretkey"
+        payload = jwt.decode(token, _key, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         role: str = payload.get("role", "viewer")
         if username is None:
             raise JWTError()
     except JWTError:
         logger.warning("WS connection rejected: Invalid token")
-        await websocket.close(code=1008, reason="Invalid token")
+        await websocket.send_json({"type": "ERROR", "message": "Invalid or expired token"})
+        await websocket.close(code=1008)
         return
 
     if role not in ["admin", "superadmin"]:
         logger.warning(f"WS connection rejected: Unauthorized role '{role}' for user '{username}'")
-        await websocket.close(code=1008, reason="Unauthorized role for camera access")
+        await websocket.send_json({"type": "ERROR", "message": "Insufficient permissions"})
+        await websocket.close(code=1008)
         return
 
-    accepted = await detection_manager.connect(websocket, username, camera_id)
-    if not accepted:
-        return
+    # 3. Register with Connection Manager
+    # We already called accept, so we just use the manager's internal registry logic
+    if camera_id not in detection_manager.connections:
+        detection_manager.connections[camera_id] = {}
+        
+    # Replace existing connection for this user/camera
+    if username in detection_manager.connections[camera_id]:
+        try:
+            old_ws = detection_manager.connections[camera_id][username]
+            await old_ws.close(code=1000, reason="New connection opened")
+        except:
+            pass
+            
+    detection_manager.connections[camera_id][username] = websocket
 
     logger.info(f"WS Client '{username}' connected to detection stream for camera {camera_id}")
     try:

@@ -221,11 +221,11 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
             }
 
             // Derive WS URL assuming HTTP/HTTPS base URL protocol
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            // Parse hostname and port if necessary, otherwise construct directly
-            const apiHost = API_BASE_URL.replace(/^https?:\/\//, '');
-            const wsUrl = `${protocol}//${apiHost}/ws/detections?camera_id=${cameraId}&token=${token}`;
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const baseHost = API_BASE_URL.replace(/^https?:\/\//, '').replace(/\/$/, '');
+            const wsUrl = `${wsProtocol}//${baseHost}/ws/detections?camera_id=${cameraId}&token=${encodeURIComponent(token)}`;
 
+            console.log(`[WebSocket] Connecting to ${wsProtocol}//${baseHost}...`);
             const ws = new WebSocket(wsUrl);
             detectionWsRef.current = ws;
 
@@ -319,7 +319,7 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
         };
 
         connectWebRTC();
-        connectWS();
+        // connectWS is called inside connectWebRTC upon successful connection to sync stream timing
 
         return () => {
             active = false;
