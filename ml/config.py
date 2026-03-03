@@ -10,7 +10,9 @@ load_dotenv()
 # Requirement: Remove all hardcoded references to localhost, 127.0.0.1, etc.
 # Default should be: http://localhost:8000 (development only)
 ENV_BACKEND_URL = os.getenv("BACKEND_API_URL") or os.getenv("BACKEND_BASE_URL")
+# Robust fallback: use env or default to localhost:8000
 BACKEND_API_URL = (ENV_BACKEND_URL or "http://localhost:8000").rstrip('/')
+ML_SERVICE_VERSION = "1.0.1-live-fix"
 
 # Production Safety Check:
 # Requirement: "If BACKEND_API_URL is not set in production, raise error and exit."
@@ -21,12 +23,12 @@ if os.getenv("ENVIRONMENT") == "production" and not ENV_BACKEND_URL:
 
 # WebSocket Configuration
 # Derive WebSocket URL dynamically from BACKEND_API_URL
-if BACKEND_API_URL.startswith("https://"):
-    BACKEND_WS_URL = BACKEND_API_URL.replace("https://", "wss://")
+if BACKEND_API_URL.startswith("https://") or ".camai.in" in BACKEND_API_URL:
+    BACKEND_WS_URL = BACKEND_API_URL.replace("https://", "wss://").replace("http://", "ws://")
 elif BACKEND_API_URL.startswith("http://"):
     BACKEND_WS_URL = BACKEND_API_URL.replace("http://", "ws://")
 else:
-    # Fallback or strict derivation
+    # Explicitly ensure WS protocol
     BACKEND_WS_URL = BACKEND_API_URL.replace("https://", "wss://").replace("http://", "ws://")
 
 # Model Configuration (Example)

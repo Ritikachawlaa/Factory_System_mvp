@@ -405,7 +405,8 @@ def run_camera_inference(camera, client):
         time.sleep(0.01) # Faster loop for better real-time feel
 
 def main():
-    logger.info("Starting ML Service...")
+    from config import ML_SERVICE_VERSION
+    logger.info(f"Starting ML Service v{ML_SERVICE_VERSION}...")
     client = APIClient()
 
     # Pre-load heavy models (SAFE: ensures single load before threads)
