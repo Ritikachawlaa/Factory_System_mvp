@@ -460,48 +460,48 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                     // det.x, y, w, h are assumed to be in original video resolution coordinates
 
                     // --- VISIBILITY FILTERING ---
-                    // Categorize detection by class
+                    // Each module page should ONLY show its own relevant detections.
                     if (activeModuleFilters.length > 0) {
                         const detClass = (det.class || "").toLowerCase();
 
-                        // Categories
-                        const isPerson = detClass === 'person' || detClass === 'human';
+                        // Categorize the detection class
+                        const isPerson = detClass === 'person' || detClass === 'human' || detClass.startsWith('person');
                         const isCrowd = detClass === 'crowd';
-                        const isTrack = detClass.includes('track id') || det.track_id !== undefined;
-                        const isFace = detClass === 'face';
-                        const isPPEGear = ['helmet', 'vest', 'no-helmet', 'no-vest', 'gloves', 'shoes', 'mask'].includes(detClass);
-                        const isFire = ['fire', 'smoke'].includes(detClass);
-                        const isGenericObject = !isPerson && !isCrowd && !isTrack && !isFace && !isPPEGear && !isFire;
+                        const isTrack = detClass.includes('track id') || (det.track_id !== undefined && det.track_id !== null);
+                        const isFace = detClass === 'face' || detClass.includes('unknown') || detClass.includes('[tid');
+                        const isPPEItem = ['helmet', 'vest', 'no-helmet', 'no-vest', 'gloves', 'shoes', 'mask', 'boots'].some(g => detClass.includes(g));
+                        const isPPEPerson = detClass.includes('compliant') || detClass.includes('non-compliant') || detClass.includes('missing');
+                        const isFire = detClass === 'fire' || detClass === 'smoke';
 
-                        // Module Wants
-                        const wantsHuman = activeModuleFilters.some(m => ['human-detection', 'people-count', 'entry-exit', 'loitering-detection', 'labour-counting', 'ppe-detection'].includes(m));
-                        const wantsFace = activeModuleFilters.some(m => ['face-detection', 'face-recognition'].includes(m));
-                        const wantsCrowd = activeModuleFilters.includes('crowd-density');
-                        const wantsTrack = activeModuleFilters.includes('auto-tracking');
-                        const wantsObject = activeModuleFilters.some(m => ['object-detection', 'object-abandonment', 'object-removal'].includes(m));
-                        const wantsFire = activeModuleFilters.includes('fire-smoke-detection');
-                        const wantsPPE = activeModuleFilters.includes('ppe-detection');
+                        // A "generic object" is anything NOT classified as person/face/PPE/fire/crowd/track
+                        const isGenericObject = !isPerson && !isCrowd && !isTrack && !isFace && !isPPEItem && !isPPEPerson && !isFire;
 
                         let show = false;
 
-                        // 1. If "Object Detection" is active, we show EVERYTHING.
-                        if (wantsObject) {
-                            show = true;
-                        } else {
-                            // 2. Otherwise, check specific categories
-                            if (isPerson && wantsHuman) show = true;
-                            if (isCrowd && wantsCrowd) show = true;
-                            if (isFace && (wantsFace || !detClass)) show = true; // Show faces if wanted or if it's a generic "face" without label
-                            if (isTrack && (wantsTrack || wantsHuman)) show = true; // Show tracks for humans too
-                            if (isPPEGear && wantsPPE) show = true;
-                            if (isFire && wantsFire) show = true;
-
-                            // 3. Fallback: If it's a background module (Face/Track) that we didn't explicitly check, 
-                            // let it through if we have no other reason to block it and we want that module.
-                            if (!show) {
-                                if (isFace && wantsFace) show = true;
-                                if (isTrack && wantsTrack) show = true;
-                            }
+                        // Strict per-module filtering
+                        if (activeModuleFilters.some(m => ['object-detection', 'object-abandonment', 'object-removal'].includes(m))) {
+                            // Object Detection: ONLY generic objects (chairs, bags, cars, etc.)
+                            if (isGenericObject) show = true;
+                        }
+                        if (activeModuleFilters.includes('ppe-detection')) {
+                            // PPE: Show PPE gear items AND the person compliance labels
+                            if (isPPEItem || isPPEPerson) show = true;
+                        }
+                        if (activeModuleFilters.some(m => ['human-detection', 'people-count', 'entry-exit', 'loitering-detection', 'labour-counting', 'intrusion-detection'].includes(m))) {
+                            // Human-centric modules: only persons
+                            if (isPerson) show = true;
+                        }
+                        if (activeModuleFilters.some(m => ['face-detection', 'face-recognition'].includes(m))) {
+                            if (isFace || isPerson) show = true;
+                        }
+                        if (activeModuleFilters.includes('crowd-density')) {
+                            if (isCrowd || isPerson) show = true;
+                        }
+                        if (activeModuleFilters.includes('auto-tracking')) {
+                            if (isTrack || isPerson) show = true;
+                        }
+                        if (activeModuleFilters.includes('fire-smoke-detection')) {
+                            if (isFire) show = true;
                         }
 
                         if (!show) return;
