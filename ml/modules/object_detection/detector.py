@@ -41,20 +41,41 @@ class ObjectDetector:
 
     def detect(self, frame):
         """
-        Track objects across frames with persist=True for auto-tracking.
+        Detect objects. Tries tracker first, falls back to plain detection.
         Returns list of dicts with class, bbox, confidence, track_id.
         """
-        # Use track() instead of predict() for persistent object tracking
-        results = self.model.track(
-            frame, 
-            conf=CONFIDENCE_THRESHOLD, 
-            persist=True, 
-            verbose=False
-        )[0]
+        track_id_map = {}
+        
+        # Try tracking first for persistent IDs
+        try:
+            results = self.model.track(
+                frame, 
+                conf=CONFIDENCE_THRESHOLD, 
+                persist=True, 
+                verbose=False
+            )[0]
+            
+            # If tracker returned nothing, fall back
+            if results.boxes is None or len(results.boxes) == 0:
+                raise ValueError("Tracker returned no results")
+                
+            # Build track_id map
+            if results.boxes.id is not None:
+                for i, box in enumerate(results.boxes):
+                    track_id_map[i] = int(box.id[0]) if box.id is not None else None
+                    
+        except Exception as e:
+            logger.debug(f"Tracker fallback to plain detection: {e}")
+            # Fallback: plain detection (no tracking IDs but always works)
+            results = self.model(
+                frame, 
+                conf=CONFIDENCE_THRESHOLD, 
+                verbose=False
+            )[0]
         
         detections = []
         if results.boxes is not None:
-            for box in results.boxes:
+            for i, box in enumerate(results.boxes):
                 cls_id = int(box.cls[0])
                 cls_name = self.names.get(cls_id, "object")
                 conf = float(box.conf[0])
@@ -63,8 +84,10 @@ class ObjectDetector:
                 if cls_name not in ALLOWED_CLASSES:
                     continue
                 
-                # Get tracking ID (persists across frames)
-                track_id = int(box.id[0]) if box.id is not None else None
+                # Get tracking ID if available
+                track_id = track_id_map.get(i)
+                if track_id is None and box.id is not None:
+                    track_id = int(box.id[0])
                     
                 x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
                 
