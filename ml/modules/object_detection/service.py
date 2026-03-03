@@ -45,10 +45,13 @@ class ObjectDetectionService:
             if label == "person":
                 continue
 
+            track_id = det.get("track_id")
+
             # Draw on frame
             color = (0, 255, 0)
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-            display = f"{label} {conf:.0%}"
+            id_tag = f" #{track_id}" if track_id else ""
+            display = f"{label}{id_tag} {conf:.0%}"
             cv2.putText(frame, display, (x1, y1 - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 

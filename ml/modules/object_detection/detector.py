@@ -27,12 +27,12 @@ CONFIDENCE_THRESHOLD = 0.4
 
 class ObjectDetector:
     def __init__(self):
-        # Use yolov8s.pt (Small) for much better accuracy than Nano
+        # Use yolov8n.pt (Nano) for speed — tracker compensates for accuracy
         _MODELS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "models")
-        model_path = os.path.join(_MODELS_DIR, "yolov8s.pt")
+        model_path = os.path.join(_MODELS_DIR, "yolov8n.pt")
         
         if not os.path.exists(model_path):
-            model_path = "yolov8s.pt"  # Ultralytics will auto-download
+            model_path = "yolov8n.pt"  # Ultralytics will auto-download
             
         logger.info(f"ObjectDetector loading model: {model_path}")
         self.model = YOLO(model_path)
@@ -41,9 +41,16 @@ class ObjectDetector:
 
     def detect(self, frame):
         """
-        Simple, reliable detection. Returns list of dicts with class, bbox, confidence.
+        Track objects across frames with persist=True for auto-tracking.
+        Returns list of dicts with class, bbox, confidence, track_id.
         """
-        results = self.model(frame, conf=CONFIDENCE_THRESHOLD, verbose=False)[0]
+        # Use track() instead of predict() for persistent object tracking
+        results = self.model.track(
+            frame, 
+            conf=CONFIDENCE_THRESHOLD, 
+            persist=True, 
+            verbose=False
+        )[0]
         
         detections = []
         if results.boxes is not None:
@@ -55,13 +62,17 @@ class ObjectDetector:
                 # Only keep allowed classes
                 if cls_name not in ALLOWED_CLASSES:
                     continue
+                
+                # Get tracking ID (persists across frames)
+                track_id = int(box.id[0]) if box.id is not None else None
                     
                 x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
                 
                 detections.append({
                     "class": cls_name,
                     "bbox": (x1, y1, x2, y2),
-                    "confidence": conf
+                    "confidence": conf,
+                    "track_id": track_id
                 })
         
         return detections
