@@ -28,6 +28,7 @@ from modules.labour_counting.service import LabourCountingService
 from modules.ppe_detection.service import PPEDetectionService
 from modules.object_abandonment.service import ObjectAbandonmentService
 from modules.object_removal.service import ObjectRemovalService
+from modules.object_detection.service import ObjectDetectionService
 from utils.integration_service import integration_service
 
 # Load Env
@@ -53,7 +54,8 @@ SERVICES = {
     "labour-counting": LabourCountingService(),
     "ppe-detection": PPEDetectionService(),
     "object-abandonment": ObjectAbandonmentService(),
-    "object-removal": ObjectRemovalService()
+    "object-removal": ObjectRemovalService(),
+    "object-detection": ObjectDetectionService()
 }
 
 class SafeCapture:
