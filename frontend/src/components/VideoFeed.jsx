@@ -465,12 +465,15 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                         const detClass = (det.class || "").toLowerCase();
 
                         // Categorize the detection class
-                        const isPerson = detClass === 'person' || detClass === 'human' || detClass.startsWith('person');
+                        // PPE-specific labels MUST be checked BEFORE generic "person" to avoid leaking
+                        const isPPEItem = ['helmet', 'vest', 'no-helmet', 'no-vest', 'gloves', 'shoes', 'mask', 'boots'].some(g => detClass.includes(g));
+                        const isPPEPerson = detClass.includes('compliant') || detClass.includes('non-compliant') || detClass.includes('missing');
+                        
+                        // Only plain "person" or "human" — NOT "person (compliant)" etc.
+                        const isPerson = (detClass === 'person' || detClass === 'human') && !isPPEPerson;
                         const isCrowd = detClass === 'crowd';
                         const isTrack = detClass.includes('track id') || (det.track_id !== undefined && det.track_id !== null);
                         const isFace = detClass === 'face' || detClass.includes('unknown') || detClass.includes('[tid');
-                        const isPPEItem = ['helmet', 'vest', 'no-helmet', 'no-vest', 'gloves', 'shoes', 'mask', 'boots'].some(g => detClass.includes(g));
-                        const isPPEPerson = detClass.includes('compliant') || detClass.includes('non-compliant') || detClass.includes('missing');
                         const isFire = detClass === 'fire' || detClass === 'smoke';
 
                         // A "generic object" is anything NOT classified as person/face/PPE/fire/crowd/track
