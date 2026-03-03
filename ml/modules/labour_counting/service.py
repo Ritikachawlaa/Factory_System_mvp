@@ -73,8 +73,17 @@ class LabourCountingService:
         if self.detector is None:
             return frame, [], []
 
-        # Track persons with persistent IDs
-        tracks = self.detector.track(frame, classes=[0])
+        # Track persons with persistent IDs. Tries tracker first, falls back to plain detection.
+        try:
+            tracks = self.detector.track(frame, classes=[0])
+            if not tracks:
+                # If no boxes from tracker, try one more time or fall back
+                raise ValueError("Tracker returned empty")
+        except Exception:
+            # Fallback: plain detection (no tracking IDs but always works for counts)
+            detections = self.detector.detect(frame, classes=[0])
+            # Convert 6-tuple (x1, y1, x2, y2, conf, cls) to 7-tuple (x1, y1, x2, y2, -1, conf, cls)
+            tracks = [(d[0], d[1], d[2], d[3], -1, d[4], d[5]) for d in detections]
 
         permanent_count = 0
         contract_count = 0

@@ -35,32 +35,51 @@ class ObjectAbandonmentService:
     def process_frame(self, frame, camera_id=0):
         self._load()
         if self.detector is None:
-            return frame, [], []
+        detected_objects = self.detector.detect_objects(frame)
+        persons = [d for d in detected_objects if d[5] == 0]
+        objects = [d for d in detected_objects if d[5] != 0]
 
-        detections = self.detector.detect_objects(frame)
-        persons = [d for d in detections if d[5] == 0]
-        objects = [d for d in detections if d[5] != 0]
-        
+        rects = [(d[0], d[1], d[2], d[3]) for d in objects]
+        tracked_objects, disappeared = self.tracker.update(rects)
+
         events = []
         bounding_boxes = []
         now = time.time()
 
-        for obj in objects:
-            x1, y1, x2, y2, conf, cls_id = obj
-            cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
-            obj_key = f"{cls_id}_{cx // 10}_{cy // 10}" # Grid-based key for simple 'tracking'
+        for obj_id, centroid in tracked_objects.items():
+            cx, cy = centroid
+            
+            # Find the original bounding box explicitly for drawing
+            best_match = None
+            min_dist = float('inf')
+            for obj in objects:
+                ox1, oy1, ox2, oy2, conf, cls_id = obj
+                ocx, ocy = (ox1 + ox2) // 2, (oy1 + oy2) // 2
+                dist = self._distance((cx, cy), (ocx, ocy))
+                if dist < min_dist and dist < 50:
+                    min_dist = dist
+                    best_match = obj
+                    
+            if not best_match:
+                # Ghost objects, skipping
+                continue
+                
+            x1, y1, x2, y2, conf, cls_id = best_match
 
-            if obj_key not in self.object_memory:
-                self.object_memory[obj_key] = {
+            # Abandonment mapping
+            if obj_id not in self.object_memory:
+                self.object_memory[obj_id] = {
                     "centroid": (cx, cy),
                     "static_start": now,
                     "abandoned": False,
-                    "last_seen": now
+                    "last_seen": now,
+                    "first_reported": False
                 }
             
-            mem = self.object_memory[obj_key]
+            mem = self.object_memory[obj_id]
             movement = self._distance(mem["centroid"], (cx, cy))
             
+            # Reset static start if moved 
             if movement > self.PIXEL_MOVEMENT_THRESHOLD:
                 mem["static_start"] = now
             
@@ -68,6 +87,10 @@ class ObjectAbandonmentService:
             mem["last_seen"] = now
             static_time = now - mem["static_start"]
             
+            # Ignore items that are "disappeared" temporarily from triggering tracking boxes
+            if disappeared.get(obj_id, 0) > 0:
+                continue
+
             unattended = True
             for person in persons:
                 px1, py1, px2, py2, _, _ = person
@@ -85,7 +108,7 @@ class ObjectAbandonmentService:
                 color = (0, 0, 255)
                 status = "ABANDONED"
                 
-                if now - self.last_log_time > 10:
+                if not mem["first_reported"] or (now - self.last_log_time > 10):
                     events.append({
                         "camera_id": camera_id,
                         "module_key": "object-abandonment",
@@ -96,13 +119,10 @@ class ObjectAbandonmentService:
                             "message": f"Object {self.detector.model.names[cls_id]} left for {int(static_time)}s",
                             "duration": int(static_time),
                             "object_type": self.detector.model.names[cls_id],
-                            "boxes": [{
-                                "class": self.detector.model.names[cls_id],
-                                "x": int(x1), "y": int(y1), "w": int(x2 - x1), "h": int(y2 - y1)
-                            }]
                         }
                     })
                     self.last_log_time = now
+                    mem["first_reported"] = True
 
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
             cv2.putText(frame, f"{status} ({int(static_time)}s)", (x1, y1-10), 
@@ -112,8 +132,5 @@ class ObjectAbandonmentService:
                 "class": f"{self.detector.model.names[cls_id]} ({status})",
                 "x": int(x1), "y": int(y1), "w": int(x2 - x1), "h": int(y2 - y1), "confidence": conf
             })
-
-        # Cleanup old memory
-        self.object_memory = {k: v for k, v in self.object_memory.items() if now - v["last_seen"] < 5}
 
         return frame, events, bounding_boxes

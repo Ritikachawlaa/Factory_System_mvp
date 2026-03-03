@@ -31,59 +31,81 @@ class ObjectRemovalService:
         if self.detector is None:
             return frame, [], []
 
-        detections = self.detector.detect_all(frame)
-        persons = [d for d in detections if d[5] == 0]
-        objects = [d for d in detections if d[5] != 0]
-        
-        current_visible_keys = set()
+        detected_objects = self.detector.detect_all(frame)
+        persons = [d for d in detected_objects if d[5] == 0]
+        objects = [d for d in detected_objects if d[5] != 0]
+
+        rects = [(d[0], d[1], d[2], d[3]) for d in objects]
+        tracked_objects, disappeared = self.tracker.update(rects)
+
+        current_visible_ids = set()
         events = []
         bounding_boxes = []
         now = time.time()
 
-        # Update registry with currently visible objects
-        for obj in objects:
-            x1, y1, x2, y2, conf, cls_id = obj
-            cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
-            obj_key = f"{cls_id}_{cx // 20}_{cy // 20}"
-            current_visible_keys.add(obj_key)
+        for obj_id, centroid in tracked_objects.items():
+            cx, cy = centroid
+            
+            # Since tracking gives us centroids, we find the closest real box
+            best_match = None
+            min_dist = float('inf')
+            for obj in objects:
+                ox1, oy1, ox2, oy2, conf, cls_id = obj
+                ocx, ocy = (ox1 + ox2) // 2, (oy1 + oy2) // 2
+                dist = ((cx-ocx)**2 + (cy-ocy)**2)**0.5
+                if dist < min_dist and dist < 50:
+                    min_dist = dist
+                    best_match = obj
+                    
+            if not best_match:
+                continue
+                
+            x1, y1, x2, y2, conf, cls_id = best_match
 
+            # Add to registry if not exists
+            if obj_id not in self.registry:
+                self.registry[obj_id] = {
+                    "first_seen": now,
+                    "last_seen": now,
+                    "person_nearby_last": False,
+                    "missing_count": 0,
+                    "label": self.detector.model.names[cls_id],
+                    "box": (x1, y1, x2, y2)
+                }
+
+            # Update visible registry entry
+            data = self.registry[obj_id]
+            data["last_seen"] = now
+            data["missing_count"] = 0
+            data["box"] = (x1, y1, x2, y2)
+
+            # Check nearby persons
             person_nearby = False
             for p in persons:
                 px1, py1, px2, py2, _, _ = p
-                # Check if person overlaps or is very close
                 if not (px2 < x1 or px1 > x2 or py2 < y1 or py1 > y2):
                     person_nearby = True
                     break
-            
-            if obj_key not in self.registry:
-                self.registry[obj_key] = {
-                    "first_seen": now,
-                    "last_seen": now,
-                    "person_nearby_last": person_nearby,
-                    "missing_count": 0,
-                    "label": self.detector.model.names[cls_id]
-                }
-            else:
-                self.registry[obj_key]["last_seen"] = now
-                self.registry[obj_key]["person_nearby_last"] = person_nearby
-                self.registry[obj_key]["missing_count"] = 0
+            data["person_nearby_last"] = person_nearby
+
+            current_visible_ids.add(obj_id)
 
             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 255), 2)
-            cv2.putText(frame, self.registry[obj_key]["label"], (x1, y1-10), 
+            cv2.putText(frame, data["label"], (x1, y1-10), 
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
             
             bounding_boxes.append({
-                "class": self.registry[obj_key]["label"],
+                "class": data["label"],
                 "x": int(x1), "y": int(y1), "w": int(x2 - x1), "h": int(y2 - y1), "confidence": conf
             })
 
-        # Check for missing objects
-        for obj_key, data in list(self.registry.items()):
-            if obj_key not in current_visible_keys:
+        # Process Missing Objects (Removal Logic)
+        for obj_id, data in list(self.registry.items()):
+            if obj_id not in current_visible_ids:
                 data["missing_count"] += 1
                 
                 if data["missing_count"] > self.N_FRAMES_MISSING:
-                    # Object removed!
+                    # Determine removal type (Normal vs Suspicious)
                     removal_type = "Normal" if data["person_nearby_last"] else "Suspicious"
                     logger.warning(f"Object {data['label']} removed: {removal_type}")
                     
@@ -100,8 +122,6 @@ class ObjectRemovalService:
                         }
                     })
                     
-                    del self.registry[obj_key]
-            else:
-                data["missing_count"] = 0
+                    del self.registry[obj_id]
 
         return frame, events, bounding_boxes

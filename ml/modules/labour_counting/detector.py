@@ -7,7 +7,7 @@ from utils.base_detector import BaseDetector
 
 
 class LabourDetector(BaseDetector):
-    def __init__(self, conf=0.4):
+    def __init__(self, conf=0.3):
         # MUST specify yolov8s.pt explicitly, otherwise BaseDetector
         # falls back to Core_Model_1.pt (face model) which has no "person" class
         super().__init__(model_path="yolov8s.pt", conf=conf)
