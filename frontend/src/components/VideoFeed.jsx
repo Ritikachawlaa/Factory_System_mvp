@@ -460,41 +460,51 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                     // det.x, y, w, h are assumed to be in original video resolution coordinates
 
                     // --- VISIBILITY FILTERING ---
-                    // If we have specific filters, only show relevant boxes
+                    // Categorize detection by class
                     if (activeModuleFilters.length > 0) {
                         const detClass = (det.class || "").toLowerCase();
+
+                        // Categories
                         const isPerson = detClass === 'person' || detClass === 'human';
                         const isCrowd = detClass === 'crowd';
                         const isTrack = detClass.includes('track id') || det.track_id !== undefined;
+                        const isFace = detClass === 'face';
+                        const isPPEGear = ['helmet', 'vest', 'no-helmet', 'no-vest', 'gloves', 'shoes', 'mask'].includes(detClass);
+                        const isFire = ['fire', 'smoke'].includes(detClass);
+                        const isGenericObject = !isPerson && !isCrowd && !isTrack && !isFace && !isPPEGear && !isFire;
 
-                        const wantsHuman = activeModuleFilters.includes('human-detection') || activeModuleFilters.includes('people-count');
-                        const wantsFace = activeModuleFilters.includes('face-detection') || activeModuleFilters.includes('face-recognition');
+                        // Module Wants
+                        const wantsHuman = activeModuleFilters.some(m => ['human-detection', 'people-count', 'entry-exit', 'loitering-detection', 'labour-counting', 'ppe-detection'].includes(m));
+                        const wantsFace = activeModuleFilters.some(m => ['face-detection', 'face-recognition'].includes(m));
                         const wantsCrowd = activeModuleFilters.includes('crowd-density');
                         const wantsTrack = activeModuleFilters.includes('auto-tracking');
-                        const wantsObject = activeModuleFilters.includes('object-detection') || activeModuleFilters.includes('object-abandonment');
+                        const wantsObject = activeModuleFilters.some(m => ['object-detection', 'object-abandonment', 'object-removal'].includes(m));
+                        const wantsFire = activeModuleFilters.includes('fire-smoke-detection');
+                        const wantsPPE = activeModuleFilters.includes('ppe-detection');
 
-                        const isHeatmapActive = activeModuleFilters.includes('heatmap');
+                        let show = false;
 
-                        // Refined Class checks
-                        const isFace = detClass === 'face' || (wantsFace && !isPerson && !isCrowd && !isTrack && detClass !== "");
-                        const isBackgroundModule = (isFace && wantsFace) || isTrack;
+                        // 1. If "Object Detection" is active, we show EVERYTHING.
+                        if (wantsObject) {
+                            show = true;
+                        } else {
+                            // 2. Otherwise, check specific categories
+                            if (isPerson && wantsHuman) show = true;
+                            if (isCrowd && wantsCrowd) show = true;
+                            if (isFace && (wantsFace || !detClass)) show = true; // Show faces if wanted or if it's a generic "face" without label
+                            if (isTrack && (wantsTrack || wantsHuman)) show = true; // Show tracks for humans too
+                            if (isPPEGear && wantsPPE) show = true;
+                            if (isFire && wantsFire) show = true;
 
-                        // Visibility Logic: 
-                        // If it's a specific wanted type or if general object detection is active
-                        if (!isBackgroundModule) {
-                            if (wantsObject) {
-                                // Show everything if object detection is active
-                            } else {
-                                if (wantsHuman && !isPerson) return;
-                                if (wantsCrowd && !isCrowd) return;
-
-                                // Specific guard for people count vs general objects
-                                if (!wantsHuman && !wantsCrowd && !wantsFace && !wantsTrack) {
-                                    // If we are here, it's some other module, likely we don't want these boxes
-                                    return;
-                                }
+                            // 3. Fallback: If it's a background module (Face/Track) that we didn't explicitly check, 
+                            // let it through if we have no other reason to block it and we want that module.
+                            if (!show) {
+                                if (isFace && wantsFace) show = true;
+                                if (isTrack && wantsTrack) show = true;
                             }
                         }
+
+                        if (!show) return;
                     }
 
                     // Scale them to the display coordinate system and add the letterbox/pillarbox offsets

@@ -61,12 +61,21 @@ export const MODULE_REGISTRY = {
             control: ['superadmin', 'admin', 'supervisor']
         }
     },
-    'object-detection-abandoned': {
-        key: 'object-detection-abandoned',
-        label: 'Object/Abandoned',
+    'object-abandonment': {
+        key: 'object-abandonment',
+        label: 'Abandoned Objects',
         icon: '📦',
         panelComponent: null,
-        description: 'Detect abandoned objects or specific items.',
+        description: 'Detect abandoned objects in restricted zones.',
+        supportsAlerts: true,
+        supportsStats: false
+    },
+    'object-removal': {
+        key: 'object-removal',
+        label: 'Removed Objects',
+        icon: '📦',
+        panelComponent: null,
+        description: 'Detect removal of specific items from original context.',
         supportsAlerts: true,
         supportsStats: false
     },

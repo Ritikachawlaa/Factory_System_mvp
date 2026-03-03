@@ -280,8 +280,14 @@ def run_camera_inference(camera, client):
                         if boxes:
                             any_module_had_boxes = True
                             for b in boxes:
+                                # Ensure track_id is passed and optionally format the display label
+                                track_id = b.get("track_id")
+                                base_class = b.get("class", "object")
+                                display_class = f"{base_class} #{track_id}" if track_id is not None else base_class
+
                                 aggregated_boxes.append({
-                                    "class": b.get("class", "object"),
+                                    "class": display_class,
+                                    "track_id": track_id,
                                     "x": int(b["x"] * scale_x),
                                     "y": int(b["y"] * scale_y),
                                     "w": int(b["w"] * scale_x),
