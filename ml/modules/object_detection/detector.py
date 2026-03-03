@@ -11,8 +11,8 @@ class ObjectDetector(BaseDetector):
 
     def detect_all(self, frame):
         """
-        Detect all supported COCO objects.
-        Passing classes=None to detect all 80 classes.
+        Detect all supported COCO objects with tracking.
+        Returns list of (x1, y1, x2, y2, track_id, confidence, class_id).
         """
-        detections = self.detect(frame, classes=None)
-        return detections
+        tracks = self.track(frame, classes=None)
+        return tracks
