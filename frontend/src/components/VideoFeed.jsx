@@ -475,9 +475,10 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                         const isTrack = detClass.includes('track id') || detClass.includes('tid');
                         const isFace = detClass === 'face' || detClass.includes('unknown') || detClass.includes('[tid');
                         const isFire = detClass === 'fire' || detClass === 'smoke';
+                        const isWorker = detClass.includes('worker') || detClass.includes('permanent') || detClass.includes('unclassified');
 
-                        // A "generic object" is anything NOT classified as person/face/PPE/fire/crowd/track
-                        const isGenericObject = !isPerson && !isCrowd && !isTrack && !isFace && !isPPEItem && !isPPEPerson && !isFire;
+                        // A "generic object" is anything NOT classified as person/face/PPE/fire/crowd/track/worker
+                        const isGenericObject = !isPerson && !isCrowd && !isTrack && !isFace && !isPPEItem && !isPPEPerson && !isFire && !isWorker;
 
                         let show = false;
 
@@ -490,7 +491,11 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                             // PPE: Show PPE gear items AND the person compliance labels
                             if (isPPEItem || isPPEPerson) show = true;
                         }
-                        if (activeModuleFilters.some(m => ['human-detection', 'people-count', 'entry-exit', 'loitering-detection', 'labour-counting', 'intrusion-detection'].includes(m))) {
+                        if (activeModuleFilters.includes('labour-counting')) {
+                            // Labour Counting: show worker boxes (Permanent/Not Permanent)
+                            if (isWorker || isPerson) show = true;
+                        }
+                        if (activeModuleFilters.some(m => ['human-detection', 'people-count', 'entry-exit', 'loitering-detection', 'intrusion-detection'].includes(m))) {
                             // Human-centric modules: only persons
                             if (isPerson) show = true;
                         }
