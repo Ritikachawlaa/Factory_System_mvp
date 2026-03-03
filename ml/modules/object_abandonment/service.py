@@ -35,7 +35,7 @@ class ObjectAbandonmentService:
     def process_frame(self, frame, camera_id=0):
         self._load()
         if self.detector is None:
-            return frame, []
+            return frame, [], []
 
         detections = self.detector.detect_objects(frame)
         persons = [d for d in detections if d[5] == 0]
