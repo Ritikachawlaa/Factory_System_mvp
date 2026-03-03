@@ -33,7 +33,7 @@ const IntrusionDetection = () => {
     );
 
     return (
-        <ModulePage title="Intrusion & Perimeter Security" videoModules="intrusion_detection" rightPanelContent={<RightPanelContent />}>
+        <ModulePage title="Intrusion & Perimeter Security" videoModules="intrusion-detection" rightPanelContent={<RightPanelContent />}>
             <div className="glass-panel" style={{ padding: '1.5rem' }}>
                 <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>Zone Status Monitor</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem' }}>

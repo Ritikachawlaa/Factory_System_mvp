@@ -9,7 +9,7 @@ const VideoFeed = ({ modules }) => {
 
 const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
     const { cameraId: paramCameraId } = useParams();
-    const cameraId = propCameraId || paramCameraId;
+    const cameraId = propCameraId || paramCameraId || 1; // Default to camera 1 if no param/prop
     const { token } = useAuth();
 
     const videoRef = useRef(null);

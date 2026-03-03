@@ -57,7 +57,7 @@ const FireSmokeDetection = () => {
     );
 
     return (
-        <ModulePage title="Fire & Smoke Detection" videoModules="fire_smoke" rightPanelContent={<RightPanelContent />}>
+        <ModulePage title="Fire & Smoke Detection" videoModules="fire-smoke-detection" rightPanelContent={<RightPanelContent />}>
             <div className="glass-panel" style={{ padding: '1.5rem' }}>
                 <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1rem' }}>Fire Safety Alerts</h3>
                 {loading ? (

@@ -64,7 +64,7 @@ const LabourCounting = () => {
     );
 
     return (
-        <ModulePage title="Labour Counting" videoModules="labour_counting" rightPanelContent={<RightPanelContent />}>
+        <ModulePage title="Labour Counting" videoModules="labour-counting" rightPanelContent={<RightPanelContent />}>
             <div className="glass-panel" style={{ padding: '1.5rem' }}>
                 <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1rem' }}>Zone-wise Worker Count</h3>
                 {loading ? (

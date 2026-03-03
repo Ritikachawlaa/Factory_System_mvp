@@ -39,7 +39,7 @@ const EntryExitCount = () => {
     );
 
     return (
-        <ModulePage title="Entry & Exit Management" videoModules="entry_exit" rightPanelContent={<RightPanelContent />}>
+        <ModulePage title="Entry & Exit Management" videoModules="entry-exit" rightPanelContent={<RightPanelContent />}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                 <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
                     <div style={{
