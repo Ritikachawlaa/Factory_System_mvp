@@ -472,7 +472,7 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                         // Only plain "person" or "human" — NOT "person (compliant)" etc.
                         const isPerson = (detClass === 'person' || detClass === 'human') && !isPPEPerson;
                         const isCrowd = detClass === 'crowd';
-                        const isTrack = detClass.includes('track id') || (det.track_id !== undefined && det.track_id !== null);
+                        const isTrack = detClass.includes('track id') || detClass.includes('tid');
                         const isFace = detClass === 'face' || detClass.includes('unknown') || detClass.includes('[tid');
                         const isFire = detClass === 'fire' || detClass === 'smoke';
 
