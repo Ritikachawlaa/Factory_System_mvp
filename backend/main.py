@@ -702,12 +702,21 @@ async def add_employee(
         database.add_employee(name, embedding, dept, status, photo_path=file_path)
         
         # RETROSPECTIVE MATCHING: Find the employee in the historical gallery
-        # This links past 'Unknown' sightings to this new identity
         all_emps = database.get_all_employees()
         new_emp = next((e for e in all_emps if e['name'] == name), None)
         if new_emp:
             perform_retrospective_match(new_emp['id'], name, embedding)
             
+            # AWS INTEGRATION: Index face if enabled
+            # Import here to avoid circular dependencies if any
+            try:
+                from sys import path
+                path.append(os.path.join(os.getcwd(), '..', 'ml'))
+                from utils.aws_face_service import aws_face_service
+                aws_face_service.index_face(contents, external_image_id=new_emp['id'])
+            except Exception as aws_e:
+                logger.warning(f"Failed to index face to AWS: {aws_e}")
+
         recognition.load_known_faces()
         
         logger.info(f"Successfully added employee {name}")
