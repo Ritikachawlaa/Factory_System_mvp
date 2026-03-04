@@ -468,12 +468,12 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                         // PPE-specific labels MUST be checked BEFORE generic "person" to avoid leaking
                         const isPPEItem = ['helmet', 'vest', 'no-helmet', 'no-vest', 'gloves', 'shoes', 'mask', 'boots'].some(g => detClass.includes(g));
                         const isPPEPerson = detClass.includes('compliant') || detClass.includes('non-compliant') || detClass.includes('missing');
-                        
+
                         // Only plain "person" or "human" — NOT "person (compliant)" etc.
                         const isPerson = (detClass === 'person' || detClass === 'human') && !isPPEPerson;
                         const isCrowd = detClass === 'crowd';
                         const isTrack = detClass.includes('track id') || detClass.includes('tid');
-                        const isFace = detClass === 'face' || detClass.includes('unknown') || detClass.includes('[tid') || detClass.includes('(id:');
+                        const isFace = detClass.includes('face') || detClass.includes('unknown') || detClass.includes('[tid') || detClass.includes('(id:');
                         const isFire = detClass === 'fire' || detClass === 'smoke';
                         const isWorker = detClass.includes('worker') || detClass.includes('permanent') || detClass.includes('unclassified');
 
