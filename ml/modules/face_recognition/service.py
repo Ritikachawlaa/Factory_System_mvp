@@ -21,7 +21,7 @@ class FaceRecognitionService:
         target_img = detection_frame if detection_frame is not None else frame
         
         # detection: (name, emp_id, score, (x, y, w, h))
-        detection_results = recognition.identify_faces(target_img)
+        detection_results = recognition.identify_faces(target_img, is_crop=(detection_frame is not None))
         if detection_results:
             logger.info(f"FaceRecognitionService: Found {len(detection_results)} faces in frame")
         

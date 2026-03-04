@@ -103,7 +103,7 @@ def process_frame(frame, modules=None):
         
     return frame
 
-def identify_faces(frame):
+def identify_faces(frame, is_crop=False):
     """
     Returns list of (name, id, score, (x, y, w, h))
     """
@@ -112,6 +112,7 @@ def identify_faces(frame):
     detections = []
     
     # Use the full frame for better accuracy
+    logger.info(f"identify_faces called. Frame shape: {frame.shape}, is_crop: {is_crop}")
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     
     try:
@@ -132,9 +133,11 @@ def identify_faces(frame):
                     total_area = frame.shape[0] * frame.shape[1]
                     region = results[0]["facial_area"]
                     found_area = region['w'] * region['h']
-                    if found_area < total_area * 0.9:
+                    if is_crop or found_area < total_area * 0.9:
                         logger.info(f"ML: Detected {len(results)} faces using {backend} backend.")
                         break
+                    else:
+                        logger.warning(f"ML: Backend {backend} found area {found_area}/{total_area} - likely fake. Skipping.")
             except Exception as e:
                 logger.debug(f"Detector {backend} failed: {e}")
                 continue
@@ -154,7 +157,8 @@ def identify_faces(frame):
             # If facial area is basically the whole frame and enforce_detection=False,
             # it means NO face was actually found.
             total_area = frame.shape[0] * frame.shape[1]
-            if (region['w'] * region['h']) > (total_area * 0.95):
+            if not is_crop and (region['w'] * region['h']) > (total_area * 0.95):
+                logger.warning("Skipping match because area is too large (likely no face found)")
                 continue
 
             if len(known_face_encodings) > 0:
