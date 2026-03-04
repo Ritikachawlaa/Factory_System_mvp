@@ -268,7 +268,7 @@ def run_camera_inference(camera, client):
         # Process other modules (excluding tracking and face-rec if in integrated mode)
         for key in active_keys:
             if key == "auto-tracking": continue
-            if key == "face-recognition" and integrated_mode: continue
+            if key == "face-recognition": continue # Handled below
             
             service = SERVICES.get(key)
             if service:
@@ -278,7 +278,6 @@ def run_camera_inference(camera, client):
                     if len(result) == 3:
                         _, events, boxes = result
                         if boxes:
-                            any_module_had_boxes = True
                             for b in boxes:
                                 # Ensure track_id is passed and optionally format the display label
                                 track_id = b.get("track_id")
@@ -304,77 +303,78 @@ def run_camera_inference(camera, client):
                 except Exception as e:
                     logger.error(f"Camera {cam_id}: Error running {key}: {e}")
 
-        # Integrated Face Recognition
-        if integrated_mode:
+        # Face Recognition Logic
+        if "face-recognition" in active_keys:
             face_service = SERVICES.get("face-recognition")
-            for t_box in tracking_results:
-                track_id_str = t_box["class"].replace("Track ID ", "")
-                try:
-                    track_id = int(track_id_str)
-                except:
-                    track_id = None
+            if integrated_mode:
+                # Integrated Mode: Recognition on Tracker crops
+                for t_box in tracking_results:
+                    track_id_str = t_box["class"].replace("Track ID ", "")
+                    try:
+                        track_id = int(track_id_str)
+                    except:
+                        track_id = None
 
-                # Crop the head area (rough top 30% of the box)
-                x, y, w, h = t_box["x"], t_box["y"], t_box["w"], t_box["h"]
-                head_h = int(h * 0.45)
-                head_crop = frame_resized[max(0, y):min(640, y + head_h), max(0, x):min(640, x + w)]
-                
-                final_label = f"ID {track_id}" if track_id else "Person"
-                
-                if head_crop.size > 0:
-                    _, events, faces = face_service.process_frame(
-                        frame_resized, 
-                        camera_id=cam_id, 
-                        detection_frame=head_crop,
-                        tracked_info={"track_id": track_id} if track_id else None
-                    )
+                    # Crop the head area (rough top 30% of the box)
+                    x, y, w, h = t_box["x"], t_box["y"], t_box["w"], t_box["h"]
+                    head_h = int(h * 0.45)
+                    head_crop = frame_resized[max(0, y):min(640, y + head_h), max(0, x):min(640, x + w)]
                     
-                    if faces:
-                        display_label = faces[0]["class"] # This is now "Name (ID: X)"
-                        if "Unknown" not in display_label:
-                            final_label = f"{display_label} [TID {track_id}]"
+                    final_label = f"Person #{track_id}" if track_id else "Person"
                     
+                    if head_crop.size > 0:
+                        _, events, faces = face_service.process_frame(
+                            frame_resized, 
+                            camera_id=cam_id, 
+                            detection_frame=head_crop,
+                            tracked_info={"track_id": track_id} if track_id else None
+                        )
+                        
+                        if faces:
+                            display_label = faces[0]["class"] # This is now "Name (ID: X) Face"
+                            if "Unknown" not in display_label:
+                                final_label = f"{display_label} [TID {track_id}]"
+                        
+                        if events:
+                            for event in events:
+                                client.send_detection(event)
+
+                    # Check IntegrationService for persistent name
+                    if track_id:
+                        persisted_identity = integration_service.get_identity(track_id)
+                        if persisted_identity and "Unknown" not in persisted_identity:
+                            final_label = f"{persisted_identity} [TID {track_id}]"
+
+                    # Add the tracked box with integrated label
+                    aggregated_boxes.append({
+                        "class": final_label,
+                        "x": int(t_box["x"] * scale_x),
+                        "y": int(t_box["y"] * scale_y),
+                        "w": int(t_box["w"] * scale_x),
+                        "h": int(t_box["h"] * scale_y),
+                        "confidence": t_box["confidence"]
+                    })
+            else:
+                # Standalone Mode
+                try:
+                    _, events, boxes = face_service.process_frame(frame_resized, camera_id=cam_id)
+                    if boxes:
+                        for b in boxes:
+                            aggregated_boxes.append({
+                                "class": b["class"],
+                                "x": int(b["x"] * scale_x),
+                                "y": int(b["y"] * scale_y),
+                                "w": int(b["w"] * scale_x),
+                                "h": int(b["h"] * scale_y),
+                                "confidence": b["confidence"]
+                            })
                     if events:
                         for event in events:
                             client.send_detection(event)
+                except Exception as e:
+                    logger.error(f"Standalone Face Rec Error: {e}")
 
-                # Check IntegrationService for persistent name even if face recognition didn't run this frame
-                if track_id:
-                    persisted_identity = integration_service.get_identity(track_id)
-                    if persisted_identity and "Unknown" not in persisted_identity:
-                        final_label = f"{persisted_identity} [TID {track_id}]"
-
-                # Add the tracked box with integrated label
-                aggregated_boxes.append({
-                    "class": final_label,
-                    "x": int(t_box["x"] * scale_x),
-                    "y": int(t_box["y"] * scale_y),
-                    "w": int(t_box["w"] * scale_x),
-                    "h": int(t_box["h"] * scale_y),
-                    "confidence": t_box["confidence"]
-                })
-        elif "face-recognition" in active_keys:
-            # Standalone mode
-            service = SERVICES.get("face-recognition")
-            try:
-                _, events, boxes = service.process_frame(frame_resized, camera_id=cam_id)
-                if boxes:
-                    for b in boxes:
-                        aggregated_boxes.append({
-                            "class": b["class"],
-                            "x": int(b["x"] * scale_x),
-                            "y": int(b["y"] * scale_y),
-                            "w": int(b["w"] * scale_x),
-                            "h": int(b["h"] * scale_y),
-                            "confidence": b["confidence"]
-                        })
-                if events:
-                    for event in events:
-                        client.send_detection(event)
-            except Exception as e:
-                logger.error(f"Standalone Face Rec Error: {e}")
-
-        # Add tracking boxes if NOT in integrated mode (they would have been added above otherwise)
+        # Add tracking boxes if NOT in integrated mode
         if not integrated_mode and "auto-tracking" in active_keys:
              for b in tracking_results:
                 aggregated_boxes.append({
