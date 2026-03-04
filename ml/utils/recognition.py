@@ -112,12 +112,12 @@ def identify_faces(frame):
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     
     try:
-        # Retinaface is much more robust for finding faces than opencv
+        # Opencv is much faster on CPU than retinaface
         results = DeepFace.represent(
             img_path=rgb_frame,
             model_name=MODEL_NAME,
             enforce_detection=False,
-            detector_backend='retinaface'
+            detector_backend='opencv'
         )
         
         for res in results:
@@ -135,8 +135,8 @@ def identify_faces(frame):
                     b = np.array(known_emb)
                     # Cosine Similarity
                     score = np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
-                    # Threshold: 0.35
-                    if score > best_score and score > 0.35: 
+                    # Threshold: 0.30 (Relaxed from 0.35)
+                    if score > best_score and score > 0.30: 
                         best_score = score
                         name = known_face_names[i]
                         emp_id = known_face_ids[i]
