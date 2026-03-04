@@ -89,6 +89,7 @@ class SafeCapture:
             logger.error(f"SafeCapture: Error opening {self.src_val}: {e}")
 
     def _update(self):
+        consecutive_failures = 0
         while self.running:
             if self.cap is None or not self.cap.isOpened():
                 self._open_cap()
@@ -97,15 +98,23 @@ class SafeCapture:
                     continue
 
             try:
-                # Use read() directly as it's more robust for some high-res streams
                 ret, frame = self.cap.read()
                 if ret:
+                    consecutive_failures = 0
                     with self.lock:
                         self.frame = frame
                 else:
+                    consecutive_failures += 1
+                    if consecutive_failures > 30: # ~3 seconds of failure
+                        logger.warning(f"SafeCapture: Too many failures for {self.src_val}. Re-opening...")
+                        self.cap.release()
+                        self.cap = None
+                        consecutive_failures = 0
                     time.sleep(0.1)
             except Exception as e:
-                logger.debug(f"SafeCapture update loop error: {e}")
+                logger.error(f"SafeCapture update loop error for {self.src_val}: {e}")
+                self.cap.release()
+                self.cap = None
                 time.sleep(1)
 
     def read(self):
@@ -175,11 +184,13 @@ def run_camera_inference(camera, client):
     last_heartbeat_send = 0
     engine_start_time = time.time()
 
+    last_frame_log = 0
     while True:
         now = time.time()
         
-        # 1. Periodic DB sync: allow UI toggles to resume inference without restarting thread
+        # 1. Periodic DB sync
         if now - last_config_check >= 5.0:
+            # ... existing code ...
             try:
                 cams = client.get_cameras()
                 for c in cams:
