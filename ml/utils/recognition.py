@@ -3,8 +3,11 @@ import numpy as np
 # import database
 import pickle
 import os
+import logging
 import requests
 from deepface import DeepFace
+
+logger = logging.getLogger("recognition")
 
 # Global State
 known_face_encodings = []
@@ -115,7 +118,7 @@ def identify_faces(frame):
         # Try a more robust detector first (mediapipe is very fast and accurate for faces)
         # Fallback to opencv if mediapipe is not available or fails
         results = None
-        for backend in ['mediapipe', 'opencv']:
+        for backend in ['opencv', 'mediapipe']:
             try:
                 results = DeepFace.represent(
                     img_path=rgb_frame,
