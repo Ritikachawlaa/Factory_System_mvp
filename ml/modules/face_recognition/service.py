@@ -22,6 +22,9 @@ class FaceRecognitionService:
         
         # detection: (name, emp_id, score, (x, y, w, h))
         detection_results = recognition.identify_faces(target_img)
+        if detection_results:
+            logger.info(f"FaceRecognitionService: Found {len(detection_results)} faces in frame")
+        
         events = []
         bounding_boxes = []
         current_time = time.time()
