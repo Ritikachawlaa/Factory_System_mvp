@@ -177,6 +177,7 @@ def identify_faces(frame):
             detections.append((name, emp_id, best_score, (x, y, w, h)))
             
     except Exception as e:
+        logger.error(f"Main detector block failed: {type(e).__name__} - {e}")
         # Fallback to opencv if retinaface fails
         try:
              results = DeepFace.represent(
