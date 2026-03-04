@@ -27,6 +27,30 @@ BACKEND_URL = BACKEND_API_URL
 AWS_FIRST_RECOGNITION = os.getenv("AWS_FIRST_RECOGNITION", "true").lower() == "true"
 MIN_FACE_W = int(os.getenv("MIN_FACE_WIDTH", "70"))
 MIN_FACE_H = int(os.getenv("MIN_FACE_HEIGHT", "70"))
+AWS_MATCH_THRESHOLD_PRIMARY = int(os.getenv("AWS_REKOGNITION_MATCH_THRESHOLD", "55"))
+AWS_MATCH_THRESHOLD_FALLBACK = int(os.getenv("AWS_REKOGNITION_MATCH_THRESHOLD_FALLBACK", "45"))
+
+
+def _extract_face_crop(frame, region, pad_ratio=0.30):
+    """Crop face with padding to improve Rekognition matching robustness."""
+    h, w = frame.shape[:2]
+    x = int(region["x"])
+    y = int(region["y"])
+    bw = int(region["w"])
+    bh = int(region["h"])
+
+    pad_w = int(bw * pad_ratio)
+    pad_h = int(bh * pad_ratio)
+
+    x1 = max(0, x - pad_w)
+    y1 = max(0, y - pad_h)
+    x2 = min(w, x + bw + pad_w)
+    y2 = min(h, y + bh + pad_h)
+
+    if x2 <= x1 or y2 <= y1:
+        return None
+    crop = frame[y1:y2, x1:x2]
+    return crop if crop.size > 0 else None
 
 
 def load_known_faces():
@@ -198,12 +222,20 @@ def identify_faces(frame, is_crop=False):
             if AWS_FIRST_RECOGNITION and name == "Unknown":
                 try:
                     from .aws_face_service import aws_face_service
-                    face_crop = frame[int(region['y']):int(region['y']+region['h']),
-                                      int(region['x']):int(region['x']+region['w'])]
-                    if face_crop.size > 0:
-                        success, buffer = cv2.imencode(".jpg", face_crop)
+                    face_crop = _extract_face_crop(frame, region, pad_ratio=0.30)
+                    if face_crop is not None and face_crop.size > 0:
+                        success, buffer = cv2.imencode(".jpg", face_crop, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
                         if success:
-                            aws_match = aws_face_service.search_face(buffer.tobytes(), threshold=55)
+                            aws_match = aws_face_service.search_face(
+                                buffer.tobytes(),
+                                threshold=AWS_MATCH_THRESHOLD_PRIMARY
+                            )
+                            # Retry with lower threshold for difficult angles/lighting.
+                            if not aws_match and AWS_MATCH_THRESHOLD_FALLBACK < AWS_MATCH_THRESHOLD_PRIMARY:
+                                aws_match = aws_face_service.search_face(
+                                    buffer.tobytes(),
+                                    threshold=AWS_MATCH_THRESHOLD_FALLBACK
+                                )
                             if aws_match:
                                 emp_id_aws = int(aws_match['external_id'])
                                 if emp_id_aws not in known_face_ids:
