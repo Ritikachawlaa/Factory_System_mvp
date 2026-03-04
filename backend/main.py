@@ -1175,9 +1175,7 @@ def get_ml_initial_state():
     import pickle
     
     for emp in employees:
-        # emp = (name, embedding, id)
-        # Check type of embedding
-        emb = emp[1]
+        emb = emp.get("embedding")
         if isinstance(emb, bytes):
              try:
                  emb = pickle.loads(emb)
@@ -1188,9 +1186,11 @@ def get_ml_initial_state():
              emb = emb.tolist()
         
         clean_employees.append({
-            "id": emp[2],
-            "name": emp[0],
-            "embedding": emb
+            "id": emp.get("id"),
+            "name": emp.get("name"),
+            "embedding": emb,
+            "department": emp.get("dept"),
+            "status": emp.get("status")
         })
     
     # Also return module configs?
