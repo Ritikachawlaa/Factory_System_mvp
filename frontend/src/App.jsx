@@ -24,6 +24,7 @@ import AttendancePage from './components/AttendancePage'
 import AuditLogsPage from './components/AuditLogsPage'
 import PrivacyPolicy from './components/PrivacyPolicy'
 import TermsOfService from './components/TermsOfService'
+import FaceAnalyticsPage from './components/face_rec/FaceAnalyticsPage'
 
 import CameraDashboard from './components/camera/CameraDashboard';
 import CameraModuleDetail from './components/camera/CameraModuleDetail';
@@ -78,6 +79,7 @@ function AppRoutes() {
       <Route path="/loitering-detection" element={<ProtectedRoute><LoiteringDetection /></ProtectedRoute>} />
       <Route path="/line-crossing" element={<ProtectedRoute><LineCrossing /></ProtectedRoute>} />
       <Route path="/audit-logs" element={<ProtectedRoute><AuditLogsPage /></ProtectedRoute>} />
+      <Route path="/face-analytics" element={<ProtectedRoute><FaceAnalyticsPage /></ProtectedRoute>} />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       <Route path="/terms-of-service" element={<TermsOfService />} />
     </Routes>

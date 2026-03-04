@@ -41,7 +41,7 @@ const Header = () => {
             </div>
 
             <nav style={{ display: 'flex', gap: '2rem' }}>
-                {['Dashboard', 'Cameras', 'Analytics', 'Alerts', 'Attendance', 'Settings'].map((item) => {
+                {['Dashboard', 'Cameras', 'Analytics', 'Face Analytics', 'Alerts', 'Attendance', 'Settings'].map((item) => {
                     const path = item === 'Dashboard' ? '/' : `/${item.toLowerCase().replace("'", "").replace(' ', '-')}`;
                     const isActive = location.pathname === path || (item === 'Dashboard' && location.pathname === '/');
 
