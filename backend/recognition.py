@@ -9,8 +9,20 @@ logger = logging.getLogger("recognition")
 ML_API_URL = os.getenv("ML_API_URL", "http://98.88.233.228:5174")
 
 def load_known_faces():
-    """STUB: Faces loaded by ML engine independently."""
-    pass
+    """
+    Signal the remote ML engine to reload known faces from the database.
+    """
+    try:
+        logger.info(f"Triggering face reload on ML Instance at {ML_API_URL}")
+        response = requests.post(f"{ML_API_URL}/reload_faces", timeout=5)
+        if response.status_code == 200:
+            logger.info("ML Instance successfully reloaded faces.")
+            return True
+        else:
+            logger.warning(f"ML Instance reload failed: {response.text}")
+    except Exception as e:
+        logger.error(f"Failed to trigger face reload on ML Instance: {e}")
+    return False
 
 def load_models():
     """STUB: Models loaded on remote ML Instance."""

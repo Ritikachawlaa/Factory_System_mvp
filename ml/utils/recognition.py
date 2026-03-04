@@ -80,7 +80,8 @@ def get_embedding(image_data):
         results = DeepFace.represent(
             img_path=image_data,
             model_name=MODEL_NAME,
-            enforce_detection=True # Strict for registration
+            enforce_detection=True, # Strict for registration
+            align=True # Ensure consistent alignment with inference
         )
         if results:
             return results[0]["embedding"]
@@ -117,27 +118,30 @@ def identify_faces(frame, is_crop=False):
     
     try:
         # Try a more robust detector first (mediapipe is very fast and accurate for faces)
-        # Fallback to opencv if mediapipe is not available or fails
+        # retinaface is the most accurate but slower
         results = None
-        for backend in ['opencv', 'mediapipe']:
+        for backend in ['retinaface', 'mediapipe', 'opencv']:
             try:
                 results = DeepFace.represent(
-                    img_path=frame, # Pass original BGR frame
+                    img_path=frame, 
                     model_name=MODEL_NAME,
                     enforce_detection=False,
-                    detector_backend=backend
+                    detector_backend=backend,
+                    align=True
                 )
                 if results and len(results) > 0:
-                    # Check if it actually found a facial area or just the whole frame
-                    # If it's more than 90% of the area, it's probably a fallback "no face" result
+                    # Check if it actually found a facial area
                     total_area = frame.shape[0] * frame.shape[1]
                     region = results[0]["facial_area"]
                     found_area = region['w'] * region['h']
-                    if is_crop or found_area < total_area * 0.9:
+                    
+                    # If it basically returns the whole image, it likely failed detection (when enforce_detection=False)
+                    if is_crop or found_area < total_area * 0.8:
                         logger.info(f"ML: Detected {len(results)} faces using {backend} backend.")
                         break
                     else:
-                        logger.warning(f"ML: Backend {backend} found area {found_area}/{total_area} - likely fake. Skipping.")
+                        logger.warning(f"ML: Backend {backend} found area {found_area}/{total_area} ({(found_area/total_area)*100:.1f}%) - likely fake detection. Trying next.")
+                        results = None
             except Exception as e:
                 logger.debug(f"Detector {backend} failed: {e}")
                 continue
@@ -167,14 +171,18 @@ def identify_faces(frame, is_crop=False):
                     b = np.array(known_emb).flatten()
                     # Cosine Similarity
                     score = np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
-                    # Threshold: 0.30 (Maintain relaxed threshold)
-                    if score > best_score and score > 0.30: 
+                    
+                    # Use a very relaxed threshold for now to see IF it matches
+                    # Requirement says it shows "unknown" even if photo is uploaded
+                    if score > best_score and score > 0.25: 
                         best_score = score
                         name = known_face_names[i]
                         emp_id = known_face_ids[i]
                 
                 if name != "Unknown":
-                    logger.info(f"ML Face Match: Best score={best_score:.4f}, Assigned Name={name}")
+                    logger.info(f"ML Face Match: SUCCESS! Name={name}, Score={best_score:.4f}")
+                else:
+                    logger.warning(f"ML Face Match: FAILED. Best score was {best_score:.4f} (Threshold: 0.25)")
             
             x = int(region['x'])
             y = int(region['y'])
@@ -200,14 +208,21 @@ def identify_faces(frame, is_crop=False):
                 emp_id = None
                 best_score = 0.0
                 if len(known_face_encodings) > 0:
-                    a = np.array(embedding)
+                    a = np.array(embedding).flatten()
                     for i, known_emb in enumerate(known_face_encodings):
-                        b = np.array(known_emb)
+                        b = np.array(known_emb).flatten()
                         score = np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
-                        if score > best_score and score > 0.30: 
+                        
+                        # Set to 0.28: Robust but relaxed for varying conditions
+                        if score > best_score and score > 0.28: 
                             best_score = score
                             name = known_face_names[i]
                             emp_id = known_face_ids[i]
+                
+                if name != "Unknown":
+                    logger.info(f"ML Face Match: SUCCESS! Name={name}, Score={best_score:.4f}")
+                else:
+                    logger.warning(f"ML Face Match: FAILED. Best score was {best_score:.4f} (Threshold: 0.28)")
                 detections.append((name, emp_id, best_score, (int(region['x']), int(region['y']), int(region['w']), int(region['h']))))
         except:
             pass

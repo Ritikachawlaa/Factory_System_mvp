@@ -55,6 +55,17 @@ def generate_embedding():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/reload_faces', methods=['POST'])
+def reload_faces():
+    """
+    Trigger a reload of known faces from the Backend API.
+    """
+    try:
+        recognition.load_known_faces()
+        return jsonify({"status": "success", "message": "Faces reloaded"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     # Load models before starting
     recognition.load_models()

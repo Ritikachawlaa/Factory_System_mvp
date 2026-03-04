@@ -69,7 +69,19 @@ class BaseDetector:
         Returns list of (x1, y1, x2, y2, track_id, confidence, class_id).
         """
         is_gpu = self.device.type == "cuda"
-        results = self.model.track(frame, classes=classes, persist=True, conf=self.conf, verbose=False, device=self.device, half=is_gpu)[0]
+        # Standardize imgsz to 640 and use BoT-SORT (default) with more persistent settings if needed
+        # We can also explicitly pass a tracker config file if we have one.
+        results = self.model.track(
+            frame, 
+            classes=classes, 
+            persist=True, 
+            conf=self.conf, 
+            verbose=False, 
+            device=self.device, 
+            half=is_gpu,
+            imgsz=640,
+            tracker="botsort.yaml" # Most robust for high-overlap scenarios
+        )[0]
         
         tracks = []
         if results.boxes is not None:
