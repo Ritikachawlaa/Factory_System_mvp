@@ -31,12 +31,12 @@ from modules.object_removal.service import ObjectRemovalService
 from modules.object_detection.service import ObjectDetectionService
 from utils.integration_service import integration_service
 
-# Load Env
-load_dotenv()
-
 # Logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("ml_service")
+
+# Global RTSP Optimizations for high-res streams
+os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;udp"
 
 # Services Map
 SERVICES = {
@@ -82,8 +82,6 @@ class SafeCapture:
     def _open_cap(self):
         try:
             if isinstance(self.src_val, str) and self.src_val.startswith("rtsp://"):
-                # Use UDP for lower latency/higher resilience in high-res streams
-                os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;udp"
                 self.cap = cv2.VideoCapture(self.src_val, cv2.CAP_FFMPEG)
             else:
                 self.cap = cv2.VideoCapture(self.src_val)
