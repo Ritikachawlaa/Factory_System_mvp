@@ -82,7 +82,8 @@ class SafeCapture:
     def _open_cap(self):
         try:
             if isinstance(self.src_val, str) and self.src_val.startswith("rtsp://"):
-                os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|analyzeduration;1000000|probesize;1000000|timeout;5000000"
+                # Use UDP for lower latency/higher resilience in high-res streams
+                os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;udp"
                 self.cap = cv2.VideoCapture(self.src_val, cv2.CAP_FFMPEG)
             else:
                 self.cap = cv2.VideoCapture(self.src_val)
