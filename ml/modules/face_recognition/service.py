@@ -27,13 +27,15 @@ class FaceRecognitionService:
         current_time = time.time()
 
         for name, emp_id, score, (x, y, w, h) in detection_results:
-            # If we are in a crop, x/y are relative to the crop
-            # If we are in full frame, they are absolute
+            color = (0, 255, 0) if name != "Unknown" else (0, 0, 255)
             
-            # Format label
-            display_label = name
-            if name != "Unknown" and emp_id is not None:
-                display_label = f"{name} (ID: {emp_id})"
+            # Format label - Ensure it's identifiable as a face by the frontend
+            if name == "Unknown":
+                display_label = "Unknown Face"
+            elif emp_id is not None:
+                display_label = f"{name} (ID: {emp_id}) Face"
+            else:
+                display_label = f"{name} Face"
 
             # Link to Track ID via IntegrationService if info provided
             if tracked_info and "track_id" in tracked_info:
