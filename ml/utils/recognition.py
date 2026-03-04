@@ -25,6 +25,8 @@ from config import BACKEND_API_URL, MODEL_NAME
 
 BACKEND_URL = BACKEND_API_URL
 AWS_FIRST_RECOGNITION = os.getenv("AWS_FIRST_RECOGNITION", "true").lower() == "true"
+MIN_FACE_W = int(os.getenv("MIN_FACE_WIDTH", "70"))
+MIN_FACE_H = int(os.getenv("MIN_FACE_HEIGHT", "70"))
 
 
 def load_known_faces():
@@ -180,6 +182,15 @@ def identify_faces(frame, is_crop=False):
             if not is_crop and (region['w'] * region['h']) > (total_area * 0.95):
                 logger.warning("Skipping match because area is too large (likely no face found)")
                 continue
+            if int(region['w']) < MIN_FACE_W or int(region['h']) < MIN_FACE_H:
+                logger.debug(
+                    "Skipping tiny face crop w=%s h=%s (<%s x <%s)",
+                    int(region['w']),
+                    int(region['h']),
+                    MIN_FACE_W,
+                    MIN_FACE_H,
+                )
+                continue
 
             # AWS-first architecture:
             # Detect face locally, then match against Rekognition collection.
@@ -192,7 +203,7 @@ def identify_faces(frame, is_crop=False):
                     if face_crop.size > 0:
                         success, buffer = cv2.imencode(".jpg", face_crop)
                         if success:
-                            aws_match = aws_face_service.search_face(buffer.tobytes(), threshold=60)
+                            aws_match = aws_face_service.search_face(buffer.tobytes(), threshold=55)
                             if aws_match:
                                 emp_id_aws = int(aws_match['external_id'])
                                 if emp_id_aws not in known_face_ids:
@@ -234,29 +245,6 @@ def identify_faces(frame, is_crop=False):
                         best_score = score
                         name = gallery_face_names[i]
                         # emp_id remains None
-
-            # 3. Try AWS Rekognition for unresolved faces (independent of gallery size)
-            if name == "Unknown":
-                try:
-                    from .aws_face_service import aws_face_service
-                    face_crop = frame[int(region['y']):int(region['y']+region['h']),
-                                      int(region['x']):int(region['x']+region['w'])]
-                    if face_crop.size > 0:
-                        success, buffer = cv2.imencode(".jpg", face_crop)
-                        if success:
-                            aws_match = aws_face_service.search_face(buffer.tobytes())
-                            if aws_match:
-                                emp_id_aws = int(aws_match['external_id'])
-                                if emp_id_aws in known_face_ids:
-                                    idx = known_face_ids.index(emp_id_aws)
-                                    name = known_face_names[idx]
-                                    emp_id = emp_id_aws
-                                    best_score = aws_match['confidence']
-                                    logger.info(f"AWS Match: {name} ({best_score:.2f})")
-                                else:
-                                    logger.info(f"AWS matched employee id {emp_id_aws}, but it is not loaded in ML known_face_ids.")
-                except Exception as e:
-                    logger.debug(f"AWS Search skip: {e}")
 
             if name != "Unknown":
                 logger.info(f"ML Face Match: SUCCESS! Name={name}, Score={best_score:.4f}")

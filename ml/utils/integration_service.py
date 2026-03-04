@@ -46,6 +46,11 @@ class IntegrationService:
                 return data["name"]
         return None
 
+    def touch_identity(self, track_id: int):
+        """Refresh TTL for an already-linked track identity."""
+        if track_id in self.track_identities:
+            self.track_identities[track_id]["last_seen"] = time.time()
+
     def cleanup(self):
         now = time.time()
         to_delete = [tid for tid, data in self.track_identities.items() 

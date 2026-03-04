@@ -24,6 +24,7 @@ class FaceRecognitionService:
             from utils.integration_service import integration_service
             existing_identity = integration_service.get_identity(track_id)
             if existing_identity and "Unknown" not in existing_identity:
+                integration_service.touch_identity(track_id)
                 # Already matched! Return the locked identity
                 return frame, [], [{
                     "id": track_id,
