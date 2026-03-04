@@ -13,6 +13,11 @@ import PPEAnalyticsDashboard from '../analytics/PPEAnalyticsDashboard';
 import LabourAnalyticsDashboard from '../analytics/LabourAnalyticsDashboard';
 import AbandonmentAnalyticsDashboard from '../analytics/AbandonmentAnalyticsDashboard';
 import RemovalAnalyticsDashboard from '../analytics/RemovalAnalyticsDashboard';
+import PeopleCountDashboard from '../analytics/PeopleCountDashboard';
+import IntrusionAnalyticsDashboard from '../analytics/IntrusionAnalyticsDashboard';
+import LoiteringAnalyticsDashboard from '../analytics/LoiteringAnalyticsDashboard';
+import EntryExitAnalyticsDashboard from '../analytics/EntryExitAnalyticsDashboard';
+import LineCrossingAnalyticsDashboard from '../analytics/LineCrossingAnalyticsDashboard';
 import modulesApi from '../../api/modules.api';
 
 
@@ -200,6 +205,14 @@ const CameraModuleDetail = () => {
                                 <AbandonmentAnalyticsDashboard cameraId={cameraId} />
                             ) : moduleType === 'object-removal' ? (
                                 <RemovalAnalyticsDashboard cameraId={cameraId} />
+                            ) : moduleType === 'intrusion-detection' ? (
+                                <IntrusionAnalyticsDashboard cameraId={cameraId} />
+                            ) : moduleType === 'loitering-detection' ? (
+                                <LoiteringAnalyticsDashboard cameraId={cameraId} />
+                            ) : moduleType === 'entry-exit' ? (
+                                <EntryExitAnalyticsDashboard cameraId={cameraId} />
+                            ) : moduleType === 'line-crossing' ? (
+                                <LineCrossingAnalyticsDashboard cameraId={cameraId} />
                             ) : (
                                 <div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed var(--panel-border)', borderRadius: '8px', marginTop: '1rem' }}>
                                     <span style={{ color: 'var(--text-secondary)' }}>Chart Placeholder - {config.label} Trends</span>

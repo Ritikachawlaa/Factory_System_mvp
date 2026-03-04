@@ -996,6 +996,56 @@ def api_people_trend(camera_id: int):
 def api_people_timeline(camera_id: int):
     return database.get_people_timeline(camera_id)
 
+# --- Security Module Analytics Endpoints ---
+
+@app.get("/api/cameras/{camera_id}/intrusion-stats")
+def api_intrusion_stats(camera_id: int):
+    return database.get_security_module_analytics("intrusion-detection", camera_id)
+
+@app.get("/api/cameras/{camera_id}/intrusion-trend")
+def api_intrusion_trend(camera_id: int):
+    return database.get_security_module_trend("intrusion-detection", camera_id)
+
+@app.get("/api/cameras/{camera_id}/intrusion-timeline")
+def api_intrusion_timeline(camera_id: int):
+    return database.get_security_module_timeline("intrusion-detection", camera_id)
+
+@app.get("/api/cameras/{camera_id}/loitering-stats")
+def api_loitering_stats(camera_id: int):
+    return database.get_security_module_analytics("loitering-detection", camera_id)
+
+@app.get("/api/cameras/{camera_id}/loitering-trend")
+def api_loitering_trend(camera_id: int):
+    return database.get_security_module_trend("loitering-detection", camera_id)
+
+@app.get("/api/cameras/{camera_id}/loitering-timeline")
+def api_loitering_timeline(camera_id: int):
+    return database.get_security_module_timeline("loitering-detection", camera_id)
+
+@app.get("/api/cameras/{camera_id}/entry-exit-stats")
+def api_entry_exit_stats(camera_id: int):
+    return database.get_security_module_analytics("entry-exit", camera_id)
+
+@app.get("/api/cameras/{camera_id}/entry-exit-trend")
+def api_entry_exit_trend(camera_id: int):
+    return database.get_security_module_trend("entry-exit", camera_id)
+
+@app.get("/api/cameras/{camera_id}/entry-exit-timeline")
+def api_entry_exit_timeline(camera_id: int):
+    return database.get_security_module_timeline("entry-exit", camera_id)
+
+@app.get("/api/cameras/{camera_id}/line-crossing-stats")
+def api_line_crossing_stats(camera_id: int):
+    return database.get_security_module_analytics("line-crossing", camera_id)
+
+@app.get("/api/cameras/{camera_id}/line-crossing-trend")
+def api_line_crossing_trend(camera_id: int):
+    return database.get_security_module_trend("line-crossing", camera_id)
+
+@app.get("/api/cameras/{camera_id}/line-crossing-timeline")
+def api_line_crossing_timeline(camera_id: int):
+    return database.get_security_module_timeline("line-crossing", camera_id)
+
 
 
 @app.get("/api/cameras/{cam_id}/modules")

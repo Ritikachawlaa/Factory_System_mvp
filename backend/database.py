@@ -5,6 +5,7 @@ import datetime
 import logging
 import json
 import random
+import re
 from typing import List, Tuple, Optional
 from sqlalchemy import create_engine, text, Column, Integer, String, DateTime, Float, Boolean, ForeignKey
 
@@ -1016,6 +1017,170 @@ def get_people_trend(camera_id: int = None):
         print(f"Get People Trend Error: {e}")
         labels = ["08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00"]
         return {"labels": labels, "today": [0]*7, "yesterday": [0]*7}
+    finally:
+        conn.close()
+
+def _extract_track_ids_from_metadata(metadata):
+    ids = set()
+    if metadata is None:
+        return ids
+
+    parsed = metadata
+    if isinstance(metadata, str):
+        try:
+            parsed = json.loads(metadata)
+        except Exception:
+            parsed = metadata
+
+    def _add_value(value):
+        if value is None:
+            return
+        if isinstance(value, int):
+            ids.add(value)
+            return
+        if isinstance(value, str):
+            m = re.search(r"\d+", value)
+            if m:
+                ids.add(int(m.group(0)))
+            return
+        if isinstance(value, list):
+            for item in value:
+                _add_value(item)
+
+    if isinstance(parsed, dict):
+        for key in ("track_id", "trackId", "track_ids", "trackIds", "ids"):
+            _add_value(parsed.get(key))
+        meta_val = parsed.get("meta")
+        if meta_val is not None:
+            parsed = str(meta_val)
+
+    text_blob = str(parsed)
+
+    for match in re.findall(r"(?i)track\s*id\s*[:=#]?\s*(\d+)", text_blob):
+        ids.add(int(match))
+    for match in re.findall(r"(?i)\bid\s*#\s*(\d+)", text_blob):
+        ids.add(int(match))
+
+    list_match = re.search(r"(?i)track\s*ids?\s*[:=]\s*\[([0-9,\s]+)\]", text_blob)
+    if list_match:
+        for item in list_match.group(1).split(","):
+            item = item.strip()
+            if item.isdigit():
+                ids.add(int(item))
+
+    return ids
+
+def get_security_module_analytics(module_key: str, camera_id: int = None):
+    conn = get_connection()
+    try:
+        query = """
+            SELECT metadata, timestamp, confidence
+            FROM events
+            WHERE module_key = :key AND timestamp >= CURRENT_DATE
+        """
+        params = {"key": module_key}
+        if camera_id:
+            query += " AND camera_id = :cid"
+            params["cid"] = camera_id
+
+        rows = conn.execute(text(query), params).fetchall()
+
+        total_events = len(rows)
+        unique_track_ids = set()
+        hour_counts = {}
+        conf_sum = 0.0
+        conf_n = 0
+
+        for metadata, ts, conf in rows:
+            unique_track_ids.update(_extract_track_ids_from_metadata(metadata))
+
+            if ts is not None:
+                ts_str = str(ts)
+                if len(ts_str) >= 13:
+                    hr = ts_str[11:13]
+                    hour_counts[hr] = hour_counts.get(hr, 0) + 1
+
+            if conf is not None:
+                try:
+                    conf_sum += float(conf)
+                    conf_n += 1
+                except Exception:
+                    pass
+
+        peak_hour = None
+        if hour_counts:
+            peak_hour = int(max(hour_counts.items(), key=lambda x: x[1])[0])
+
+        return {
+            "total_events": total_events,
+            "unique_tracks": len(unique_track_ids),
+            "peak_hour": peak_hour,
+            "avg_confidence": round((conf_sum / conf_n), 2) if conf_n else 0.0
+        }
+    except Exception as e:
+        print(f"Get Security Module Analytics Error ({module_key}): {e}")
+        return {"total_events": 0, "unique_tracks": 0, "peak_hour": None, "avg_confidence": 0.0}
+    finally:
+        conn.close()
+
+def get_security_module_timeline(module_key: str, camera_id: int = None, limit: int = 50):
+    events = get_events_filtered(camera_id=camera_id, module_key=module_key, limit=limit)
+    results = []
+    for e in events:
+        metadata = e.get("metadata")
+        track_ids = sorted(_extract_track_ids_from_metadata(metadata))
+        track_id = track_ids[0] if track_ids else None
+        conf = e.get("confidence")
+        conf_text = f"{int(float(conf) * 100)}%" if conf is not None else "--"
+        results.append({
+            "time": e["timestamp"].split(" ")[1] if " " in e["timestamp"] else e["timestamp"],
+            "label": e["label"],
+            "meta": metadata if metadata else "",
+            "track_id": track_id,
+            "confidence": conf_text
+        })
+    return results
+
+def get_security_module_trend(module_key: str, camera_id: int = None):
+    conn = get_connection()
+    try:
+        query = "SELECT timestamp FROM events WHERE module_key = :key AND timestamp >= datetime('now', '-1 day')"
+        if "postgresql" in str(conn.engine.url):
+            query = "SELECT timestamp FROM events WHERE module_key = :key AND timestamp >= CURRENT_DATE - INTERVAL '1 day'"
+
+        params = {"key": module_key}
+        if camera_id:
+            query += " AND camera_id = :cid"
+            params["cid"] = camera_id
+
+        rows = conn.execute(text(query), params).fetchall()
+
+        from datetime import datetime
+        today_str = datetime.now().strftime("%Y-%m-%d")
+
+        labels_hours = ["08", "10", "12", "14", "16", "18", "20"]
+        labels = [f"{h}:00" for h in labels_hours]
+        today_data = {h: 0 for h in labels_hours}
+        yesterday_data = {h: 0 for h in labels_hours}
+
+        for r in rows:
+            ts_str = str(r[0])
+            hr = ts_str[11:13] if len(ts_str) >= 13 else None
+            if hr in today_data:
+                if ts_str.startswith(today_str):
+                    today_data[hr] += 1
+                else:
+                    yesterday_data[hr] += 1
+
+        return {
+            "labels": labels,
+            "today": [today_data[h] for h in labels_hours],
+            "yesterday": [yesterday_data[h] for h in labels_hours]
+        }
+    except Exception as e:
+        print(f"Get Security Module Trend Error ({module_key}): {e}")
+        labels = ["08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00"]
+        return {"labels": labels, "today": [0] * 7, "yesterday": [0] * 7}
     finally:
         conn.close()
 

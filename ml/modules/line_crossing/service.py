@@ -23,6 +23,33 @@ class LineCrossingService:
         self.line_y = 240 # Default to middle of 480p
         self.count_up = 0
         self.count_down = 0
+
+    def _match_tracks_to_boxes(self, boxes, tracked_objects):
+        centroids = []
+        for (x1, y1, x2, y2) in boxes:
+            cx = int((x1 + x2) / 2)
+            cy = int((y1 + y2) / 2)
+            centroids.append((cx, cy, (x1, y1, x2, y2)))
+
+        used_indices = set()
+        track_boxes = {}
+
+        for track_id, (cx, cy) in tracked_objects.items():
+            best_idx = None
+            best_dist = float("inf")
+            for idx, (bx, by, box) in enumerate(centroids):
+                if idx in used_indices:
+                    continue
+                dist = (cx - bx) ** 2 + (cy - by) ** 2
+                if dist < best_dist:
+                    best_dist = dist
+                    best_idx = idx
+
+            if best_idx is not None:
+                used_indices.add(best_idx)
+                track_boxes[track_id] = centroids[best_idx][2]
+
+        return track_boxes
         
     def load_model(self):
         if not self.model_loaded:
@@ -54,16 +81,11 @@ class LineCrossingService:
         
         # Track
         objects = self.tracker.update(boxes)
+        track_boxes = self._match_tracks_to_boxes(boxes, objects)
         
         current_centroids = objects
         events = []
         bounding_boxes = []
-        
-        for (x1, y1, x2, y2) in boxes:
-            bounding_boxes.append({
-                "class": "Person",
-                "x": int(x1), "y": int(y1), "w": int(x2 - x1), "h": int(y2 - y1), "confidence": 1.0
-            })
         
         # Check crossings
         for obj_id, (cx, cy) in current_centroids.items():
@@ -75,10 +97,10 @@ class LineCrossingService:
                 if status:
                     if status == "UP_TO_DOWN":
                         self.count_down += 1
-                        label = "Line Cross (Down)"
+                        label = f"Line Cross Down (ID #{obj_id})"
                     else:
                         self.count_up += 1
-                        label = "Line Cross (Up)"
+                        label = f"Line Cross Up (ID #{obj_id})"
                         
                     # Log Event
                     event = {
@@ -86,7 +108,7 @@ class LineCrossingService:
                         "module_key": "line-crossing",
                         "label": label,
                         "confidence": 1.0,
-                        "meta": f"Total: Up={self.count_up}, Down={self.count_down}"
+                        "meta": f"Track ID: {obj_id}, Direction: {status}, Total: Up={self.count_up}, Down={self.count_down}"
                     }
                     events.append(event)
         
@@ -98,12 +120,22 @@ class LineCrossingService:
         cv2.line(frame, (0, self.line_y), (w, self.line_y), (0, 0, 255), 2)
         
         # Draw Boxes & IDs
-        for (x1, y1, x2, y2) in boxes:
+        for obj_id, (x1, y1, x2, y2) in track_boxes.items():
             cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
+            cv2.putText(frame, f"ID {obj_id}", (x1, max(20, y1 - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
+            bounding_boxes.append({
+                "class": "Person",
+                "track_id": int(obj_id),
+                "x": int(x1),
+                "y": int(y1),
+                "w": int(x2 - x1),
+                "h": int(y2 - y1),
+                "confidence": 1.0
+            })
             
         for obj_id, (cx, cy) in current_centroids.items():
              cv2.circle(frame, (cx, cy), 4, (0, 255, 0), -1)
-             cv2.putText(frame, f"ID {obj_id}", (cx - 10, cy - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+             cv2.putText(frame, f"T{obj_id}", (cx - 10, cy - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
         # Overlay Stats
         cv2.putText(frame, f"Up: {self.count_up} Down: {self.count_down}", (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
