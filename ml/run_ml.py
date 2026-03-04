@@ -99,13 +99,8 @@ class SafeCapture:
                     continue
 
             try:
-                # grab() skips the decoding step for older frames in the buffer
-                if not self.cap.grab():
-                    time.sleep(0.1)
-                    continue
-                
-                # retrieve() gets the latest grabbed frame
-                ret, frame = self.cap.retrieve()
+                # Use read() directly as it's more robust for some high-res streams
+                ret, frame = self.cap.read()
                 if ret:
                     with self.lock:
                         self.frame = frame
