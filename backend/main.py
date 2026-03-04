@@ -259,11 +259,13 @@ async def websocket_detections(
         detection_manager.disconnect(username, camera_id)
 
 
-# Mount Visitors directory
-VISITORS_DIR = os.path.join(os.path.dirname(__file__), "visitors")
-if not os.path.exists(VISITORS_DIR):
-    os.makedirs(VISITORS_DIR)
 app.mount("/visitors", StaticFiles(directory=VISITORS_DIR), name="visitors")
+
+# Mount Employees Uploads directory
+EMPLOYEES_UPLOAD_DIR = os.path.join(os.getcwd(), "uploads", "employees")
+if not os.path.exists(EMPLOYEES_UPLOAD_DIR):
+    os.makedirs(EMPLOYEES_UPLOAD_DIR, exist_ok=True)
+app.mount("/uploads/employees", StaticFiles(directory=EMPLOYEES_UPLOAD_DIR), name="employee_photos")
 
 # --- Models ---
 class SystemSettingUpdate(BaseModel):
@@ -290,7 +292,9 @@ class CameraCreate(BaseModel):
     enabled_models: List[str] = []
 
 class EmployeeUpdate(BaseModel):
-    name: str
+    name: Optional[str] = None
+    dept: Optional[str] = None
+    status: Optional[str] = None
 
 class ModuleConfig(BaseModel):
     enabled: bool
@@ -619,6 +623,20 @@ def get_employees():
         # Return fallback mock to prevent frontend crash while debugging
         return []
 
+@app.get("/employees")
+def get_employees():
+    employees = database.get_all_employees()
+    # Mask embeddings for frontend performance
+    for e in employees:
+        e.pop("embedding", None)
+        # Construct image URL
+        if e.get("photo_path"):
+            filename = os.path.basename(e["photo_path"])
+            e["image_url"] = f"/uploads/employees/{filename}"
+        else:
+            e["image_url"] = None
+    return employees
+
 @app.post("/employees")
 async def add_employee(
     name: str = Form(...), 
@@ -631,35 +649,60 @@ async def add_employee(
         contents = await file.read()
         logger.info(f"Adding employee {name} in {dept}")
         
+        # Save photo to disk
+        filename = f"{int(time.time())}_{file.filename.replace(' ', '_')}"
+        file_path = os.path.join(EMPLOYEES_UPLOAD_DIR, filename)
+        with open(file_path, "wb") as f:
+            f.write(contents)
+        
         # Process image for embedding directly
         embedding, error_detail = recognition.get_embedding_from_bytes(contents)
         if embedding is None:
+            if os.path.exists(file_path): os.remove(file_path)
             logger.warning(f"Embedding generation failed for employee {name}: {error_detail}")
-            # Relay the specific error detail to help debugging
             raise HTTPException(status_code=400, detail=f"AI Error: {error_detail}")
         
-        database.add_employee(name, embedding, dept, status)
+        database.add_employee(name, embedding, dept, status, photo_path=file_path)
         recognition.load_known_faces()
         
         logger.info(f"Successfully added employee {name}")
-        return {"message": f"Employee {name} added"}
+        return {"message": f"Employee {name} added", "image_url": f"/uploads/employees/{filename}"}
     except HTTPException as he:
         raise he
     except Exception as e:
         logger.error(f"Critical error in add_employee: {str(e)}")
-        import traceback
-        logger.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail="Internal Server Error during registration. Please check server logs.")
+        raise HTTPException(status_code=500, detail=f"Internal Error: {str(e)}")
 
 @app.delete("/employees/{emp_id}")
 def delete_employee(emp_id: int, current_user = Depends(get_current_user)):
+    all_emps = database.get_all_employees()
+    target = next((e for e in all_emps if e['id'] == emp_id), None)
+    if target and target.get('photo_path') and os.path.exists(target['photo_path']):
+        try: os.remove(target['photo_path'])
+        except: pass
+
     database.delete_employee(emp_id)
     recognition.load_known_faces() # Reload
     return {"message": "Employee deleted"}
 
 @app.put("/employees/{emp_id}")
-def update_employee(emp_id: int, update: EmployeeUpdate, current_user = Depends(get_current_user)):
-    database.update_employee(emp_id, update.name)
+async def update_employee(
+    emp_id: int, 
+    name: Optional[str] = Form(None),
+    dept: Optional[str] = Form(None),
+    status: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None),
+    current_user = Depends(get_current_user)
+):
+    photo_path = None
+    if file:
+        contents = await file.read()
+        filename = f"updated_{int(time.time())}_{file.filename.replace(' ', '_')}"
+        photo_path = os.path.join(EMPLOYEES_UPLOAD_DIR, filename)
+        with open(photo_path, "wb") as f:
+            f.write(contents)
+            
+    database.update_employee(emp_id, name=name, dept=dept, status=status, photo_path=photo_path)
     recognition.load_known_faces() # Reload
     return {"message": "Employee updated"}
 
@@ -671,9 +714,30 @@ async def register_employee(file: UploadFile = File(...), name: str = Form(...))
     if embedding is None:
         raise HTTPException(status_code=400, detail="No face detected in the image")
     
-    database.add_employee(name, embedding)
+    # Save photo for registration too
+    filename = f"reg_{int(time.time())}_{file.filename.replace(' ', '_')}"
+    file_path = os.path.join(EMPLOYEES_UPLOAD_DIR, filename)
+    with open(file_path, "wb") as f:
+        f.write(contents)
+
+    database.add_employee(name, embedding, photo_path=file_path)
     recognition.load_known_faces()
     return {"message": f"Employee {name} registered successfully"}
+
+# --- Face Analytics Endpoints ---
+
+@app.get("/api/cameras/{cam_id}/face-stats")
+def get_face_stats_api(cam_id: int, current_user = Depends(oauth2_scheme_optional)):
+    # Using existing DB function
+    return database.get_face_analytics(camera_id=cam_id)
+
+@app.get("/api/cameras/{cam_id}/face-trend")
+def get_face_trend_api(cam_id: int, current_user = Depends(oauth2_scheme_optional)):
+    return database.get_face_trend(camera_id=cam_id)
+
+@app.get("/api/cameras/{cam_id}/face-timeline")
+def get_face_timeline_api(cam_id: int, current_user = Depends(oauth2_scheme_optional)):
+    return database.get_face_timeline(camera_id=cam_id)
 
 
 

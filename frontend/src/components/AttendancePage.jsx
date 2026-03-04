@@ -167,7 +167,7 @@ const AttendancePage = () => {
     };
 
     const handleAddEmployee = async () => {
-        if (!newEmployee.name || !newEmployee.photoFile) {
+        if (!newEmployee.name || (!newEmployee.fingerprint && !newEmployee.photoFile)) {
             alert("Please provide at least a name and a photo.");
             return;
         }
@@ -178,7 +178,9 @@ const AttendancePage = () => {
             formData.append('name', newEmployee.name);
             formData.append('dept', newEmployee.dept);
             formData.append('status', newEmployee.status);
-            formData.append('file', newEmployee.photoFile);
+            if (newEmployee.photoFile) {
+                formData.append('file', newEmployee.photoFile);
+            }
 
             const resp = await fetch(`${API_BASE_URL}/employees`, {
                 method: 'POST',
@@ -198,6 +200,62 @@ const AttendancePage = () => {
         } catch (err) {
             console.error("Add Employee Error:", err);
             alert("An error occurred while saving the employee.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleDeleteEmployee = async (id) => {
+        if (!window.confirm("Are you sure you want to delete this employee? This will also remove their face registration.")) return;
+        try {
+            const resp = await fetch(`${API_BASE_URL}/employees/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (resp.ok) {
+                alert("Employee deleted successfully.");
+                fetchEmployees();
+            }
+        } catch (err) {
+            console.error("Delete Error:", err);
+        }
+    };
+
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editEmployee, setEditEmployee] = useState(null);
+
+    const openEditModal = (emp) => {
+        setEditEmployee({ ...emp, photoFile: null });
+        setShowEditModal(true);
+    };
+
+    const handleUpdateEmployee = async () => {
+        if (!editEmployee.name) return;
+        setIsSaving(true);
+        try {
+            const formData = new FormData();
+            formData.append('name', editEmployee.name);
+            formData.append('dept', editEmployee.dept);
+            formData.append('status', editEmployee.status);
+            if (editEmployee.photoFile) {
+                formData.append('file', editEmployee.photoFile);
+            }
+
+            const resp = await fetch(`${API_BASE_URL}/employees/${editEmployee.id}`, {
+                method: 'PUT',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            });
+
+            if (resp.ok) {
+                alert("Employee Updated!");
+                setShowEditModal(false);
+                fetchEmployees();
+            } else {
+                alert("Failed to update employee.");
+            }
+        } catch (err) {
+            console.error("Update Error:", err);
         } finally {
             setIsSaving(false);
         }
@@ -423,7 +481,11 @@ const AttendancePage = () => {
                                                 </span>
                                             </td>
                                             <td style={{ padding: '1rem', textAlign: 'right' }}>
-                                                <button onClick={() => setSelectedEmployee(emp)} style={{ background: 'transparent', border: '1px solid var(--panel-border)', color: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer' }}>View</button>
+                                                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                                                    <button onClick={() => setSelectedEmployee(emp)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--panel-border)', color: '#fff', padding: '0.4rem 0.75rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}>View</button>
+                                                    <button onClick={() => openEditModal(emp)} style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid #3b82f6', color: '#60a5fa', padding: '0.4rem 0.75rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}>Edit</button>
+                                                    <button onClick={() => handleDeleteEmployee(emp.id)} style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', color: '#f87171', padding: '0.4rem 0.75rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}>Del</button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -597,10 +659,10 @@ const AttendancePage = () => {
 
                             <div style={{ position: 'relative' }}>
                                 <div style={{ width: '150px', height: '150px', borderRadius: '50%', background: '#334155', display: 'flex', justifyContent: 'center', alignItems: 'center', border: '4px solid var(--accent-cyan)', overflow: 'hidden' }}>
-                                    {selectedEmployee.photo ? (
-                                        <img src={selectedEmployee.photo} alt={selectedEmployee.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    {selectedEmployee.image_url ? (
+                                        <img src={selectedEmployee.image_url.startsWith('http') ? selectedEmployee.image_url : `${API_BASE_URL}${selectedEmployee.image_url}`} alt={selectedEmployee.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                     ) : (
-                                        <span style={{ fontSize: '4rem', color: '#fff' }}>{selectedEmployee.name[0]}</span>
+                                        <span style={{ fontSize: '4rem', color: '#fff' }}>{(selectedEmployee.name || "?")[0]}</span>
                                     )}
                                 </div>
                                 {selectedEmployee.fingerprint && (
@@ -634,6 +696,76 @@ const AttendancePage = () => {
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* EDIT EMPLOYEE MODAL */}
+                {showEditModal && editEmployee && (
+                    <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, backdropFilter: 'blur(5px)' }}>
+                        <div className="glass-panel" style={{ width: '450px', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', border: '1px solid var(--panel-border)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <h3 style={{ margin: 0, color: '#fff' }}>Edit Employee: {editEmployee.name}</h3>
+                                <button onClick={() => setShowEditModal(false)} style={{ background: 'none', border: 'none', color: '#fff', fontSize: '1.5rem', cursor: 'pointer' }}>&times;</button>
+                            </div>
+
+                            <div>
+                                <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '0.4rem' }}>Name</label>
+                                <input
+                                    type="text"
+                                    value={editEmployee.name}
+                                    onChange={(e) => setEditEmployee({ ...editEmployee, name: e.target.value })}
+                                    style={{ width: '100%', padding: '0.75rem', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--panel-border)', borderRadius: '6px', color: '#fff' }}
+                                />
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                <div>
+                                    <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '0.4rem' }}>Department</label>
+                                    <select
+                                        value={editEmployee.dept}
+                                        onChange={(e) => setEditEmployee({ ...editEmployee, dept: e.target.value })}
+                                        style={{ width: '100%', padding: '0.75rem', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--panel-border)', borderRadius: '6px', color: '#fff' }}>
+                                        <option value="Engineering">Engineering</option>
+                                        <option value="Marketing">Marketing</option>
+                                        <option value="Sales">Sales</option>
+                                        <option value="HR">HR</option>
+                                        <option value="Operations">Operations</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '0.4rem' }}>Status</label>
+                                    <select
+                                        value={editEmployee.status}
+                                        onChange={(e) => setEditEmployee({ ...editEmployee, status: e.target.value })}
+                                        style={{ width: '100%', padding: '0.75rem', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--panel-border)', borderRadius: '6px', color: '#fff' }}>
+                                        <option value="Active">Active</option>
+                                        <option value="On Leave">On Leave</option>
+                                        <option value="Inactive">Inactive</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '0.4rem' }}>Update Photo (Optional)</label>
+                                <input
+                                    type="file"
+                                    onChange={(e) => setEditEmployee({ ...editEmployee, photoFile: e.target.files[0] })}
+                                    style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}
+                                    accept="image/*"
+                                />
+                            </div>
+
+                            <button
+                                onClick={handleUpdateEmployee}
+                                disabled={isSaving}
+                                style={{
+                                    width: '100%', padding: '1rem', background: 'var(--accent-cyan)', color: '#000',
+                                    border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer',
+                                    marginTop: '1rem', opacity: isSaving ? 0.7 : 1
+                                }}>
+                                {isSaving ? "Updating..." : "Save Changes"}
+                            </button>
                         </div>
                     </div>
                 )}

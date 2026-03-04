@@ -227,12 +227,12 @@ def update_module_status(camera_id: int, module_key: str, status: str, config: s
 
 # --- Employee Management ---
 
-def add_employee(name: str, embedding: np.ndarray, dept: str = "Engineering", status: str = "Active"):
+def add_employee(name: str, embedding: np.ndarray, dept: str = "Engineering", status: str = "Active", photo_path: str = None):
     conn = get_connection()
     try:
         emb_bytes = pickle.dumps(embedding)
-        stmt = text("INSERT INTO employees (name, embedding, department, status) VALUES (:n, :e, :d, :s)")
-        conn.execute(stmt, {"n": name, "e": emb_bytes, "d": dept, "s": status})
+        stmt = text("INSERT INTO employees (name, embedding, department, status, photo_path) VALUES (:n, :e, :d, :s, :p)")
+        conn.execute(stmt, {"n": name, "e": emb_bytes, "d": dept, "s": status, "p": photo_path})
         conn.commit()
     finally:
         conn.close()
@@ -241,16 +241,17 @@ def get_all_employees():
     conn = get_connection()
     try:
         # Get all fields for the frontend
-        rows = conn.execute(text("SELECT name, embedding, id, department, status FROM employees")).fetchall()
+        rows = conn.execute(text("SELECT id, name, embedding, department, status, photo_path FROM employees")).fetchall()
         employees = []
-        for name, emb_bytes, emp_id, dept, status in rows:
-            embedding = pickle.loads(emb_bytes)
+        for emp_id, name, emb_bytes, dept, status, photo in rows:
+            embedding = pickle.loads(emb_bytes) if emb_bytes else None
             employees.append({
                 "id": emp_id,
                 "name": name,
                 "embedding": embedding,
                 "dept": dept,
-                "status": status
+                "status": status,
+                "photo_path": photo
             })
         return employees
     finally:
@@ -264,10 +265,29 @@ def delete_employee(emp_id: int):
     finally:
         conn.close()
 
-def update_employee(emp_id: int, name: str):
+def update_employee(emp_id: int, name: str = None, dept: str = None, status: str = None, photo_path: str = None):
     conn = get_connection()
     try:
-        conn.execute(text("UPDATE employees SET name = :name WHERE id = :id"), {"name": name, "id": emp_id})
+        fields = []
+        params = {"id": emp_id}
+        if name:
+            fields.append("name = :name")
+            params["name"] = name
+        if dept:
+            fields.append("department = :dept")
+            params["dept"] = dept
+        if status:
+            fields.append("status = :status")
+            params["status"] = status
+        if photo_path:
+            fields.append("photo_path = :photo")
+            params["photo"] = photo_path
+        
+        if not fields:
+            return
+            
+        stmt = text(f"UPDATE employees SET {', '.join(fields)} WHERE id = :id")
+        conn.execute(stmt, params)
         conn.commit()
     finally:
         conn.close()
@@ -596,11 +616,30 @@ def get_face_timeline(camera_id: int = None, limit: int = 50):
     return results
 
 def get_face_trend(camera_id: int = None):
-    labels = ["08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00"]
+    # Frontend expects { labels: [], today: [], yesterday: [] }
+    labels = ["00:00", "04:00", "08:00", "12:00", "16:00", "20:00"]
+    
+    # Real implementation would query the database grouped by hour
+    # For now, providing semi-realistic numbers based on actual today count
+    conn = get_connection()
+    try:
+        stmt = text("SELECT COUNT(*) FROM events WHERE module_key = 'face-detection' AND timestamp >= CURRENT_DATE")
+        if camera_id:
+            stmt = text("SELECT COUNT(*) FROM events WHERE module_key = 'face-detection' AND timestamp >= CURRENT_DATE AND camera_id = :cid")
+        total_today = conn.execute(stmt, {"cid": camera_id} if camera_id else {}).scalar() or 0
+    except:
+        total_today = 0
+    finally:
+        conn.close()
+
+    # Distribute total_today across labels roughly
+    today_data = [0, 0, int(total_today*0.2), int(total_today*0.4), int(total_today*0.3), int(total_today*0.1)]
+    yesterday_data = [random.randint(5, 50) for _ in labels]
+    
     return {
         "labels": labels,
-        "today": [random.randint(10, 60) for _ in labels],
-        "yesterday": [random.randint(10, 60) for _ in labels]
+        "today": today_data,
+        "yesterday": yesterday_data
     }
 
 # --- Crowd Density Analytics (Camera Specific) ---
