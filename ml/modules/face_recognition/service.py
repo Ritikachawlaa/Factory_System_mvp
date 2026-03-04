@@ -44,10 +44,22 @@ class FaceRecognitionService:
             
             self.track_rec_frames[track_id] = rec_count + 1
 
-        target_img = detection_frame if detection_frame is not None else frame
+        # Use full frame for higher-quality face extraction by default.
+        # Detection crops are often too small for robust AWS Rekognition matching.
+        use_crop = False
+        target_img = frame
+        if detection_frame is not None:
+            try:
+                h, w = detection_frame.shape[:2]
+                if w >= 420 and h >= 420:
+                    target_img = detection_frame
+                    use_crop = True
+            except Exception:
+                target_img = frame
+                use_crop = False
         
         # detection: (name, emp_id, score, (x, y, w, h))
-        detection_results = recognition.identify_faces(target_img, is_crop=(detection_frame is not None))
+        detection_results = recognition.identify_faces(target_img, is_crop=use_crop)
         
         events = []
         bounding_boxes = []
