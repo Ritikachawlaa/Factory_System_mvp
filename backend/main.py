@@ -14,6 +14,8 @@ from datetime import datetime, timedelta
 import requests
 import httpx
 import psutil
+import cv2
+import numpy as np
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Depends, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -691,6 +693,18 @@ async def add_employee(
         file_path = os.path.join(EMPLOYEES_UPLOAD_DIR, filename)
         with open(file_path, "wb") as f:
             f.write(contents)
+
+        # Normalize to JPEG bytes for AWS Rekognition compatibility.
+        aws_index_bytes = contents
+        try:
+            nparr = np.frombuffer(contents, np.uint8)
+            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            if img is not None:
+                ok_jpg, enc = cv2.imencode(".jpg", img, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
+                if ok_jpg:
+                    aws_index_bytes = enc.tobytes()
+        except Exception as enc_e:
+            logger.warning(f"Employee image normalize warning: {enc_e}")
         
         # Process image for embedding directly
         embedding, error_detail = recognition.get_embedding_from_bytes(contents)
@@ -713,7 +727,7 @@ async def add_employee(
                 from sys import path
                 path.append(os.path.join(os.getcwd(), '..', 'ml'))
                 from utils.aws_face_service import aws_face_service
-                aws_face_service.index_face(contents, external_image_id=new_emp['id'])
+                aws_face_service.index_face(aws_index_bytes, external_image_id=new_emp['id'])
             except Exception as aws_e:
                 logger.warning(f"Failed to index face to AWS: {aws_e}")
 
