@@ -13,6 +13,11 @@ logger = logging.getLogger("recognition")
 known_face_encodings = []
 known_face_names = []
 known_face_ids = []
+
+# Gallery State
+gallery_face_encodings = []
+gallery_face_ids = []
+gallery_face_names = [] # Usually placeholders like "Gallery #101"
 latest_accuracy = 0.0
 latest_latency = 0.0
 
@@ -26,7 +31,8 @@ def load_known_faces():
     Load faces from the Backend API.
     """
     global known_face_encodings, known_face_names, known_face_ids
-    print("ML: Loading known faces from Backend API...")
+    global gallery_face_encodings, gallery_face_ids, gallery_face_names
+    print("ML: Loading known faces and gallery from Backend API...")
     try:
         url = f"{BACKEND_URL}/api/ml/initial-state"
         resp = requests.get(url, timeout=5)
@@ -34,22 +40,30 @@ def load_known_faces():
         data = resp.json()
         
         employees = data.get("employees", [])
+        gallery = data.get("gallery", [])
         
+        # Load Employees
         known_face_encodings = []
         known_face_names = []
         known_face_ids = []
-        
         for e in employees:
-            name = e["name"]
-            emp_id = e["id"]
-            embedding = e["embedding"]
-            # embedding comes as list from JSON
-            known_face_encodings.append(embedding)
-            known_face_names.append(name)
-            known_face_ids.append(emp_id)
+            known_face_encodings.append(e["embedding"])
+            known_face_names.append(e["name"])
+            known_face_ids.append(e["id"])
             
-        print(f"ML: Loaded {len(known_face_names)} faces. Names: {known_face_names}")
-        logger.info(f"ML: Loaded {len(known_face_names)} faces into memory: {known_face_names}")
+        # Load Gallery
+        gallery_face_encodings = []
+        gallery_face_ids = []
+        gallery_face_names = []
+        for g in gallery:
+            gallery_face_encodings.append(g["embedding"])
+            gallery_face_ids.append(g["id"])
+            # If name is null, use a placeholder
+            name = g["name"] if g["name"] else f"Visitor #{g['id']}"
+            gallery_face_names.append(name)
+            
+        print(f"ML: Loaded {len(known_face_names)} employees and {len(gallery_face_names)} gallery faces.")
+        logger.info(f"ML: Loaded {len(known_face_names)} employees and {len(gallery_face_names)} gallery faces.")
     except Exception as e:
         print(f"ML: Error loading faces: {e}")
 
@@ -170,21 +184,37 @@ def identify_faces(frame, is_crop=False):
                 a = np.array(embedding).flatten()
                 for i, known_emb in enumerate(known_face_encodings):
                     b = np.array(known_emb).flatten()
-                    # Cosine Similarity
                     score = np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
-                    
-                    # LOG EVERY SCORE for debugging why recognition fails
-                    logger.debug(f"Comparing with {known_face_names[i]}: Score={score:.4f}")
                     
                     if score > best_score and score > 0.25: 
                         best_score = score
                         name = known_face_names[i]
                         emp_id = known_face_ids[i]
+            
+            # 2. Try Gallery Match if no employee found
+            if name == "Unknown" and len(gallery_face_encodings) > 0:
+                a = np.array(embedding).flatten()
+                for i, gall_emb in enumerate(gallery_face_encodings):
+                    b = np.array(gall_emb).flatten()
+                    score = np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+                    if score > best_score and score > 0.30: # Stricter for gallery
+                        best_score = score
+                        name = gallery_face_names[i]
+                        # emp_id remains None
                 
-                if name != "Unknown":
-                    logger.info(f"ML Face Match: SUCCESS! Name={name}, Score={best_score:.4f}")
-                else:
-                    logger.info(f"ML Face Match: UNKNOWN. Local Best Score: {best_score:.4f} (Threshold: 0.25)")
+            if name != "Unknown":
+                logger.info(f"ML Face Match: SUCCESS! Name={name}, Score={best_score:.4f}")
+            else:
+                # 3. New Face Discovery: Send to backend gallery
+                logger.info(f"ML Face Match: DISCOVERY. Best score was {best_score:.4f}. Sending to Gallery.")
+                try:
+                    # Async-ish: don't wait too long
+                    requests.post(f"{BACKEND_URL}/api/ml/gallery/upsert", json={
+                        "embedding": embedding,
+                        "meta": {"is_discovery": True}
+                    }, timeout=1)
+                except Exception as e:
+                    logger.warning(f"ML Gallery Upsert Failed: {e}")
             
             x = int(region['x'])
             y = int(region['y'])

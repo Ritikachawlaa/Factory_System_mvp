@@ -63,6 +63,19 @@ def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """))
+
+        # Add Face Gallery Table for persistent unknown faces
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS face_gallery (
+                id SERIAL PRIMARY KEY,
+                embedding BYTEA NOT NULL,
+                name VARCHAR(100),
+                emp_id INTEGER,
+                first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                meta JSONB DEFAULT '{}'
+            )
+        """))
         
         # Schema Migration: Add department and status if they don't exist
         try:
@@ -1334,6 +1347,68 @@ def get_audit_logs(limit: int = 100):
     except Exception as e:
         print(f"Get Audit Logs Error: {e}")
         return []
+    finally:
+        conn.close()
+
+# --- Face Gallery ---
+
+def get_face_gallery():
+    """Returns all faces in the gallery with their embeddings."""
+    conn = get_connection()
+    try:
+        res = conn.execute(text("SELECT id, name, emp_id, embedding, meta FROM face_gallery"))
+        gallery = []
+        for row in res.fetchall():
+            emb = pickle.loads(row[3]) if row[3] else None
+            gallery.append({
+                "id": row[0],
+                "name": row[1],
+                "emp_id": row[2],
+                "embedding": emb.tolist() if isinstance(emb, np.ndarray) else emb,
+                "meta": row[4]
+            })
+        return gallery
+    except Exception as e:
+        logger.error(f"Error fetching face gallery: {e}")
+        return []
+    finally:
+        conn.close()
+
+def upsert_gallery_face(embedding, name=None, emp_id=None, meta=None):
+    """Adds a new face to gallery."""
+    conn = get_connection()
+    try:
+        emb_bytes = pickle.dumps(embedding)
+        stmt = text("""
+            INSERT INTO face_gallery (embedding, name, emp_id, meta)
+            VALUES (:emb, :n, :eid, :m)
+            RETURNING id
+        """)
+        res = conn.execute(stmt, {"emb": emb_bytes, "n": name, "eid": emp_id, "m": json.dumps(meta or {})})
+        row = res.fetchone()
+        conn.commit()
+        return row[0]
+    except Exception as e:
+        logger.error(f"Error upserting gallery face: {e}")
+        return None
+    finally:
+        conn.close()
+
+def link_gallery_to_employee(gallery_ids: list, emp_id: int, name: str):
+    """Links multiple gallery entries to an employee."""
+    conn = get_connection()
+    try:
+        stmt = text("""
+            UPDATE face_gallery 
+            SET emp_id = :eid, name = :n 
+            WHERE id = ANY(:ids)
+        """)
+        conn.execute(stmt, {"eid": emp_id, "n": name, "ids": gallery_ids})
+        conn.commit()
+        return True
+    except Exception as e:
+        logger.error(f"Error linking gallery to employee: {e}")
+        return False
     finally:
         conn.close()
 

@@ -1,6 +1,7 @@
 # test deploy 
 import os
 import json
+import numpy as np
 import shutil
 import asyncio
 import logging
@@ -637,6 +638,42 @@ def get_employees():
             e["image_url"] = None
     return employees
 
+def perform_retrospective_match(emp_id: int, emp_name: str, emp_embedding: list):
+    """
+    Scans the face_gallery for matches to a newly registered employee and links them.
+    This fulfills the requirement of 'matching those faces with the saved faces having ids'.
+    """
+    try:
+        gallery = database.get_face_gallery()
+        if not gallery:
+            return
+            
+        matched_ids = []
+        a = np.array(emp_embedding).flatten()
+        
+        for g in gallery:
+            if g['emp_id'] is not None:
+                continue
+            
+            b = np.array(g['embedding']).flatten()
+            norm_a = np.linalg.norm(a)
+            norm_b = np.linalg.norm(b)
+            
+            if norm_a == 0 or norm_b == 0: continue
+            
+            # Use Cosine Similarity
+            score = np.dot(a, b) / (norm_a * norm_b)
+            
+            # Use 0.35 threshold for retrospective matching (safe buffer)
+            if score > 0.35:
+                matched_ids.append(g['id'])
+                
+        if matched_ids:
+            logger.info(f"Gallery Match: Found {len(matched_ids)} historical entries for new employee {emp_name}")
+            database.link_gallery_to_employee(matched_ids, emp_id, emp_name)
+    except Exception as e:
+        logger.error(f"Error in perform_retrospective_match: {e}")
+
 @app.post("/employees")
 async def add_employee(
     name: str = Form(...), 
@@ -663,6 +700,14 @@ async def add_employee(
             raise HTTPException(status_code=400, detail=f"AI Error: {error_detail}")
         
         database.add_employee(name, embedding, dept, status, photo_path=file_path)
+        
+        # RETROSPECTIVE MATCHING: Find the employee in the historical gallery
+        # This links past 'Unknown' sightings to this new identity
+        all_emps = database.get_all_employees()
+        new_emp = next((e for e in all_emps if e['name'] == name), None)
+        if new_emp:
+            perform_retrospective_match(new_emp['id'], name, embedding)
+            
         recognition.load_known_faces()
         
         logger.info(f"Successfully added employee {name}")
@@ -1498,9 +1543,24 @@ async def post_webrtc_candidate(candidate: WebRTCCandidate, current_user = Depen
 
 
 # --- Final Startup ---
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+@app.get("/api/ml/initial-state")
+def get_initial_state(current_user: User = Depends(oauth2_scheme_optional)):
+    """Provides employees and gallery to ML engine on startup/reload."""
+    employees = database.get_all_employees()
+    gallery = database.get_face_gallery()
+    return {
+        "employees": employees,
+        "gallery": gallery
+    }
+
+@app.post("/api/ml/gallery/upsert")
+async def upsert_gallery_api(request: Request, current_user = Depends(oauth2_scheme_optional)):
+    """Add a new face to the gallery from the ML engine."""
+    data = await request.json()
+    embedding = data.get("embedding")
+    meta = data.get("meta", {})
+    face_id = database.upsert_gallery_face(embedding, meta=meta)
+    return {"status": "success", "id": face_id}
 
 # --- Human Detection Analytics Endpoints ---
 
