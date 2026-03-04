@@ -184,7 +184,7 @@ const CameraModuleDetail = () => {
                             <p style={{ color: 'var(--text-secondary)' }}>Historical data for {config.label} on this camera.</p>
                             {moduleType === 'human-detection' ? (
                                 <HumanAnalyticsDashboard cameraId={cameraId} />
-                            ) : moduleType === 'face-detection' ? (
+                            ) : moduleType === 'face-detection' || moduleType === 'face-recognition' ? (
                                 <FaceAnalyticsDashboard cameraId={cameraId} />
                             ) : moduleType === 'crowd-density' ? (
                                 <CrowdAnalyticsDashboard cameraId={cameraId} />
