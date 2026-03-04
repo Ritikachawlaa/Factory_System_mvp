@@ -348,6 +348,8 @@ def run_camera_inference(camera, client):
                             display_label = faces[0]["class"] # This is now "Name (ID: X) Face"
                             if "Unknown" not in display_label:
                                 final_label = f"{display_label} [TID {track_id}]"
+                            else:
+                                final_label = f"Unknown Face [TID {track_id}]"
                         
                         if events:
                             for event in events:
