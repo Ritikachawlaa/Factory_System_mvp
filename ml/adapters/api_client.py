@@ -42,9 +42,12 @@ class APIClient:
                         break
                 
                 try:
+                    # logger.info(f"DEBUG: Sending stream payload to {self.base_url}/api/detections/stream")
                     res = self.session.post(f"{self.base_url}/api/detections/stream", json=payload, timeout=1.5)
                     if not res.ok:
                         logger.warning(f"Stream POST failed: {res.status_code}")
+                    else:
+                        logger.info(f"DEBUG: Stream POST Success: {res.status_code}")
                 except Exception as e:
                     logger.debug(f"Stream worker transient error: {e}")
                 
@@ -111,6 +114,9 @@ class APIClient:
             except Empty:
                 pass
                 
+        if len(detections) > 0:
+            logger.info(f"DEBUG: Queuing {len(detections)} detections for camera {camera_id}")
+            
         self._stream_queue.put(payload)
         return True
 
