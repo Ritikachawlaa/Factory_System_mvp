@@ -163,7 +163,7 @@ def identify_faces(frame):
                     b = np.array(known_emb).flatten()
                     # Cosine Similarity
                     score = np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
-                    logger.debug(f"Similarity against {known_face_names[i]}: {score:.4f}")
+                    logger.info(f"Similarity against {known_face_names[i]}: {score:.4f} (Live len: {len(a)}, Known len: {len(b)})")
                     # Threshold: 0.30 (Maintain relaxed threshold)
                     if score > best_score and score > 0.30: 
                         best_score = score
