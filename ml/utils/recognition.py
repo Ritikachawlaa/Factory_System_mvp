@@ -111,9 +111,9 @@ def identify_faces(frame, is_crop=False):
     
     detections = []
     
-    # Use the full frame for better accuracy
+    # DeepFace handles BGR to RGB conversion internally for numpy arrays
+    # Manual conversion causes double-swapping and low accuracy
     logger.info(f"identify_faces called. Frame shape: {frame.shape}, is_crop: {is_crop}")
-    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     
     try:
         # Try a more robust detector first (mediapipe is very fast and accurate for faces)
@@ -122,7 +122,7 @@ def identify_faces(frame, is_crop=False):
         for backend in ['opencv', 'mediapipe']:
             try:
                 results = DeepFace.represent(
-                    img_path=rgb_frame,
+                    img_path=frame, # Pass original BGR frame
                     model_name=MODEL_NAME,
                     enforce_detection=False,
                     detector_backend=backend
@@ -196,7 +196,7 @@ def identify_faces(frame, is_crop=False):
         # Fallback to opencv if retinaface fails
         try:
              results = DeepFace.represent(
-                img_path=rgb_frame,
+                img_path=frame, # Pass original BGR frame
                 model_name=MODEL_NAME,
                 enforce_detection=False,
                 detector_backend='opencv'
@@ -212,7 +212,7 @@ def identify_faces(frame, is_crop=False):
                     for i, known_emb in enumerate(known_face_encodings):
                         b = np.array(known_emb)
                         score = np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
-                        if score > best_score and score > 0.35: 
+                        if score > best_score and score > 0.30: 
                             best_score = score
                             name = known_face_names[i]
                             emp_id = known_face_ids[i]
