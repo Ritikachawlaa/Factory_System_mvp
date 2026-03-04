@@ -33,14 +33,15 @@ class FaceRecognitionService:
                     "confidence": 1.0
                 }]
 
-            # 2. FREQUENCY CONTROL: Only run ML every 30 frames for UNKNOWN tracks
-            frames_since = self.track_rec_frames.get(track_id, 30) # Default to 30 to run on first sight
-            if frames_since < 30:
-                self.track_rec_frames[track_id] = frames_since + 1
+            # 2. BURST + FREQUENCY CONTROL
+            # We run ML on every frame for the first 5 frames of a track (burst)
+            # and then once every 30 frames if it remains "Unknown".
+            rec_count = self.track_rec_frames.get(track_id, 0)
+            if rec_count >= 5 and rec_count % 30 != 0:
+                self.track_rec_frames[track_id] = rec_count + 1
                 return frame, [], []
             
-            # Reset counter
-            self.track_rec_frames[track_id] = 0
+            self.track_rec_frames[track_id] = rec_count + 1
 
         target_img = detection_frame if detection_frame is not None else frame
         

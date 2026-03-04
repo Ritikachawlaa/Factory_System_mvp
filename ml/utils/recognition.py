@@ -185,8 +185,10 @@ def identify_faces(frame, is_crop=False):
                 for i, known_emb in enumerate(known_face_encodings):
                     b = np.array(known_emb).flatten()
                     score = np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+                    # LOG EVERY SCORE for debugging
+                    logger.debug(f"Comparing with Employee {known_face_names[i]}: Score={score:.4f}")
                     
-                    if score > best_score and score > 0.25: 
+                    if score > best_score and score > 0.20: 
                         best_score = score
                         name = known_face_names[i]
                         emp_id = known_face_ids[i]
@@ -197,7 +199,9 @@ def identify_faces(frame, is_crop=False):
                 for i, gall_emb in enumerate(gallery_face_encodings):
                     b = np.array(gall_emb).flatten()
                     score = np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
-                    if score > best_score and score > 0.30: # Stricter for gallery
+                    # LOG
+                    logger.debug(f"Comparing with Gallery {gallery_face_names[i]}: Score={score:.4f}")
+                    if score > best_score and score > 0.25: # Lowered to 0.25
                         best_score = score
                         name = gallery_face_names[i]
                         # emp_id remains None
