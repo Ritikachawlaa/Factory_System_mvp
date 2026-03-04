@@ -664,8 +664,8 @@ def perform_retrospective_match(emp_id: int, emp_name: str, emp_embedding: list)
             # Use Cosine Similarity
             score = np.dot(a, b) / (norm_a * norm_b)
             
-            # Use 0.35 threshold for retrospective matching (safe buffer)
-            if score > 0.35:
+            # Use 0.25 threshold for retrospective matching (more permissive)
+            if score > 0.25:
                 matched_ids.append(g['id'])
                 
         if matched_ids:

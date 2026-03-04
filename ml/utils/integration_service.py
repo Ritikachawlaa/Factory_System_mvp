@@ -17,10 +17,19 @@ class IntegrationService:
         if not name:
             return
             
-        # BUG FIX: If we already have a recognized name, don't let "Unknown" overwrite it
-        # We check "Unknown" in the name to be robust against "Unknown Face", etc.
+        # BUG FIX: Implement Identity Hierarchy/Priority
+        # Priority: Employee (Name with ID) > Visitor (Visitor #ID) > Unknown
         existing = self.get_identity(track_id)
-        if "Unknown" in name and existing is not None and "Unknown" not in existing:
+        
+        def get_priority(label):
+            if label is None: return 0
+            if "ID:" in label: return 3   # Employee
+            if "Visitor" in label: return 2 # Visitor Gallery
+            if "Unknown" in label: return 1 # Basic Unknown
+            return 2 # Fallback for other names
+
+        if get_priority(name) < get_priority(existing):
+            logger.debug(f"Integration: Ignoring low-priority identity '{name}' for track {track_id} (existing: {existing})")
             return
 
         self.track_identities[track_id] = {
