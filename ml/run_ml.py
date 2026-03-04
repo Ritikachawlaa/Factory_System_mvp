@@ -142,14 +142,16 @@ def run_camera_inference(camera, client):
     active_keys = [m['key'] for m in modules if m['status'] == 'active']
     
     # --- Resolve video source ---
-    # Priority: Use MediaMTX RTSP stream if stream_path is set (published via MediaMTX)
-    # Fallback: Use direct source (for local/dev testing)
+    # Strip to avoid trailing spaces/newlines from DB causing 404 in RTSP
+    stream_path = (stream_path or "").strip()
+    source = (source or "").strip()
+
     from config import MEDIAMTX_RTSP_URL
     if stream_path:
         source = f"{MEDIAMTX_RTSP_URL}/{stream_path}"
-        logger.info(f"Camera {cam_id}: Using MediaMTX RTSP stream: {source}")
+        logger.info(f"Camera {cam_id}: Using constructed MediaMTX RTSP stream: |{source}|")
     
-    logger.info(f"Camera {cam_id}: Starting inference for {active_keys} on source {source}")
+    logger.info(f"Camera {cam_id}: Starting inference on final source: |{source}|")
 
     # --- SAFE CAMERA INIT ---
 
