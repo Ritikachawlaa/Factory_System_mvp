@@ -331,7 +331,8 @@ def run_camera_inference(camera, client):
 
                     # Crop the head area (rough top 30% of the box)
                     x, y, w, h = t_box["x"], t_box["y"], t_box["w"], t_box["h"]
-                    head_h = int(h * 0.45)
+                    # Head is typically top 35% of the body box
+                    head_h = int(h * 0.35)
                     head_crop = frame_resized[max(0, y):min(640, y + head_h), max(0, x):min(640, x + w)]
                     
                     final_label = f"Person #{track_id}" if track_id else "Person"

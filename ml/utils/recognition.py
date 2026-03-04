@@ -172,8 +172,7 @@ def identify_faces(frame, is_crop=False):
                     # Cosine Similarity
                     score = np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
                     
-                    # Use a very relaxed threshold for now to see IF it matches
-                    # Requirement says it shows "unknown" even if photo is uploaded
+                    # TWEAK: Lowered to 0.25 for better sensitivity as Ritika was showing Unknown
                     if score > best_score and score > 0.25: 
                         best_score = score
                         name = known_face_names[i]
@@ -182,7 +181,7 @@ def identify_faces(frame, is_crop=False):
                 if name != "Unknown":
                     logger.info(f"ML Face Match: SUCCESS! Name={name}, Score={best_score:.4f}")
                 else:
-                    logger.warning(f"ML Face Match: FAILED. Best score was {best_score:.4f} (Threshold: 0.25)")
+                    logger.info(f"ML Face Match: UNKNOWN. Local Best Score: {best_score:.4f} (Threshold: 0.25)")
             
             x = int(region['x'])
             y = int(region['y'])
@@ -213,8 +212,8 @@ def identify_faces(frame, is_crop=False):
                         b = np.array(known_emb).flatten()
                         score = np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
                         
-                        # Set to 0.28: Robust but relaxed for varying conditions
-                        if score > best_score and score > 0.28: 
+                        # TWEAK: Lowered to 0.25 for consistency
+                        if score > best_score and score > 0.25: 
                             best_score = score
                             name = known_face_names[i]
                             emp_id = known_face_ids[i]
@@ -222,7 +221,7 @@ def identify_faces(frame, is_crop=False):
                 if name != "Unknown":
                     logger.info(f"ML Face Match: SUCCESS! Name={name}, Score={best_score:.4f}")
                 else:
-                    logger.warning(f"ML Face Match: FAILED. Best score was {best_score:.4f} (Threshold: 0.28)")
+                    logger.info(f"ML Face Match: UNKNOWN. Local Best Score: {best_score:.4f} (Threshold: 0.25)")
                 detections.append((name, emp_id, best_score, (int(region['x']), int(region['y']), int(region['w']), int(region['h']))))
         except:
             pass

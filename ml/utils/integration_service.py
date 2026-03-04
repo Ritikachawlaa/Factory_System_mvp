@@ -14,9 +14,13 @@ class IntegrationService:
         self.IDENTITY_TIMEOUT = 300 # Keep identity for 5 minutes if track is lost/regained
 
     def update_identity(self, track_id: int, name: str):
-        if not name or name == "Unknown":
+        if not name:
             return
             
+        # BUG FIX: If we already have a recognized name, don't let "Unknown" overwrite it
+        if name == "Unknown" and self.get_identity(track_id) is not None:
+            return
+
         self.track_identities[track_id] = {
             "name": name,
             "last_seen": time.time()
