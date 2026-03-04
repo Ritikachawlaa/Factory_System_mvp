@@ -49,6 +49,7 @@ os.makedirs(VISITORS_DIR, exist_ok=True)
 # --- Auth Configuration ---
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 
 # --- Logging & Observability ---
 logging.basicConfig(
@@ -360,7 +361,9 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         raise credentials_exception
     return user
 
-async def get_current_user_debug_optional(token: Optional[str] = Depends(oauth2_scheme)):
+async def get_current_user_debug_optional(token: Optional[str] = Depends(oauth2_scheme_optional)):
+    if not token:
+        return None
     try:
         return await get_current_user(token)
     except:
