@@ -1,8 +1,12 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-# Load .env file
-load_dotenv()
+# Load local defaults first, then production overrides when enabled.
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(BASE_DIR / ".env", override=False)
+if os.getenv("ENVIRONMENT", "development").lower() == "production":
+    load_dotenv(BASE_DIR / ".env.prod", override=True)
 
 class Config:
     # Environment

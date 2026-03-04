@@ -1,6 +1,7 @@
 requests
 opencv-python
 python-dotenv
+boto3
 # Add specific dependencies from backend's reqs that are needed for modules
 ultralytics
 deepface

@@ -12,6 +12,7 @@ requests
 psutil
 httpx
 Pillow
+boto3
 deepface
 tf-keras
 tensorflow

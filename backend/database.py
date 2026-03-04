@@ -60,6 +60,7 @@ def init_db():
                 embedding BYTEA NOT NULL,
                 department VARCHAR(100) DEFAULT 'Engineering',
                 status VARCHAR(50) DEFAULT 'Active',
+                photo_path TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """))
@@ -81,6 +82,7 @@ def init_db():
         try:
              conn.execute(text("ALTER TABLE employees ADD COLUMN IF NOT EXISTS department VARCHAR(100) DEFAULT 'Engineering'"))
              conn.execute(text("ALTER TABLE employees ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Active'"))
+             conn.execute(text("ALTER TABLE employees ADD COLUMN IF NOT EXISTS photo_path TEXT"))
         except Exception as e:
              logger.warning(f"Schema migration (optional columns) warning: {e}")
 

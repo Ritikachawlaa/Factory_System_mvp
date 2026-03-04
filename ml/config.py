@@ -1,9 +1,15 @@
 import os
 import sys
+from pathlib import Path
 from dotenv import load_dotenv
 
-# Load environment variables from .env file if it exists
-load_dotenv()
+# Load ML-local env first and backend env as shared fallback.
+BASE_DIR = Path(__file__).resolve().parent
+BACKEND_DIR = BASE_DIR.parent / "backend"
+load_dotenv(BASE_DIR / ".env", override=False)
+load_dotenv(BACKEND_DIR / ".env", override=False)
+if os.getenv("ENVIRONMENT", "development").lower() == "production":
+    load_dotenv(BACKEND_DIR / ".env.prod", override=False)
 
 # Backend API Configuration
 # BACKEND_API_URL should be set in .env or environment variables
