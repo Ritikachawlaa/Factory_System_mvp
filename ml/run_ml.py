@@ -220,8 +220,15 @@ def run_camera_inference(camera, client):
         ret, frame = sc.read()
         if not ret:
             # If no frame yet, just wait a bit. SafeCapture handles reconnects.
+            if now - getattr(run_camera_inference, "last_empty_frame_log", 0) > 5.0:
+                logger.info(f"Camera {cam_id}: Waiting for frames... (Stream may be offline)")
+                setattr(run_camera_inference, "last_empty_frame_log", now)
             time.sleep(0.1)
             continue
+        
+        if now - getattr(run_camera_inference, "last_frame_log", 0) > 5.0:
+            logger.info(f"Camera {cam_id}: Successfully received a frame! Width: {frame.shape[1]}, Height: {frame.shape[0]}")
+            setattr(run_camera_inference, "last_frame_log", now)
 
         orig_h, orig_w = frame.shape[:2]
         # Standardizing on 640x640 for Pro Accuracy
