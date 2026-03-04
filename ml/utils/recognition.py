@@ -48,7 +48,8 @@ def load_known_faces():
             known_face_names.append(name)
             known_face_ids.append(emp_id)
             
-        print(f"ML: Loaded {len(known_face_names)} faces.")
+        print(f"ML: Loaded {len(known_face_names)} faces. Names: {known_face_names}")
+        logger.info(f"ML: Loaded {len(known_face_names)} faces into memory: {known_face_names}")
     except Exception as e:
         print(f"ML: Error loading faces: {e}")
 
@@ -172,7 +173,9 @@ def identify_faces(frame, is_crop=False):
                     # Cosine Similarity
                     score = np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
                     
-                    # TWEAK: Lowered to 0.25 for better sensitivity as Ritika was showing Unknown
+                    # LOG EVERY SCORE for debugging why recognition fails
+                    logger.debug(f"Comparing with {known_face_names[i]}: Score={score:.4f}")
+                    
                     if score > best_score and score > 0.25: 
                         best_score = score
                         name = known_face_names[i]

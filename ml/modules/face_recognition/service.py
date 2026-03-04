@@ -43,6 +43,7 @@ class FaceRecognitionService:
             # Link to Track ID via IntegrationService if info provided
             if tracked_info and "track_id" in tracked_info:
                 from utils.integration_service import integration_service
+                logger.info(f"FaceRec: Updating Identity for Track {tracked_info['track_id']} -> {display_label}")
                 integration_service.update_identity(tracked_info["track_id"], display_label)
 
             # Draw on frame (only if not in crop-mode or if we want to draw on the original frame)

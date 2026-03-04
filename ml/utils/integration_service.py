@@ -18,7 +18,9 @@ class IntegrationService:
             return
             
         # BUG FIX: If we already have a recognized name, don't let "Unknown" overwrite it
-        if name == "Unknown" and self.get_identity(track_id) is not None:
+        # We check "Unknown" in the name to be robust against "Unknown Face", etc.
+        existing = self.get_identity(track_id)
+        if "Unknown" in name and existing is not None and "Unknown" not in existing:
             return
 
         self.track_identities[track_id] = {
