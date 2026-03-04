@@ -170,7 +170,7 @@ const CameraModuleDetail = () => {
                         {/* Video Feed (Module Specific) */}
                         <div id="camera-feed-container" style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--panel-border)', background: '#000', aspectRatio: '16/9', position: 'relative' }}>
                             {/* Pass specific module key to video feed for overlays */}
-                            <VideoFeed modules={moduleType} />
+                            <VideoFeed modules={moduleType} cameraId={cameraId} />
                             <div style={{ position: 'absolute', top: '1rem', left: '1rem', background: 'rgba(0,0,0,0.6)', color: '#fff', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem' }}>
                                 {camera.name} • {config.label}
                             </div>

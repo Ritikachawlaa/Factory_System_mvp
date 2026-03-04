@@ -5,10 +5,26 @@ import Sidebar from '../Sidebar';
 import VideoFeed from '../VideoFeed';
 import StatsPanel from './StatsPanel';
 import RecognizedList from './RecognizedList';
+import camerasApi from '../../api/cameras.api';
 
 const FaceRecognition = () => {
     const [currentTime, setCurrentTime] = useState(new Date());
     const [stats, setStats] = useState({ recognized_today: 0, unknowns: 0, accuracy: '99.2%', status: 'Active' });
+    const [cameras, setCameras] = useState([]);
+    const [selectedCameraId, setSelectedCameraId] = useState(null);
+
+    useEffect(() => {
+        const fetchCams = async () => {
+            try {
+                const results = await camerasApi.getAll();
+                setCameras(results);
+                if (results.length > 0) {
+                    setSelectedCameraId(results[0].id);
+                }
+            } catch (e) { console.error(e); }
+        };
+        fetchCams();
+    }, []);
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -88,7 +104,7 @@ const FaceRecognition = () => {
                                     <span style={{ color: '#ef4444', fontWeight: 'bold', fontSize: '0.8rem' }}>● LIVE RECOGNITION</span>
                                 </div>
                                 <div style={{ aspectRatio: '16/9', background: '#000', position: 'relative' }}>
-                                    <VideoFeed modules="face-recognition" />
+                                    {selectedCameraId && <VideoFeed modules="face-recognition" cameraId={selectedCameraId} />}
                                     {/* Overlay Info */}
                                     <div style={{
                                         position: 'absolute',
