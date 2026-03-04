@@ -473,7 +473,7 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                         const isPerson = (detClass === 'person' || detClass === 'human') && !isPPEPerson;
                         const isCrowd = detClass === 'crowd';
                         const isTrack = detClass.includes('track id') || detClass.includes('tid');
-                        const isFace = detClass === 'face' || detClass.includes('unknown') || detClass.includes('[tid');
+                        const isFace = detClass === 'face' || detClass.includes('unknown') || detClass.includes('[tid') || detClass.includes('(id:');
                         const isFire = detClass === 'fire' || detClass === 'smoke';
                         const isWorker = detClass.includes('worker') || detClass.includes('permanent') || detClass.includes('unclassified');
 
@@ -500,7 +500,7 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                             if (isPerson) show = true;
                         }
                         if (activeModuleFilters.some(m => ['face-detection', 'face-recognition'].includes(m))) {
-                            if (isFace || isPerson) show = true;
+                            if (isFace) show = true;
                         }
                         if (activeModuleFilters.includes('crowd-density')) {
                             if (isCrowd || isPerson) show = true;
