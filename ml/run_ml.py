@@ -432,8 +432,10 @@ def main():
     cameras = []
     while not cameras:
         cameras = client.get_cameras()
-        if not cameras:
-            logger.warning("No cameras found or backend unreachable. Retrying in 5s...")
+        if cameras:
+            logger.info(f"DEBUG: Fetched {len(cameras)} cameras from API: {[{'id': c['id'], 'name': c['name'], 'stream_path': c.get('stream_path')} for c in cameras]}")
+        else:
+            logger.warning("Waiting for cameras from Backend...")
             time.sleep(5)
 
     threads = []
