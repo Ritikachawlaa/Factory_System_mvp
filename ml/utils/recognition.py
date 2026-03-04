@@ -163,26 +163,18 @@ def identify_faces(frame, is_crop=False):
 
             if len(known_face_encodings) > 0:
                 a = np.array(embedding).flatten()
-                norm_a = np.linalg.norm(a)
                 for i, known_emb in enumerate(known_face_encodings):
                     b = np.array(known_emb).flatten()
-                    norm_b = np.linalg.norm(b)
-                    
                     # Cosine Similarity
-                    if norm_a > 1e-6 and norm_b > 1e-6:
-                        score = np.dot(a, b) / (norm_a * norm_b)
-                    else:
-                        score = 0.0
-                        
-                    logger.info(f"Similarity vs {known_face_names[i]}: {score:.4f} | Norms: a={norm_a:.4f}, b={norm_b:.4f} | Lens: a={len(a)}, b={len(b)} | Previews: a={a[:3]}, b={b[:3]}")
-                    
+                    score = np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
                     # Threshold: 0.30 (Maintain relaxed threshold)
                     if score > best_score and score > 0.30: 
                         best_score = score
                         name = known_face_names[i]
                         emp_id = known_face_ids[i]
                 
-                logger.info(f"ML Face Match: Best score={best_score:.4f}, Assigned Name={name}")
+                if name != "Unknown":
+                    logger.info(f"ML Face Match: Best score={best_score:.4f}, Assigned Name={name}")
             
             x = int(region['x'])
             y = int(region['y'])
