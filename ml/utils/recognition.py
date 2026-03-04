@@ -112,13 +112,32 @@ def identify_faces(frame):
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     
     try:
-        # Opencv is much faster on CPU than retinaface
-        results = DeepFace.represent(
-            img_path=rgb_frame,
-            model_name=MODEL_NAME,
-            enforce_detection=False,
-            detector_backend='opencv'
-        )
+        # Try a more robust detector first (mediapipe is very fast and accurate for faces)
+        # Fallback to opencv if mediapipe is not available or fails
+        results = None
+        for backend in ['mediapipe', 'opencv']:
+            try:
+                results = DeepFace.represent(
+                    img_path=rgb_frame,
+                    model_name=MODEL_NAME,
+                    enforce_detection=False,
+                    detector_backend=backend
+                )
+                if results and len(results) > 0:
+                    # Check if it actually found a facial area or just the whole frame
+                    # If it's more than 90% of the area, it's probably a fallback "no face" result
+                    total_area = frame.shape[0] * frame.shape[1]
+                    region = results[0]["facial_area"]
+                    found_area = region['w'] * region['h']
+                    if found_area < total_area * 0.9:
+                        logger.info(f"ML: Detected {len(results)} faces using {backend} backend.")
+                        break
+            except Exception as e:
+                logger.debug(f"Detector {backend} failed: {e}")
+                continue
+
+        if not results:
+            return []
         
         for res in results:
             embedding = res["embedding"]
@@ -129,13 +148,19 @@ def identify_faces(frame):
             emp_id = None
             best_score = 0.0
             
+            # If facial area is basically the whole frame and enforce_detection=False,
+            # it means NO face was actually found.
+            total_area = frame.shape[0] * frame.shape[1]
+            if (region['w'] * region['h']) > (total_area * 0.95):
+                continue
+
             if len(known_face_encodings) > 0:
-                a = np.array(embedding)
+                a = np.array(embedding).flatten()
                 for i, known_emb in enumerate(known_face_encodings):
-                    b = np.array(known_emb)
+                    b = np.array(known_emb).flatten()
                     # Cosine Similarity
                     score = np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
-                    # Threshold: 0.30 (Relaxed from 0.35)
+                    # Threshold: 0.30 (Maintain relaxed threshold)
                     if score > best_score and score > 0.30: 
                         best_score = score
                         name = known_face_names[i]
