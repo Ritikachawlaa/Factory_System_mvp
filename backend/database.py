@@ -175,7 +175,10 @@ def delete_camera(cam_id: int):
 def update_camera(cam_id: int, name: str, source: str, stream_path: str = None):
     conn = get_connection()
     try:
-        conn.execute(text("UPDATE cameras SET name = :name, source = :source, stream_path = :sp WHERE id = :id"), {"name": name, "source": source, "sp": stream_path, "id": cam_id})
+        if stream_path is None:
+            conn.execute(text("UPDATE cameras SET name = :name, source = :source WHERE id = :id"), {"name": name, "source": source, "id": cam_id})
+        else:
+            conn.execute(text("UPDATE cameras SET name = :name, source = :source, stream_path = :sp WHERE id = :id"), {"name": name, "source": source, "sp": stream_path, "id": cam_id})
         conn.commit()
     finally:
         conn.close()
