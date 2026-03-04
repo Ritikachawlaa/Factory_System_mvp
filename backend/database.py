@@ -149,17 +149,17 @@ def add_camera(name: str, source: str, stream_path: str = None):
 def get_cameras():
     conn = get_connection()
     try:
-        rows = conn.execute(text("SELECT id, name, source FROM cameras")).fetchall()
-        return [{"id": r[0], "name": r[1], "source": r[2]} for r in rows]
+        rows = conn.execute(text("SELECT id, name, source, stream_path FROM cameras")).fetchall()
+        return [{"id": r[0], "name": r[1], "source": r[2], "stream_path": r[3]} for r in rows]
     finally:
         conn.close()
 
 def get_camera_by_id(cam_id: int):
     conn = get_connection()
     try:
-        row = conn.execute(text("SELECT id, name, source FROM cameras WHERE id = :id"), {"id": cam_id}).fetchone()
+        row = conn.execute(text("SELECT id, name, source, stream_path FROM cameras WHERE id = :id"), {"id": cam_id}).fetchone()
         if row:
-            return {"id": row[0], "name": row[1], "source": row[2]}
+            return {"id": row[0], "name": row[1], "source": row[2], "stream_path": row[3]}
         return None
     finally:
         conn.close()
