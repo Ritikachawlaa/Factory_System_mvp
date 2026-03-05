@@ -1,6 +1,7 @@
 name: Deploy ML
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
