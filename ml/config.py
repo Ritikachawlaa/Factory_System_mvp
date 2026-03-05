@@ -1,3 +1,4 @@
+# deploy: aws-rekognition-generic-flow
 import os
 import sys
 from pathlib import Path

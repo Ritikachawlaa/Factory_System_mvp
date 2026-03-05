@@ -1,4 +1,4 @@
-# test deploy 
+# deploy: aws-rekognition-generic-flow 
 import os
 import json
 import numpy as np
