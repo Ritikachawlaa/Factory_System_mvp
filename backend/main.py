@@ -1552,7 +1552,7 @@ async def post_webrtc_candidate(candidate: WebRTCCandidate, current_user = Depen
 
 # --- Final Startup ---
 @app.get("/api/ml/initial-state")
-def get_initial_state(current_user: User = Depends(oauth2_scheme_optional)):
+def get_initial_state(current_user = Depends(oauth2_scheme_optional)):
     """Provides employees and gallery to ML engine on startup/reload."""
     employees = database.get_all_employees()
     gallery = database.get_face_gallery()
