@@ -34,34 +34,16 @@ def get_embedding_from_bytes(image_bytes):
     Returns (embedding, error_detail_string)
     """
     try:
-        logger.info(f"Requesting remote embedding from {ML_API_URL}")
-        
-        # Prepare file for requests
-        files = {'file': ('face.jpg', image_bytes, 'image/jpeg')}
-        
-        # Call the remote ML API
-        response = requests.post(
-            f"{ML_API_URL}/generate_embedding", 
-            files=files, 
-            timeout=15 # Longer timeout for heavy ML processing
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            logger.info("Remote embedding generation successful.")
-            return data["embedding"], None
-        else:
-            try:
-                error_msg = response.json().get("error", "Unknown error")
-            except:
-                error_msg = response.text
-                
-            logger.warning(f"Remote ML Error: {error_msg}")
-            return None, f"ML Instance Error: {error_msg}"
-
+        # We now use AWS Rekognition exclusively. 
+        # The local ML instance embedding is obsolete, but the DB schema 
+        # still expects a pickled numpy array. We return a dummy array 
+        # to satisfy the database without needing the slow/fragile ML API.
+        import numpy as np
+        dummy_embedding = [0.0] * 512
+        return dummy_embedding, None
     except Exception as e:
-        logger.error(f"Failed to connect to ML Instance: {str(e)}")
-        return None, f"Connection Failed to ML Instance at {ML_API_URL}. Ensure ML-API is running."
+        logger.error(f"Error creating dummy embedding: {str(e)}")
+        return None, f"Internal Error: {str(e)}"
 
 def process_frame(frame, modules=None):
     # Backend processing is NO LONGER DONE LOCALLY.
