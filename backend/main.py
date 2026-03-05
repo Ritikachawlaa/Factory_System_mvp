@@ -595,36 +595,6 @@ def get_cameras_legacy():
 
 
 # --- Employee Endpoints ---
-@app.get("/employees")
-def get_employees():
-    try:
-        employees = database.get_all_employees()
-        results = []
-        for e in employees:
-            # e is now a dict from get_all_employees
-            name = e["name"]
-            emp_id = e["id"]
-            dept = e["dept"]
-            status = e["status"]
-            
-            image_url = None
-            if name.startswith("Visitor_"):
-                filename = f"{name}.jpg"
-                if os.path.exists(os.path.join(VISITORS_DIR, filename)):
-                    image_url = f"http://localhost:8000/visitors/{filename}"
-                    
-            results.append({
-                "id": emp_id, 
-                "name": name, 
-                "dept": dept, 
-                "status": status,
-                "image_url": image_url
-            })
-        return results
-    except Exception as e:
-        logger.error(f"Error fetching employees: {e}")
-        # Return fallback mock to prevent frontend crash while debugging
-        return []
 
 @app.get("/employees")
 def get_employees():
@@ -640,41 +610,6 @@ def get_employees():
             e["image_url"] = None
     return employees
 
-def perform_retrospective_match(emp_id: int, emp_name: str, emp_embedding: list):
-    """
-    Scans the face_gallery for matches to a newly registered employee and links them.
-    This fulfills the requirement of 'matching those faces with the saved faces having ids'.
-    """
-    try:
-        gallery = database.get_face_gallery()
-        if not gallery:
-            return
-            
-        matched_ids = []
-        a = np.array(emp_embedding).flatten()
-        
-        for g in gallery:
-            if g['emp_id'] is not None:
-                continue
-            
-            b = np.array(g['embedding']).flatten()
-            norm_a = np.linalg.norm(a)
-            norm_b = np.linalg.norm(b)
-            
-            if norm_a == 0 or norm_b == 0: continue
-            
-            # Use Cosine Similarity
-            score = np.dot(a, b) / (norm_a * norm_b)
-            
-            # Use 0.25 threshold for retrospective matching (more permissive)
-            if score > 0.25:
-                matched_ids.append(g['id'])
-                
-        if matched_ids:
-            logger.info(f"Gallery Match: Found {len(matched_ids)} historical entries for new employee {emp_name}")
-            database.link_gallery_to_employee(matched_ids, emp_id, emp_name)
-    except Exception as e:
-        logger.error(f"Error in perform_retrospective_match: {e}")
 
 @app.post("/employees")
 async def add_employee(
@@ -706,7 +641,7 @@ async def add_employee(
         except Exception as enc_e:
             logger.warning(f"Employee image normalize warning: {enc_e}")
         
-        # Process image for embedding directly
+        # Process image for embedding (still needed for DB storage)
         embedding, error_detail = recognition.get_embedding_from_bytes(contents)
         if embedding is None:
             if os.path.exists(file_path): os.remove(file_path)
@@ -715,21 +650,21 @@ async def add_employee(
         
         database.add_employee(name, embedding, dept, status, photo_path=file_path)
         
-        # RETROSPECTIVE MATCHING: Find the employee in the historical gallery
+        # Get the new employee's DB ID for AWS indexing
         all_emps = database.get_all_employees()
         new_emp = next((e for e in all_emps if e['name'] == name), None)
+
+        # AWS INTEGRATION: Index face into Rekognition collection
         if new_emp:
-            perform_retrospective_match(new_emp['id'], name, embedding)
-            
-            # AWS INTEGRATION: Index face if enabled
-            # Import here to avoid circular dependencies if any
             try:
-                from sys import path
-                path.append(os.path.join(os.getcwd(), '..', 'ml'))
-                from utils.aws_face_service import aws_face_service
-                aws_face_service.index_face(aws_index_bytes, external_image_id=new_emp['id'])
+                from services.aws_rekognition import aws_rekognition
+                face_id = aws_rekognition.index_face(aws_index_bytes, external_image_id=new_emp['id'])
+                if face_id:
+                    logger.info(f"AWS: Indexed face for {name} (emp_id={new_emp['id']}, face_id={face_id})")
+                else:
+                    logger.warning(f"AWS: No face indexed for {name} — Rekognition may be disabled or no face detected")
             except Exception as aws_e:
-                logger.warning(f"Failed to index face to AWS: {aws_e}")
+                logger.warning(f"AWS indexing failed for {name}: {aws_e}")
 
         recognition.load_known_faces()
         
