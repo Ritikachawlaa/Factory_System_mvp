@@ -26,24 +26,29 @@ class FaceRecognitionService:
         if track_id:
             from utils.integration_service import integration_service
             existing_identity = integration_service.get_identity(track_id)
-            if existing_identity and "Unknown" not in existing_identity:
-                integration_service.touch_identity(track_id)
-                return frame, [], [{
+            
+            # Helper to construct a placeholder box from tracking info
+            def _placeholder_box(label):
+                return {
                     "id": track_id,
-                    "class": existing_identity,
+                    "class": label,
                     "x": tracked_info.get("x", 0),
                     "y": tracked_info.get("y", 0),
                     "w": tracked_info.get("w", 0),
                     "h": tracked_info.get("h", 0),
-                    "confidence": 1.0
-                }]
+                    "confidence": 1.0 # Or use tracking confidence if passed
+                }
+
+            if existing_identity and "Unknown" not in existing_identity:
+                integration_service.touch_identity(track_id)
+                return frame, [], [_placeholder_box(existing_identity)]
 
             # Burst + frequency control: run ML on every frame for the first
             # 5 frames of a track, then once every 30 frames while unknown.
             rec_count = self.track_rec_frames.get(track_id, 0)
             if rec_count >= 5 and rec_count % 30 != 0:
                 self.track_rec_frames[track_id] = rec_count + 1
-                return frame, [], []
+                return frame, [], [_placeholder_box(existing_identity or "Unknown Face")]
             self.track_rec_frames[track_id] = rec_count + 1
 
         # ── Choose input image ────────────────────────────────────────────
