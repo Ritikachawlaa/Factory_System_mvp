@@ -9,8 +9,27 @@ const VideoFeed = ({ modules }) => {
 
 const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
     const { cameraId: paramCameraId } = useParams();
-    const cameraId = propCameraId || paramCameraId || 1; // Default to camera 1 if no param/prop
+    const [fetchedCameraId, setFetchedCameraId] = useState(null);
     const { token } = useAuth();
+
+    useEffect(() => {
+        if (!propCameraId && !paramCameraId) {
+            fetch(`${API_BASE_URL}/api/cameras`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.length > 0) {
+                        setFetchedCameraId(data[0].id);
+                    } else {
+                        setFetchedCameraId(1);
+                    }
+                })
+                .catch(() => setFetchedCameraId(1));
+        }
+    }, [propCameraId, paramCameraId, token]);
+
+    const cameraId = propCameraId || paramCameraId || fetchedCameraId;
 
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
