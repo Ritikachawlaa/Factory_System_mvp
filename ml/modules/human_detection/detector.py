@@ -12,7 +12,7 @@ from utils.base_detector import BaseDetector
 
 class HumanDetector(BaseDetector):
     def __init__(self, conf=0.55):
-        super().__init__(model_path="yolov8s.pt", conf=conf)
+        super().__init__(model_path="yolov8n.pt", conf=conf)
 
     def detect(self, frame):
         """Return list of (x1, y1, x2, y2, confidence) for every person."""

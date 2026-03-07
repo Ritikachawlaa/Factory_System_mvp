@@ -245,9 +245,9 @@ def run_camera_inference(camera, client):
         bg_modules_str = client.get_setting("background_modules")
         import json
         try:
-            background_modules = json.loads(bg_modules_str) if bg_modules_str else ["auto-tracking", "face-recognition"]
+            background_modules = json.loads(bg_modules_str) if bg_modules_str else ["auto-tracking"]
         except:
-            background_modules = ["auto-tracking", "face-recognition"]
+            background_modules = ["auto-tracking"]
 
         active_keys = list(active_keys)
         for bm in background_modules:
@@ -423,11 +423,12 @@ def run_camera_inference(camera, client):
         
         if now - last_metrics_send >= 5.0 and len(inference_times) > 0:
             avg_ms = sum(inference_times) / len(inference_times)
+            logger.info(f"Camera {cam_id}: Performance: {avg_ms:.1f}ms per loop")
             client.send_metrics(cam_id, avg_ms)
             last_metrics_send = now
         
         # Basic throttle
-        time.sleep(0.01) # Faster loop for better real-time feel
+        time.sleep(0.001) # Reduced throttle for tighter loops
 
 def main():
     from config import ML_SERVICE_VERSION

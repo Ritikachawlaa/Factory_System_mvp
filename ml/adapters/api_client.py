@@ -17,13 +17,31 @@ class APIClient:
         self.base_url = base_url or BACKEND_API_URL
         self.session = requests.Session()
         
-        # Performance optimization: Streamer Queue
-        self._stream_queue = Queue(maxsize=10) # Keep small to ensure real-time
+        # Performance optimization: General Telemetry Queue
+        self._telemetry_queue = Queue(maxsize=100) 
         self._streaming_active = True
+        self._telemetry_thread = threading.Thread(target=self._telemetry_worker, daemon=True)
+        self._telemetry_thread.start()
+        
+        # Dedicated Streaming Queue for Real-time Boxes
+        self._stream_queue = Queue(maxsize=5) 
         self._stream_thread = threading.Thread(target=self._stream_worker, daemon=True)
         self._stream_thread.start()
         
         logger.info(f"API Client initialized with URL: {self.base_url}")
+
+    def _telemetry_worker(self):
+        """Background worker for heartbeats, metrics, and standard detections."""
+        while self._streaming_active:
+            try:
+                endpoint, payload = self._telemetry_queue.get(timeout=1.0)
+                try:
+                    self.session.post(f"{self.base_url}{endpoint}", json=payload, timeout=2.0)
+                except Exception as e:
+                    logger.debug(f"Telemetry worker error for {endpoint}: {e}")
+                self._telemetry_queue.task_done()
+            except Empty:
+                continue
 
     def _stream_worker(self):
         """Persistent worker to send detection frames without spawning threads."""
@@ -33,7 +51,6 @@ class APIClient:
                 payload = self._stream_queue.get(timeout=1.0)
                 
                 # 2. Optimization: Drain the queue to only send the LATEST frame
-                # This prevents "box lag" if the network or backend is momentarily slow
                 while not self._stream_queue.empty():
                     try:
                         payload = self._stream_queue.get_nowait()
@@ -42,12 +59,7 @@ class APIClient:
                         break
                 
                 try:
-                    # logger.info(f"DEBUG: Sending stream payload to {self.base_url}/api/detections/stream")
-                    res = self.session.post(f"{self.base_url}/api/detections/stream", json=payload, timeout=1.5)
-                    if not res.ok:
-                        logger.warning(f"Stream POST failed: {res.status_code}")
-                    else:
-                        logger.info(f"DEBUG: Stream POST Success: {res.status_code}")
+                    self.session.post(f"{self.base_url}/api/detections/stream", json=payload, timeout=1.0)
                 except Exception as e:
                     logger.debug(f"Stream worker transient error: {e}")
                 
@@ -57,22 +69,29 @@ class APIClient:
             except Exception as e:
                 logger.error(f"Stream worker error: {e}")
 
+    def _post_async(self, endpoint, data):
+        """Non-blocking post."""
+        if self._telemetry_queue.full():
+            try:
+                self._telemetry_queue.get_nowait()
+                self._telemetry_queue.task_done()
+            except Empty:
+                pass
+        self._telemetry_queue.put((endpoint, data))
+        return True
+
     def _post(self, endpoint, data):
+        """Blocking post (use sparingly)."""
         url = f"{self.base_url}{endpoint}"
         try:
             response = self.session.post(url, json=data, timeout=5)
             response.raise_for_status()
-            logger.debug(f"POST {endpoint} success: {response.status_code}")
             return True
         except requests.exceptions.RequestException as e:
             logger.error(f"POST {endpoint} failed: {e}")
             return False
 
     def send_detection(self, event):
-        """
-        Send a detection event to the backend.
-        event: dict with camera_id, module_key, label, confidence, etc.
-        """
         payload = {
             "camera_id": event.get("camera_id"),
             "module_key": event.get("module_key"),
@@ -81,21 +100,21 @@ class APIClient:
             "timestamp": str(event.get("timestamp")) if event.get("timestamp") else None,
             "metadata": {"meta": event.get("meta")} if event.get("meta") else None 
         }
-        return self._post("/api/detections", payload)
+        return self._post_async("/api/detections", payload)
 
     def send_heartbeat(self, camera_id, module_key, status="running"):
         payload = {
             "camera_id": camera_id,
             "status": status
         }
-        return self._post(f"/api/modules/{module_key}/heartbeat", payload)
+        return self._post_async(f"/api/modules/{module_key}/heartbeat", payload)
 
     def send_metrics(self, camera_id, inference_avg_ms):
         payload = {
             "camera_id": camera_id,
             "inference_avg_ms": inference_avg_ms
         }
-        return self._post("/api/metrics/ml", payload)
+        return self._post_async("/api/metrics/ml", payload)
 
     def send_detection_stream(self, camera_id: int, detections: list):
         """

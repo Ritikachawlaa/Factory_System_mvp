@@ -114,29 +114,27 @@ def identify_faces(frame, is_crop=False):
     # ── Step 1: Local face DETECTION ───────────────────────────────────
     results = None
     try:
-        for backend in ['retinaface', 'mediapipe', 'opencv']:
-            try:
-                results = DeepFace.represent(
-                    img_path=frame,
-                    model_name=MODEL_NAME,
-                    enforce_detection=False,
-                    detector_backend=backend,
-                    align=True
-                )
-                if results and len(results) > 0:
-                    total_area = frame.shape[0] * frame.shape[1]
-                    region = results[0]["facial_area"]
-                    found_area = region['w'] * region['h']
-
-                    if is_crop or found_area < total_area * 0.8:
-                        logger.info(f"Detected {len(results)} faces via {backend}")
-                        break
-                    else:
-                        logger.debug(f"{backend}: area {found_area}/{total_area} too large, next backend")
-                        results = None
-            except Exception as e:
-                logger.debug(f"Backend {backend} failed: {e}")
-                continue
+        # Optimization: Use a single, fast backend. OpenCV is fastest on CPU.
+        # Fallback to mediapipe if available, then retinaface only as last resort.
+        primary_backend = 'opencv' 
+        
+        results = DeepFace.represent(
+            img_path=frame,
+            model_name=MODEL_NAME,
+            enforce_detection=False,
+            detector_backend=primary_backend,
+            align=True
+        )
+        
+        # If OpenCV fails to find anything but it's a large frame, try one robust but slow backend
+        if (not results or len(results) == 0) and not is_crop:
+             results = DeepFace.represent(
+                img_path=frame,
+                model_name=MODEL_NAME,
+                enforce_detection=False,
+                detector_backend='mediapipe', 
+                align=True
+            )
     except Exception as e:
         logger.error(f"Face detection error: {e}")
 
