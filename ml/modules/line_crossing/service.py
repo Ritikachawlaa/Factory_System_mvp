@@ -14,15 +14,15 @@ logger = logging.getLogger("line_crossing")
 class LineCrossingService:
     def __init__(self):
         self.detector = None
-        self.tracker = CentroidTracker(max_distance=50)
+        self.tracker = CentroidTracker(max_distance=250, max_disappeared=30)
         self.model_loaded = False
         
         self.prev_centroids = {} # id -> (cx, cy)
         
         # Config
-        self.line_y = 240 # Default to middle of 480p
-        self.count_up = 0
-        self.count_down = 0
+        self.line_x = 320 # Default to middle of 640p
+        self.count_l2r = 0
+        self.count_r2l = 0
 
     def _match_tracks_to_boxes(self, boxes, tracked_objects):
         centroids = []
@@ -66,8 +66,8 @@ class LineCrossingService:
                 print(f"LineCrossing: Model Load Failed: {e}")
 
     def update_config(self, config):
-        if 'line_y' in config:
-            self.line_y = int(config['line_y'])
+        if 'line_x' in config:
+            self.line_x = int(config['line_x'])
             
     def process_frame(self, frame, camera_id=0):
         if not self.model_loaded:
@@ -92,15 +92,15 @@ class LineCrossingService:
             if obj_id in self.prev_centroids:
                 prev_cx, prev_cy = self.prev_centroids[obj_id]
                 
-                status = crossed_line(prev_cy, cy, self.line_y)
+                status = crossed_line(prev_cx, cx, self.line_x)
                 
                 if status:
-                    if status == "UP_TO_DOWN":
-                        self.count_down += 1
-                        label = f"Line Cross Down (ID #{obj_id})"
+                    if status == "LEFT_TO_RIGHT":
+                        self.count_l2r += 1
+                        label = f"Line Cross L->R (ID #{obj_id})"
                     else:
-                        self.count_up += 1
-                        label = f"Line Cross Up (ID #{obj_id})"
+                        self.count_r2l += 1
+                        label = f"Line Cross R->L (ID #{obj_id})"
                         
                     # Log Event
                     event = {
@@ -108,7 +108,7 @@ class LineCrossingService:
                         "module_key": "line-crossing",
                         "label": label,
                         "confidence": 1.0,
-                        "meta": f"Track ID: {obj_id}, Direction: {status}, Total: Up={self.count_up}, Down={self.count_down}"
+                        "meta": f"Track ID: {obj_id}, Direction: {status}, Total: L->R={self.count_l2r}, R->L={self.count_r2l}"
                     }
                     events.append(event)
         
@@ -117,7 +117,7 @@ class LineCrossingService:
         
         # Draw Line
         h, w = frame.shape[:2]
-        cv2.line(frame, (0, self.line_y), (w, self.line_y), (0, 0, 255), 2)
+        cv2.line(frame, (self.line_x, 0), (self.line_x, h), (0, 0, 255), 2)
         
         # Draw Boxes & IDs
         for obj_id, (x1, y1, x2, y2) in track_boxes.items():
@@ -138,6 +138,6 @@ class LineCrossingService:
              cv2.putText(frame, f"T{obj_id}", (cx - 10, cy - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
         # Overlay Stats
-        cv2.putText(frame, f"Up: {self.count_up} Down: {self.count_down}", (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+        cv2.putText(frame, f"L->R: {self.count_l2r} R->L: {self.count_r2l}", (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
             
         return frame, events, bounding_boxes
