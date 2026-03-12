@@ -420,23 +420,24 @@ def run_camera_inference(camera, client):
             if hasattr(lc_service, 'line_x'):
                 aggregated_boxes.append({
                     "class": "Tripwire (Line Crossing)",
-                    "x": lc_service.line_x,
+                    "x": int(lc_service.line_x * scale_x),
                     "y": 0,
-                    "w": 2,    # Line thickness
-                    "h": 640,  # Full height
+                    "w": max(2, int(4 * scale_x)),    # Make it thick enough to see
+                    "h": int(orig_h),  # Full height of the original video
                     "confidence": 1.0,
                     "color": "#ef4444" # Red
                 })
 
         if "entry-exit" in active_keys and "entry-exit" in SERVICES:
             ee_service = SERVICES.get("entry-exit")
+            # Wait, entry_exit logic doesn't use tripwire anymore! But keep it if line_y exists just in case
             if hasattr(ee_service, 'line_y'):
                 aggregated_boxes.append({
                     "class": "Tripwire (Entry/Exit)",
                     "x": 0,
-                    "y": ee_service.line_y,
-                    "w": 640,
-                    "h": 2,
+                    "y": int(ee_service.line_y * scale_y),
+                    "w": int(orig_w),
+                    "h": max(2, int(4 * scale_y)),
                     "confidence": 1.0,
                     "color": "#10b981" # Green
                 })
