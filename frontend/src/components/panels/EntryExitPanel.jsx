@@ -26,6 +26,16 @@ const EntryExitPanel = ({ cameraId }) => {
         return () => clearInterval(interval);
     }, [cameraId]);
 
+    const handleConfigChange = async (key, val) => {
+        try {
+            await httpClient.patch(`/api/cameras/${cameraId}/modules/entry-exit`, {
+                config: { [key]: parseInt(val, 10) }
+            });
+        } catch (e) {
+            console.error(`Failed to update entry-exit config: ${key}`, e);
+        }
+    };
+
     return (
         <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <div className="glass-panel" style={{ flex: 1, padding: '0', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -36,6 +46,19 @@ const EntryExitPanel = ({ cameraId }) => {
                             {events.length === 0 ? '● Standby' : '● Processing'}
                         </span>
                     </div>
+
+                    <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Tripwire Position (Y):</span>
+                            <input
+                                type="number"
+                                defaultValue={200}
+                                onChange={(e) => handleConfigChange('line_y', e.target.value)}
+                                style={{ width: '60px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--panel-border)', color: '#fff', padding: '2px 4px', borderRadius: '4px' }}
+                            />
+                        </div>
+                    </div>
+
                     <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
                         Real-time human traffic flow tracking across monitored tripwires.
                     </div>

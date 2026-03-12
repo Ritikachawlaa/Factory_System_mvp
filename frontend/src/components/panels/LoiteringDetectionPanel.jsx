@@ -26,6 +26,16 @@ const LoiteringDetectionPanel = ({ cameraId }) => {
         return () => clearInterval(interval);
     }, [cameraId]);
 
+    const handleConfigChange = async (key, val) => {
+        try {
+            await httpClient.patch(`/api/cameras/${cameraId}/modules/loitering-detection`, {
+                config: { [key]: parseInt(val, 10) }
+            });
+        } catch (e) {
+            console.error(`Failed to update loitering config: ${key}`, e);
+        }
+    };
+
     return (
         <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <div className="glass-panel" style={{ flex: 1, padding: '0', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -36,6 +46,28 @@ const LoiteringDetectionPanel = ({ cameraId }) => {
                             {events.length === 0 ? '● Standby' : '● Security Alerts'}
                         </span>
                     </div>
+
+                    <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Person Threshold:</span>
+                            <input
+                                type="number"
+                                defaultValue={3}
+                                onChange={(e) => handleConfigChange('threshold', e.target.value)}
+                                style={{ width: '50px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--panel-border)', color: '#fff', padding: '2px 4px', borderRadius: '4px' }}
+                            />
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Time Limit (sec):</span>
+                            <input
+                                type="number"
+                                defaultValue={10}
+                                onChange={(e) => handleConfigChange('time_limit', e.target.value)}
+                                style={{ width: '50px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--panel-border)', color: '#fff', padding: '2px 4px', borderRadius: '4px' }}
+                            />
+                        </div>
+                    </div>
+
                     <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
                         Time-based tracking flagging entities lingering in monitored zones over the permitted duration.
                     </div>
