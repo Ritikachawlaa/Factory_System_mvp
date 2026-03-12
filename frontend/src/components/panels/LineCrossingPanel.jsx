@@ -4,7 +4,7 @@ import httpClient from '../../api/httpClient';
 const LineCrossingPanel = ({ cameraId }) => {
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [lineY, setLineY] = useState(240);
+    const [lineX, setLineX] = useState(320);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -20,7 +20,7 @@ const LineCrossingPanel = ({ cameraId }) => {
                     const module = modulesRes.find(m => m.key === 'line-crossing');
                     if (module) {
                         const config = typeof module.config === 'string' ? JSON.parse(module.config) : (module.config || {});
-                        if (config.line_y !== undefined) setLineY(config.line_y);
+                        if (config.line_x !== undefined) setLineX(config.line_x);
                     }
                 }
             } catch (e) {
@@ -64,13 +64,13 @@ const LineCrossingPanel = ({ cameraId }) => {
 
                     <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', marginBottom: '0.5rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Tripwire Position (Y):</span>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Tripwire Position (X):</span>
                             <input
                                 type="number"
-                                value={lineY}
+                                value={lineX}
                                 onChange={(e) => {
-                                    setLineY(e.target.value);
-                                    handleConfigChange('line_y', e.target.value);
+                                    setLineX(e.target.value);
+                                    handleConfigChange('line_x', e.target.value);
                                 }}
                                 style={{ width: '60px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--panel-border)', color: '#fff', padding: '2px 4px', borderRadius: '4px' }}
                             />
@@ -96,7 +96,7 @@ const LineCrossingPanel = ({ cameraId }) => {
                     {!loading && events.map((e, i) => (
                         <div key={i} style={{ padding: '1rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                                <span style={{ color: e.label.includes("Up") ? '#10b981' : '#ef4444', fontWeight: 'bold', fontSize: '0.9rem' }}>{e.label || 'Tripwire Event'}</span>
+                                <span style={{ color: e.label.includes("L->R") ? '#10b981' : '#ef4444', fontWeight: 'bold', fontSize: '0.9rem' }}>{e.label || 'Tripwire Event'}</span>
                                 <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{new Date(e.timestamp || Date.now()).toLocaleTimeString()}</span>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

@@ -1,6 +1,6 @@
-def crossed_line(prev_y, curr_y, line_y):
-    if prev_y < line_y and curr_y >= line_y:
-        return "UP_TO_DOWN"
-    elif prev_y > line_y and curr_y <= line_y:
-        return "DOWN_TO_UP"
+def crossed_line(prev_x, curr_x, line_x):
+    if prev_x < line_x and curr_x >= line_x:
+        return "LEFT_TO_RIGHT"
+    elif prev_x > line_x and curr_x <= line_x:
+        return "RIGHT_TO_LEFT"
     return None

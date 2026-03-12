@@ -417,13 +417,13 @@ def run_camera_inference(camera, client):
         # --- Artificial Lines for UI Rendering ---
         if "line-crossing" in active_keys and "line-crossing" in SERVICES:
             lc_service = SERVICES.get("line-crossing")
-            if hasattr(lc_service, 'line_y'):
+            if hasattr(lc_service, 'line_x'):
                 aggregated_boxes.append({
                     "class": "Tripwire (Line Crossing)",
-                    "x": 0,
-                    "y": lc_service.line_y,
-                    "w": 640,  # Full width
-                    "h": 2,    # Line thickness
+                    "x": lc_service.line_x,
+                    "y": 0,
+                    "w": 2,    # Line thickness
+                    "h": 640,  # Full height
                     "confidence": 1.0,
                     "color": "#ef4444" # Red
                 })

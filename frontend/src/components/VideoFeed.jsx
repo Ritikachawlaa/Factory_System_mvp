@@ -488,7 +488,7 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                         const isPPEItem = ['helmet', 'vest', 'no-helmet', 'no-vest', 'gloves', 'shoes', 'mask', 'boots'].some(g => detClass.includes(g));
                         const isPPEPerson = detClass.includes('compliant') || detClass.includes('non-compliant') || detClass.includes('missing');
 
-                        const isPerson = (detClass === 'person' || detClass === 'human') && !isPPEPerson;
+                        const isPerson = (detClass === 'person' || detClass === 'human' || detClass === 'loitering') && !isPPEPerson;
                         const isCrowd = detClass === 'crowd';
                         const isTrack = detClass.includes('track id') || detClass.includes('tid');
                         const isFace = detClass.includes('face') || detClass.includes('unknown') || detClass.includes('[tid') || detClass.includes('(id:');
@@ -557,10 +557,12 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                     // Draw Label Background (Skip for Tripwires)
                     if (det.class && !isTripwireRender) {
                         ctx.font = '14px sans-serif';
-                        // Label text format: class + optional confidence
-                        // Crowd/Tracking often don't need confidence displayed if it's 100% or just an ID
+                        // Label text format: class + optional confidence + optional track_id
                         const showConf = det.confidence && det.confidence < 1.0;
-                        const labelText = showConf ? `${det.class} ${(det.confidence * 100).toFixed(0)}%` : det.class;
+                        let labelText = showConf ? `${det.class} ${(det.confidence * 100).toFixed(0)}%` : det.class;
+                        if (det.track_id !== undefined && det.track_id !== null && !labelText.toLowerCase().includes('id')) {
+                            labelText += ` #${det.track_id}`;
+                        }
                         const textWidth = ctx.measureText(labelText).width;
 
                         ctx.fillStyle = targetColor;

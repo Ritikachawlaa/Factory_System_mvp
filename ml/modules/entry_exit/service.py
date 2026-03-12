@@ -9,7 +9,7 @@ logger = logging.getLogger("entry_exit")
 class EntryExitService:
     def __init__(self):
         self.detector = PersonDetector()
-        self.tracker = CentroidTracker(max_distance=50)
+        self.tracker = CentroidTracker(max_distance=250, max_disappeared=30)
         self.active_tracks = set()
         self.in_count = 0
         self.out_count = 0

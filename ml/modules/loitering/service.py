@@ -12,7 +12,7 @@ logger = logging.getLogger("loitering")
 class LoiteringService:
     def __init__(self):
         self.detector = None
-        self.tracker = CentroidTracker(max_distance=50)
+        self.tracker = CentroidTracker(max_distance=250, max_disappeared=30)
         self.model_loaded = False
 
         self.person_threshold = 3
