@@ -52,7 +52,7 @@ class CrowdDensityService:
         h, w = frame.shape[:2]
 
         # Determine color and label based on threshold
-        is_crowd = count > threshold
+        is_crowd = count >= threshold
         box_color = (0, 0, 255) if is_crowd else (0, 255, 0) # Red if crowd, Green if not
         label = "Crowd" if is_crowd else "Person"
 
@@ -77,7 +77,7 @@ class CrowdDensityService:
                               (255, 255, 255), 1)
                 cell_count = int(grid[i][j])
                 if cell_count > 0:
-                    text_color = (0, 0, 255) if cell_count >= DENSITY_ALERT_THRESHOLD else (0, 255, 0)
+                    text_color = (0, 0, 255) if cell_count >= threshold else (0, 255, 0)
                     cv2.putText(frame, str(cell_count),
                                 (j * cell_w + 5, i * cell_h + 20),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, text_color, 2)
@@ -87,7 +87,7 @@ class CrowdDensityService:
 
         # Event logic
         now = time.time()
-        hot_cells = int(np.sum(grid >= DENSITY_ALERT_THRESHOLD))
+        hot_cells = int(np.sum(grid >= threshold))
         
         # Trigger event if above threshold or significant change
         if is_crowd:
