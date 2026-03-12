@@ -1236,7 +1236,8 @@ async def ingest_detection(event: DetectionSchema):
                 "moduleKey": event.module_key,
                 "title": f"{event.label} Detected",
                 "message": f"Confidence: {event.confidence:.2f}",
-                "severity": "info"
+                "severity": "info",
+                "timestamp": database.format_timestamp(event.timestamp) if event.timestamp else database.get_db_timestamp()
             }
         })
     return {"status": "ok"}

@@ -99,22 +99,38 @@ def init_db():
             conn.close()
 
 def get_db_timestamp():
-    """Helper for consistent timestamp formatting (UTC ISO 8601)."""
-    return datetime.datetime.utcnow().isoformat() + "Z"
+    """Helper for consistent timestamp formatting (UTC ISO 8601 with Z)."""
+    # Ensure zero-padding and 'Z' suffix
+    return datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + "Z"
 
 def format_timestamp(ts):
     """Robustly format any timestamp (datetime, str, or None) to ISO 8601 UTC string."""
     if ts is None:
         return None
+    
     if hasattr(ts, "isoformat"):
-        return ts.isoformat() + "Z"
+        # For datetime objects, ensure we get a clean ISO string and add 'Z'
+        # Stripping existing TZ info if any to avoid confusion, then adding Z
+        return ts.replace(tzinfo=None).isoformat() + "Z"
+    
     ts_str = str(ts)
-    if ts_str and not ts_str.endswith("Z"):
-        # If it looks like a standard SQL timestamp 'YYYY-MM-DD HH:MM:SS', convert
-        if " " in ts_str and "T" not in ts_str:
-            return ts_str.replace(" ", "T") + "Z"
+    if not ts_str or ts_str.lower() == "none":
+        return None
+        
+    # If it's already an ISO string with Z, don't add another
+    if ts_str.endswith("Z"):
+        return ts_str
+        
+    # Standard SQL format 'YYYY-MM-DD HH:MM:SS'
+    if " " in ts_str and "T" not in ts_str:
+        return ts_str.replace(" ", "T") + "Z"
+        
+    # ISO string without Z
+    if "T" in ts_str and not ts_str.endswith("Z"):
         return ts_str + "Z"
-    return ts_str
+        
+    # If it's just a time or something else, it's risky, but we add Z to force browser to UTC
+    return ts_str + "Z"
 
 # --- User Management ---
 
@@ -331,10 +347,12 @@ def log_external_detection(camera_id: int, module_key: str, label: str, confiden
         timestamp = get_db_timestamp()
     else:
         try:
+            # Force numeric timestamp to the same high-precision UTC format as get_db_timestamp
             timestamp_dt = datetime.datetime.utcfromtimestamp(float(timestamp))
-            timestamp = timestamp_dt.isoformat() + "Z"
+            timestamp = timestamp_dt.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + "Z"
         except (ValueError, TypeError):
-            pass
+            # Fallback if it's already a string, or format it
+            timestamp = format_timestamp(timestamp)
     
     type_ = 'detection' 
     severity = 'info'
