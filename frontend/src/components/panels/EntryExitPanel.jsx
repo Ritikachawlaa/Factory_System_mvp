@@ -4,25 +4,16 @@ import httpClient from '../../api/httpClient';
 const EntryExitPanel = ({ cameraId }) => {
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [lineY, setLineY] = useState(200);
 
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
             try {
                 // Fetch events specifically for Entry/Exit on this camera
-                const [eventsRes, modulesRes] = await Promise.all([
-                    httpClient.get('/events', { params: { camera_id: cameraId, module_key: 'entry-exit' } }),
-                    httpClient.get(`/api/cameras/${cameraId}/modules`)
+                const [eventsRes] = await Promise.all([
+                    httpClient.get('/events', { params: { camera_id: cameraId, module_key: 'entry-exit' } })
                 ]);
                 setEvents(eventsRes || []);
-                if (modulesRes) {
-                    const module = modulesRes.find(m => m.key === 'entry-exit');
-                    if (module) {
-                        const config = typeof module.config === 'string' ? JSON.parse(module.config) : (module.config || {});
-                        if (config.line_y !== undefined) setLineY(config.line_y);
-                    }
-                }
             } catch (e) {
                 console.error("Failed to fetch Entry/Exit logs", e);
             }
@@ -35,21 +26,8 @@ const EntryExitPanel = ({ cameraId }) => {
         return () => clearInterval(interval);
     }, [cameraId]);
 
-    const handleConfigChange = async (key, val) => {
-        try {
-            const modulesRes = await httpClient.get(`/api/cameras/${cameraId}/modules`);
-            const module = modulesRes.find(m => m.key === 'entry-exit') || {};
-            const currentConfig = typeof module.config === 'string' ? JSON.parse(module.config) : (module.config || {});
-
-            await httpClient.patch(`/api/cameras/${cameraId}/modules/entry-exit`, {
-                enabled: true,
-                status: 'active',
-                config: { ...currentConfig, [key]: parseInt(val, 10) }
-            });
-        } catch (e) {
-            console.error(`Failed to update entry-exit config: ${key}`, e);
-        }
-    };
+    // Configuration changes (like threshold/Y) were removed for Entry/Exit
+    // since it now uses full-frame boundary detection.
 
     return (
         <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -62,23 +40,8 @@ const EntryExitPanel = ({ cameraId }) => {
                         </span>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', marginBottom: '0.5rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Tripwire Position (Y):</span>
-                            <input
-                                type="number"
-                                value={lineY}
-                                onChange={(e) => {
-                                    setLineY(e.target.value);
-                                    handleConfigChange('line_y', e.target.value);
-                                }}
-                                style={{ width: '60px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--panel-border)', color: '#fff', padding: '2px 4px', borderRadius: '4px' }}
-                            />
-                        </div>
-                    </div>
-
-                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                        Real-time human traffic flow tracking across monitored tripwires.
+                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '1rem', marginBottom: '0.5rem' }}>
+                        Real-time human traffic flow tracking monitoring people entering and leaving the camera frame.
                     </div>
                 </div>
 
