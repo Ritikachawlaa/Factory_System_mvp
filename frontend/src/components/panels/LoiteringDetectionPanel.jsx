@@ -4,7 +4,7 @@ import httpClient from '../../api/httpClient';
 const LoiteringDetectionPanel = ({ cameraId }) => {
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [threshold, setThreshold] = useState(3);
+    const [threshold, setThreshold] = useState(1);
     const [timeLimit, setTimeLimit] = useState(10);
 
     useEffect(() => {

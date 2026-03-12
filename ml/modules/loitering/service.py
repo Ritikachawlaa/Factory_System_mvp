@@ -15,7 +15,7 @@ class LoiteringService:
         self.tracker = CentroidTracker(max_distance=250, max_disappeared=30)
         self.model_loaded = False
 
-        self.person_threshold = 3
+        self.person_threshold = 1
         self.time_threshold = 10
         self.first_seen_by_track = {}
         self.alerted_tracks = set()
@@ -107,8 +107,8 @@ class LoiteringService:
             anchor_x, anchor_y = track_data["anchor"]
             dist_sq = (cx - anchor_x)**2 + (cy - anchor_y)**2
             
-            # If they moved significantly (e.g., more than ~20-30 pixels), reset their loitering timer
-            if dist_sq > 900: # 30 pixels squared
+            # If they moved significantly (e.g., more than ~50 pixels), reset their loitering timer
+            if dist_sq > 2500: # 50 pixels squared
                 self.first_seen_by_track[track_id] = {"ts": now, "anchor": (cx, cy)}
                 track_data = self.first_seen_by_track[track_id]
 
@@ -116,6 +116,10 @@ class LoiteringService:
             track_durations[track_id] = duration
             if duration >= self.time_threshold:
                 loitering_track_ids.append(track_id)
+                
+        # Debug Log (only if people are detected)
+        if person_count > 0:
+            logger.debug(f"Loitering Debug: {len(loitering_track_ids)}/{person_count} loitering. Threshold: {self.person_threshold}")
 
         # Trigger events if the number of loiterers meets the person threshold
         # Trigger events if the number of loiterers meets the person threshold
@@ -142,12 +146,19 @@ class LoiteringService:
             label_class = "loitering" if is_loitering else "person"
             label_display = f"Loitering #{track_id}" if is_loitering else f"Person #{track_id}"
             
+            # Decouple the visual label from the group threshold
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
             cv2.putText(frame, label_display, (x1, max(20, y1 - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+
+            # Add a timer indicator to the bounding box if they are loitering or starting to
+            dur = int(track_durations.get(track_id, 0))
+            if dur > 0:
+                cv2.putText(frame, f"{dur}s", (x1 + 5, y1 + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
             bounding_boxes.append({
                 "class": label_class,
                 "track_id": int(track_id),
+                "label": f"{label_class.capitalize()} {dur}s",
                 "x": int(x1),
                 "y": int(y1),
                 "w": int(x2 - x1),
