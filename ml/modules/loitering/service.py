@@ -80,7 +80,7 @@ class LoiteringService:
 
         now = time.time()
         person_count = len(track_boxes)
-        current_track_ids = set(track_boxes.keys())
+        current_track_ids = set(tracked_objects.keys())
 
         events = []
         bounding_boxes = []

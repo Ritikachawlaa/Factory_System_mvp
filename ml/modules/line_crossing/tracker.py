@@ -1,81 +1,74 @@
 import numpy as np
 
 class CentroidTracker:
-    def __init__(self, max_distance=50):
+    def __init__(self, max_distance=50, max_disappeared=20):
         self.next_id = 0
         self.objects = {}  # id -> centroid
+        self.disappeared = {} # id -> count
         self.max_distance = max_distance
+        self.max_disappeared = max_disappeared
+
+    def register(self, centroid):
+        self.objects[self.next_id] = centroid
+        self.disappeared[self.next_id] = 0
+        self.next_id += 1
+
+    def deregister(self, object_id):
+        if object_id in self.objects:
+            del self.objects[object_id]
+        if object_id in self.disappeared:
+            del self.disappeared[object_id]
 
     def update(self, boxes):
-        new_objects = {}
-        used_ids = set()
-        
-        # Calculate centroids
-        centroids = []
+        if len(boxes) == 0:
+            for object_id in list(self.disappeared.keys()):
+                self.disappeared[object_id] += 1
+                if self.disappeared[object_id] > self.max_disappeared:
+                    self.deregister(object_id)
+            return self.objects
+
+        input_centroids = []
         for (x1, y1, x2, y2) in boxes:
             cx = int((x1 + x2) / 2)
             cy = int((y1 + y2) / 2)
-            centroids.append((cx, cy))
+            input_centroids.append((cx, cy))
 
-        # Basic tracking logic: match existing objects to new centroids
-        # Logic from source was slightly flawed looping (nested loop without full assignment).
-        # Correct logic usually computes all distances then optimized assignment (Hungarian).
-        # But source logic:
-        # for frame_obj in boxes: find best match in self.objects.
-        # This is greedy but simple.
-        
-        # Re-implementing source logic exactly as read:
-        # for (x1...y2) in boxes: ... find match ...
-        
-        input_centroids = centroids # just using computed list
-
-        # If no objects exist yet, register all
         if len(self.objects) == 0:
             for i in range(len(input_centroids)):
-                self.objects[self.next_id] = input_centroids[i]
-                self.next_id += 1
-            return self.objects
+                self.register(input_centroids[i])
+        else:
+            used_objects = set()
+            used_inputs = set()
 
-        # Match existing objects to input centroids
-        # Source code had logic iterating over BOXES/CENTROIDS and finding best match in OBJECTS.
-        # This allows multiple input centroids to grab different objects? Or maybe same object?
-        # Code:
-        # for (x1...y2) in boxes:
-        #    ...
-        #    for obj_id, (px, py) in self.objects.items(): ... find min_dist ...
-        #    if matched_id: update new_objects[matched_id] ... used_ids.add ...
-        #    else: register new ...
-        
-        # Issue: Multiple new centroids could grab the same old object if closest?
-        # Source code check: `if obj_id in used_ids: continue`
-        # So it prevents re-using same old object.
-        # But order of processing boxes matters. Greedy.
-        # It's fine for simple use.
-        
-        for (cx, cy) in input_centroids:
-            min_dist = float("inf")
-            matched_id = None
+            for i, input_c in enumerate(input_centroids):
+                min_dist = float("inf")
+                matched_obj = None
 
-            for obj_id, (px, py) in self.objects.items():
-                if obj_id in used_ids:
-                    continue
-                
-                # Numpy norm might be slow in loop? 
-                # dist = np.linalg.norm([cx - px, cy - py])
-                # Manually:
-                dist = ((cx - px)**2 + (cy - py)**2)**0.5
-                
-                if dist < min_dist and dist < self.max_distance:
-                    min_dist = dist
-                    matched_id = obj_id
+                for obj_id, obj_c in self.objects.items():
+                    if obj_id in used_objects:
+                        continue
+                        
+                    dist = ((input_c[0] - obj_c[0])**2 + (input_c[1] - obj_c[1])**2)**0.5
+                    if dist < min_dist and dist < self.max_distance:
+                        min_dist = dist
+                        matched_obj = obj_id
 
-            if matched_id is not None:
-                new_objects[matched_id] = (cx, cy)
-                used_ids.add(matched_id)
-            else:
-                new_objects[self.next_id] = (cx, cy)
-                used_ids.add(self.next_id)
-                self.next_id += 1
+                if matched_obj is not None:
+                    self.objects[matched_obj] = input_c
+                    self.disappeared[matched_obj] = 0
+                    used_objects.add(matched_obj)
+                    used_inputs.add(i)
 
-        self.objects = new_objects.copy() # copy to be safe
+            for obj_id in list(self.objects.keys()):
+                if obj_id not in used_objects:
+                    self.disappeared[obj_id] += 1
+
+            for i in range(len(input_centroids)):
+                if i not in used_inputs:
+                    self.register(input_centroids[i])
+
+            for obj_id in list(self.disappeared.keys()):
+                if self.disappeared[obj_id] > self.max_disappeared:
+                    self.deregister(obj_id)
+
         return self.objects
