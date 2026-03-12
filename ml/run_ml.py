@@ -304,12 +304,17 @@ def run_camera_inference(camera, client):
                         _, events, boxes = result
                         if boxes:
                             for b in boxes:
-                                # Ensure track_id is passed and optionally format the display label
                                 track_id = b.get("track_id")
-                                base_class = b.get("class", "object")
-                                display_class = f"{base_class} #{track_id}" if track_id is not None else base_class
+                                # Prioritize the module's custom label if it exists (e.g. "Loitering 5s")
+                                # otherwise fallback to "Class #ID"
+                                custom_label = b.get("label")
+                                if custom_label:
+                                    display_class = custom_label
+                                else:
+                                    base_class = b.get("class", "object")
+                                    display_class = f"{base_class} #{track_id}" if track_id is not None else base_class
 
-                                aggregated_boxes.append({
+                                box_payload = {
                                     "class": display_class,
                                     "track_id": track_id,
                                     "x": int(b["x"] * scale_x),
@@ -317,7 +322,13 @@ def run_camera_inference(camera, client):
                                     "w": int(b["w"] * scale_x),
                                     "h": int(b["h"] * scale_y),
                                     "confidence": b.get("confidence", 1.0)
-                                })
+                                }
+                                # Carry over any other properties (like color, etc.)
+                                for key_attr, val_attr in b.items():
+                                    if key_attr not in box_payload:
+                                        box_payload[key_attr] = val_attr
+                                        
+                                aggregated_boxes.append(box_payload)
                         service.last_boxes_found = len(boxes) > 0
                     else:
                         _, events = result
@@ -448,8 +459,37 @@ def run_camera_inference(camera, client):
         # B) We HAD boxes last frame and now have none (to clear UI)
         last_frame_had_any_boxes = getattr(run_camera_inference, f"last_any_boxes_{cam_id}", False)
         
-        if aggregated_boxes:
-            client.send_detection_stream(cam_id, aggregated_boxes)
+        # --- DEDUPLICATION PASS ---
+        # If multiple modules return boxes for the same person (e.g. Human Detection + Loitering),
+        # keep the box with the most descriptive label.
+        final_boxes = []
+        # Sort so specific labels (not 'person') come first
+        aggregated_boxes.sort(key=lambda b: 1 if "person" in str(b.get("class", "")).lower() or "track id" in str(b.get("class", "")).lower() else 0)
+        
+        for box in aggregated_boxes:
+            is_duplicate = False
+            for accepted in final_boxes:
+                # Basic overlap check (IoU)
+                try:
+                    x1, y1, w1, h1 = box["x"], box["y"], box["w"], box["h"]
+                    x2, y2, w2, h2 = accepted["x"], accepted["y"], accepted["w"], accepted["h"]
+                    
+                    ix, iy = max(x1, x2), max(y1, y2)
+                    iw, ih = min(x1+w1, x2+w2)-ix, min(y1+h1, y2+h2)-iy
+                    
+                    if iw > 0 and ih > 0:
+                        inter = iw * ih
+                        union = (w1*h1) + (w2*h2) - inter
+                        if inter / union > 0.4: # 40% overlap is a duplicate
+                            is_duplicate = True
+                            break
+                except:
+                    continue
+            if not is_duplicate:
+                final_boxes.append(box)
+
+        if final_boxes:
+            client.send_detection_stream(cam_id, final_boxes)
             setattr(run_camera_inference, f"last_any_boxes_{cam_id}", True)
         elif last_frame_had_any_boxes:
             # Clear UI exactly once

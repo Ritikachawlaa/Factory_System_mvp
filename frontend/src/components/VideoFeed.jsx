@@ -488,7 +488,7 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                         const isPPEItem = ['helmet', 'vest', 'no-helmet', 'no-vest', 'gloves', 'shoes', 'mask', 'boots'].some(g => detClass.includes(g));
                         const isPPEPerson = detClass.includes('compliant') || detClass.includes('non-compliant') || detClass.includes('missing');
 
-                        const isPerson = (detClass === 'person' || detClass === 'human' || detClass === 'loitering') && !isPPEPerson;
+                        const isPerson = (detClass.includes('person') || detClass.includes('human') || detClass.includes('loitering')) && !isPPEPerson;
                         const isCrowd = detClass === 'crowd';
                         const isTrack = detClass.includes('track id') || detClass.includes('tid');
                         const isFace = detClass.includes('face') || detClass.includes('unknown') || detClass.includes('[tid') || detClass.includes('(id:');
