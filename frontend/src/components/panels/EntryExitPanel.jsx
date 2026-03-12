@@ -28,8 +28,14 @@ const EntryExitPanel = ({ cameraId }) => {
 
     const handleConfigChange = async (key, val) => {
         try {
+            const modulesRes = await httpClient.get(`/api/cameras/${cameraId}/modules`);
+            const module = modulesRes.find(m => m.key === 'entry-exit') || {};
+            const currentConfig = typeof module.config === 'string' ? JSON.parse(module.config) : (module.config || {});
+
             await httpClient.patch(`/api/cameras/${cameraId}/modules/entry-exit`, {
-                config: { [key]: parseInt(val, 10) }
+                enabled: true,
+                status: 'active',
+                config: { ...currentConfig, [key]: parseInt(val, 10) }
             });
         } catch (e) {
             console.error(`Failed to update entry-exit config: ${key}`, e);

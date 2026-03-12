@@ -28,8 +28,15 @@ const LoiteringDetectionPanel = ({ cameraId }) => {
 
     const handleConfigChange = async (key, val) => {
         try {
+            // Get existing config to merge (to avoid overwriting other settings)
+            const modulesRes = await httpClient.get(`/api/cameras/${cameraId}/modules`);
+            const module = modulesRes.find(m => m.key === 'loitering-detection') || {};
+            const currentConfig = typeof module.config === 'string' ? JSON.parse(module.config) : (module.config || {});
+
             await httpClient.patch(`/api/cameras/${cameraId}/modules/loitering-detection`, {
-                config: { [key]: parseInt(val, 10) }
+                enabled: true,
+                status: 'active',
+                config: { ...currentConfig, [key]: parseInt(val, 10) }
             });
         } catch (e) {
             console.error(`Failed to update loitering config: ${key}`, e);

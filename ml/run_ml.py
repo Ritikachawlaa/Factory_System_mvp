@@ -414,6 +414,33 @@ def run_camera_inference(camera, client):
                     "confidence": b["confidence"]
                 })
 
+        # --- Artificial Lines for UI Rendering ---
+        if "line-crossing" in active_keys and "line-crossing" in SERVICES:
+            lc_service = SERVICES.get("line-crossing")
+            if hasattr(lc_service, 'line_y'):
+                aggregated_boxes.append({
+                    "class": "Tripwire (Line Crossing)",
+                    "x": 0,
+                    "y": lc_service.line_y,
+                    "w": 640,  # Full width
+                    "h": 2,    # Line thickness
+                    "confidence": 1.0,
+                    "color": "#ef4444" # Red
+                })
+
+        if "entry-exit" in active_keys and "entry-exit" in SERVICES:
+            ee_service = SERVICES.get("entry-exit")
+            if hasattr(ee_service, 'line_y'):
+                aggregated_boxes.append({
+                    "class": "Tripwire (Entry/Exit)",
+                    "x": 0,
+                    "y": ee_service.line_y,
+                    "w": 640,
+                    "h": 2,
+                    "confidence": 1.0,
+                    "color": "#10b981" # Green
+                })
+
         # Live Streaming logic - AGGREGATED
         # We send MUST send something if EITHER:
         # A) We have boxes now

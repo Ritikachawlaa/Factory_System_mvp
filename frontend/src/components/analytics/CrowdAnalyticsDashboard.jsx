@@ -50,8 +50,14 @@ const CrowdAnalyticsDashboard = ({ cameraId }) => {
 
     const handleThresholdChange = async (val) => {
         try {
+            const modulesRes = await httpClient.get(`/api/cameras/${cameraId}/modules`);
+            const module = modulesRes.find(m => m.key === 'crowd-density') || {};
+            const currentConfig = typeof module.config === 'string' ? JSON.parse(module.config) : (module.config || {});
+
             await httpClient.patch(`/api/cameras/${cameraId}/modules/crowd-density`, {
-                config: { threshold: val }
+                enabled: true,
+                status: 'active',
+                config: { ...currentConfig, threshold: parseInt(val, 10) }
             });
             // Update local ref or notification? 
         } catch (e) {

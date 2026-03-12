@@ -488,16 +488,16 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                         const isPPEItem = ['helmet', 'vest', 'no-helmet', 'no-vest', 'gloves', 'shoes', 'mask', 'boots'].some(g => detClass.includes(g));
                         const isPPEPerson = detClass.includes('compliant') || detClass.includes('non-compliant') || detClass.includes('missing');
 
-                        // Only plain "person" or "human" — NOT "person (compliant)" etc.
                         const isPerson = (detClass === 'person' || detClass === 'human') && !isPPEPerson;
                         const isCrowd = detClass === 'crowd';
                         const isTrack = detClass.includes('track id') || detClass.includes('tid');
                         const isFace = detClass.includes('face') || detClass.includes('unknown') || detClass.includes('[tid') || detClass.includes('(id:');
                         const isFire = detClass === 'fire' || detClass === 'smoke';
                         const isWorker = detClass.includes('worker') || detClass.includes('permanent') || detClass.includes('unclassified');
+                        const isTripwire = detClass.includes('tripwire');
 
-                        // A "generic object" is anything NOT classified as person/face/PPE/fire/crowd/track/worker
-                        const isGenericObject = !isPerson && !isCrowd && !isTrack && !isFace && !isPPEItem && !isPPEPerson && !isFire && !isWorker;
+                        // A "generic object" is anything NOT classified as person/face/PPE/fire/crowd/track/worker/tripwire
+                        const isGenericObject = !isPerson && !isCrowd && !isTrack && !isFace && !isPPEItem && !isPPEPerson && !isFire && !isWorker && !isTripwire;
 
                         let show = false;
 
@@ -514,9 +514,10 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                             // Labour Counting: show worker boxes (Permanent/Not Permanent)
                             if (isWorker || isPerson) show = true;
                         }
-                        if (activeModuleFilters.some(m => ['human-detection', 'people-count', 'entry-exit', 'loitering-detection', 'intrusion-detection'].includes(m))) {
+                        if (activeModuleFilters.some(m => ['human-detection', 'people-count', 'entry-exit', 'loitering-detection', 'intrusion-detection', 'line-crossing'].includes(m))) {
                             // Human-centric modules: only persons
                             if (isPerson) show = true;
+                            if (isTripwire) show = true;
                         }
                         if (activeModuleFilters.some(m => ['face-detection', 'face-recognition'].includes(m))) {
                             if (isFace) show = true;
@@ -539,19 +540,22 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                     const displayY = offsetY + (det.y * scaleY);
                     const displayW = det.w * scaleX;
                     const displayH = det.h * scaleY;
+                    const isTripwireRender = (det.class || "").toLowerCase().includes("tripwire");
 
                     // Determine color based on class
-                    let targetColor = '#00ffcc'; // Default neon cyan
-                    if (det.class && det.class.toLowerCase().includes('track id')) targetColor = '#a855f7'; // Purple for Tracking
-                    if (det.class && det.class.toLowerCase() === 'crowd') targetColor = '#ef4444'; // Red for Crowd
-                    if (det.class && det.class.toLowerCase() === 'person' && det.is_crowd === false) targetColor = '#10b981'; // Green for normal person
+                    let targetColor = det.color || '#00ffcc'; // Default neon cyan
+                    if (!det.color) {
+                        if (det.class && det.class.toLowerCase().includes('track id')) targetColor = '#a855f7'; // Purple for Tracking
+                        if (det.class && det.class.toLowerCase() === 'crowd') targetColor = '#ef4444'; // Red for Crowd
+                        if (det.class && det.class.toLowerCase() === 'person' && det.is_crowd === false) targetColor = '#10b981'; // Green for normal person
+                    }
 
                     ctx.strokeStyle = targetColor;
                     ctx.lineWidth = 2;
                     ctx.strokeRect(displayX, displayY, displayW, displayH);
 
-                    // Draw Label Background
-                    if (det.class) {
+                    // Draw Label Background (Skip for Tripwires)
+                    if (det.class && !isTripwireRender) {
                         ctx.font = '14px sans-serif';
                         // Label text format: class + optional confidence
                         // Crowd/Tracking often don't need confidence displayed if it's 100% or just an ID
