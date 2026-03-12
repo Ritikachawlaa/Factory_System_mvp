@@ -99,8 +99,8 @@ def init_db():
             conn.close()
 
 def get_db_timestamp():
-    """Helper for consistent timestamp formatting."""
-    return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    """Helper for consistent timestamp formatting (UTC ISO 8601)."""
+    return datetime.datetime.utcnow().isoformat() + "Z"
 
 # --- User Management ---
 
@@ -317,8 +317,8 @@ def log_external_detection(camera_id: int, module_key: str, label: str, confiden
         timestamp = get_db_timestamp()
     else:
         try:
-            timestamp_dt = datetime.datetime.fromtimestamp(float(timestamp))
-            timestamp = timestamp_dt.strftime("%Y-%m-%d %H:%M:%S")
+            timestamp_dt = datetime.datetime.utcfromtimestamp(float(timestamp))
+            timestamp = timestamp_dt.isoformat() + "Z"
         except (ValueError, TypeError):
             pass
     
@@ -365,7 +365,7 @@ def get_recent_events_by_range(days: int = 1, limit: int = 200):
         events = []
         for r in rows:
             events.append({
-                "timestamp": str(r[0]),
+                "timestamp": (r[0].isoformat() + "Z" if hasattr(r[0], "isoformat") else str(r[0])),
                 "label": r[1],
                 "camera": r[2],
                 "type": r[3],
@@ -399,7 +399,7 @@ def get_events_filtered(camera_id: int = None, module_key: str = None, limit=50)
         results = []
         for r in rows:
             results.append({
-                "timestamp": str(r[0]),
+                "timestamp": (r[0].isoformat() + "Z" if hasattr(r[0], "isoformat") else str(r[0])),
                 "label": r[1],
                 "camera_id": r[2],
                 "type": r[3],
@@ -424,7 +424,7 @@ def get_recent_detections(type_=None, limit=20):
             params["t"] = type_
         query += " ORDER BY id DESC LIMIT :lim"
         rows = conn.execute(text(query), params).fetchall()
-        return [{"timestamp": str(r[0]), "label": r[1], "confidence": r[2], "camera_id": r[3]} for r in rows]
+        return [{"timestamp": (r[0].isoformat() + "Z" if hasattr(r[0], "isoformat") else str(r[0])), "label": r[1], "confidence": r[2], "camera_id": r[3]} for r in rows]
     finally:
         conn.close()
 
@@ -467,7 +467,7 @@ def get_dashboard_stats():
         # Recent late arrivals for list
         stmt_late_list = text("SELECT DISTINCT label, MIN(timestamp) as time FROM events WHERE module_key='face-recognition' AND label NOT ILIKE '%Unknown%' AND timestamp >= (CURRENT_DATE + INTERVAL '9 hours') GROUP BY label ORDER BY time DESC LIMIT 5")
         late_rows = conn.execute(stmt_late_list).fetchall()
-        late_arrivals = [{"name": r[0], "time": str(r[1])[11:16]} for r in late_rows]
+        late_arrivals = [{"name": r[0], "time": r[1].isoformat() + "Z"} for r in late_rows]
 
         attendance_pct = int((present_count / total_employees) * 100) if total_employees > 0 else 0
         
@@ -583,7 +583,7 @@ def get_human_timeline(camera_id: int = None, limit: int = 50):
     results = []
     for e in events:
         results.append({
-            "time": e["timestamp"].split(' ')[1] if ' ' in e["timestamp"] else e["timestamp"],
+            "time": e["timestamp"],
             "label": e["label"],
             "confidence": f"{int(float(e['confidence'])*100)}%" if e['confidence'] else "95%"
         })
@@ -625,7 +625,7 @@ def get_face_timeline(camera_id: int = None, limit: int = 50):
     results = []
     for e in events:
         results.append({
-            "time": e["timestamp"].split(' ')[1] if ' ' in e["timestamp"] else e["timestamp"],
+            "time": e["timestamp"],
             "label": e["label"],
             "confidence": f"{int(float(e['confidence'])*100)}%" if e['confidence'] else "95%"
         })
@@ -720,7 +720,7 @@ def get_crowd_timeline(camera_id: int = None, limit: int = 50):
     results = []
     for e in events:
         results.append({
-            "time": e["timestamp"].split(' ')[1] if ' ' in e["timestamp"] else e["timestamp"],
+            "time": e["timestamp"],
             "label": e["label"],
             "meta": e.get("metadata", e.get("meta", "")) # DB uses 'metadata', some older dicts use 'meta'
         })
@@ -845,7 +845,7 @@ def get_tracking_timeline(camera_id: int = None, limit: int = 50):
     results = []
     for e in events:
         results.append({
-            "time": e["timestamp"].split(' ')[1] if ' ' in e["timestamp"] else e["timestamp"],
+            "time": e["timestamp"],
             "label": e["label"],
             "meta": e.get("metadata", e.get("meta", ""))
         })
@@ -958,7 +958,7 @@ def get_people_timeline(camera_id: int = None, limit: int = 50):
     results = []
     for e in events:
         results.append({
-            "time": e["timestamp"].split(' ')[1] if ' ' in e["timestamp"] else e["timestamp"],
+            "time": e["timestamp"],
             "label": e["label"],
             "meta": e.get("metadata", e.get("meta", ""))
         })
@@ -1193,7 +1193,7 @@ def get_module_stats(camera_id: int, module_key: str):
         last_event = row[1] if row else None
         return {
             "event_count": count,
-            "last_event": str(last_event) if last_event else None,
+            "last_event": (last_event.isoformat() + "Z" if hasattr(last_event, "isoformat") else str(last_event)) if last_event else None,
             "status": "active"
         }
     except:
@@ -1292,7 +1292,7 @@ def get_ppe_timeline(camera_id: int = None, limit: int = 50):
 
         results.append({
             "id": e.get("id"),
-            "time": e["timestamp"].split(' ')[1] if ' ' in e["timestamp"] else e["timestamp"],
+            "time": e["timestamp"],
             "label": e["label"],
             "severity": e["severity"],
             "confidence": f"{int(float(e['confidence'])*100)}%" if e['confidence'] else "95%",
@@ -1503,7 +1503,7 @@ def get_audit_logs(limit: int = 100):
         return [
             {
                 "id": r[0],
-                "timestamp": str(r[1]),
+                "timestamp": (r[1].isoformat() + "Z" if hasattr(r[1], "isoformat") else str(r[1])),
                 "user": r[2],
                 "action": r[3],
                 "target": r[4],

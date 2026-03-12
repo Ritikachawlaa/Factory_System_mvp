@@ -159,7 +159,7 @@ const TimelineEntry = ({ entry }) => {
                 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', cursor: 'pointer' }}
             >
                 <div>
-                    <div style={{ color: '#fff', fontSize: '0.9rem', fontWeight: '500' }}>{entry.time} - {entry.label}</div>
+                    <div style={{ color: '#fff', fontSize: '0.9rem', fontWeight: '500' }}>{new Date(entry.time).toLocaleTimeString()} - {entry.label}</div>
                     <div style={{ color: entry.severity === 'high' ? '#ef4444' : '#f59e0b', fontSize: '0.7rem', textTransform: 'uppercase' }}>
                         {entry.severity}
                     </div>

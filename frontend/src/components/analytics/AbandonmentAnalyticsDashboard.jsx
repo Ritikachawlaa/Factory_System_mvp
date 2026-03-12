@@ -74,7 +74,7 @@ const AbandonmentAnalyticsDashboard = ({ cameraId }) => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     {timeline.slice(0, 5).map((t, i) => (
                         <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                            <span style={{ color: '#fff' }}>{t.time} - {t.label} (Area: {t.location || 'Entrance'})</span>
+                            <span style={{ color: '#fff' }}>{new Date(t.time).toLocaleTimeString()} - {t.label} (Area: {t.location || 'Entrance'})</span>
                             <span style={{ color: '#ef4444', fontSize: '0.8rem', fontWeight: 'bold' }}>{t.severity || 'Urgent'}</span>
                         </div>
                     ))}

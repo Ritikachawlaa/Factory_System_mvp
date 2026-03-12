@@ -41,7 +41,7 @@ const Dashboard = () => {
                         id: index,
                         type: e.type === 'violation' ? 'Violation' : e.type === 'alert' ? 'Threat' : e.type || e.module_key || 'Event',
                         location: e.camera || 'System',
-                        time: e.timestamp ? (typeof e.timestamp === 'string' && e.timestamp.includes(' ') ? e.timestamp.split(' ')[1] : String(e.timestamp)) : 'Just now',
+                        time: e.timestamp ? new Date(e.timestamp).toLocaleTimeString() : 'Just now',
                         message: e.label || 'Detection logged',
                         severity: e.severity || 'info'
                     }));
@@ -259,7 +259,7 @@ const Dashboard = () => {
                                                     <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem' }}>{p.name.charAt(0)}</div>
                                                     <span style={{ color: '#e2e8f0', fontSize: '0.9rem' }}>{p.name}</span>
                                                 </div>
-                                                <span style={{ color: '#ef4444', fontSize: '0.85rem', fontWeight: '500' }}>{p.time}</span>
+                                                <span style={{ color: '#ef4444', fontSize: '0.85rem', fontWeight: '500' }}>{new Date(p.time).toLocaleTimeString()}</span>
                                             </div>
                                         ))}
                                         {(stats.lateArrivals?.length === 0) && (

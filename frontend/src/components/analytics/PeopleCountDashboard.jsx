@@ -114,7 +114,7 @@ const SummaryCard = ({ label, value, subtext, icon, color }) => (
 const TimelineEntry = ({ entry }) => (
     <div style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: '500' }}>{entry.time} - {entry.label}</span>
+            <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: '500' }}>{new Date(entry.time).toLocaleTimeString()} - {entry.label}</span>
         </div>
         <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem', marginTop: '4px' }}>{entry.meta || 'Count recorded'}</div>
     </div>
