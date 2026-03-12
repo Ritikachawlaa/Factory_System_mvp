@@ -91,24 +91,37 @@ class LoiteringService:
             self.first_seen_by_track.pop(tid, None)
             self.alerted_tracks.discard(tid)
 
-        for track_id, (x1, y1, x2, y2) in track_boxes.items():
+        # Evaluate loitering durations for all active tracks
+        loitering_track_ids = []
+        track_durations = {}
+
+        for track_id in track_boxes.keys():
             start_ts = self.first_seen_by_track.get(track_id)
             if start_ts is None:
                 self.first_seen_by_track[track_id] = now
                 start_ts = now
-
             duration = now - start_ts
-            is_loitering = person_count >= self.person_threshold and duration >= self.time_threshold
+            track_durations[track_id] = duration
+            if duration >= self.time_threshold:
+                loitering_track_ids.append(track_id)
 
-            if is_loitering and track_id not in self.alerted_tracks:
-                events.append({
-                    "camera_id": camera_id,
-                    "module_key": "loitering-detection",
-                    "label": f"Loitering Detected (ID #{track_id})",
-                    "confidence": 1.0,
-                    "meta": f"Track ID: {track_id}, Count: {person_count}, Duration: {int(duration)}s"
-                })
-                self.alerted_tracks.add(track_id)
+        # Trigger events if the number of loiterers meets the person threshold
+        if len(loitering_track_ids) >= self.person_threshold:
+            for track_id in loitering_track_ids:
+                if track_id not in self.alerted_tracks:
+                    events.append({
+                        "camera_id": camera_id,
+                        "module_key": "loitering-detection",
+                        "label": f"Loitering Detected (ID #{track_id})",
+                        "confidence": 1.0,
+                        "timestamp": now,
+                        "meta": f"Track ID: {track_id}, Concurrent Loiterers: {len(loitering_track_ids)}, Duration: {int(track_durations[track_id])}s"
+                    })
+                    self.alerted_tracks.add(track_id)
+
+        # Draw boxes and assign classes
+        for track_id, (x1, y1, x2, y2) in track_boxes.items():
+            is_loitering = track_id in loitering_track_ids
 
             color = (0, 0, 255) if is_loitering else (255, 255, 0)
             label = f"Loitering #{track_id}" if is_loitering else f"Person #{track_id}"

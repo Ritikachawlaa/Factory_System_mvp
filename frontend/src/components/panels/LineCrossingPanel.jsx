@@ -58,7 +58,7 @@ const LineCrossingPanel = ({ cameraId }) => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                         <h3 style={{ margin: 0, color: '#fff', fontSize: '1.1rem' }}>Line Crossing Log</h3>
                         <span style={{ fontSize: '0.8rem', color: 'var(--accent-cyan)', background: 'rgba(56, 189, 248, 0.1)', padding: '0.2rem 0.6rem', borderRadius: '12px' }}>
-                            {events.length === 0 ? '● Standby' : '● Processing'}
+                            {events.length === 0 ? '● Active Monitoring' : '● Processing'}
                         </span>
                     </div>
 
