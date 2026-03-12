@@ -4,16 +4,27 @@ import httpClient from '../../api/httpClient';
 const LoiteringDetectionPanel = ({ cameraId }) => {
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [threshold, setThreshold] = useState(3);
+    const [timeLimit, setTimeLimit] = useState(10);
 
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
             try {
                 // Fetch events specifically for Loitering Detection on this camera
-                const res = await httpClient.get('/events', {
-                    params: { camera_id: cameraId, module_key: 'loitering-detection' }
-                });
-                setEvents(res || []);
+                const [eventsRes, modulesRes] = await Promise.all([
+                    httpClient.get('/events', { params: { camera_id: cameraId, module_key: 'loitering-detection' } }),
+                    httpClient.get(`/api/cameras/${cameraId}/modules`)
+                ]);
+                setEvents(eventsRes || []);
+                if (modulesRes) {
+                    const module = modulesRes.find(m => m.key === 'loitering-detection');
+                    if (module) {
+                        const config = typeof module.config === 'string' ? JSON.parse(module.config) : (module.config || {});
+                        if (config.threshold !== undefined) setThreshold(config.threshold);
+                        if (config.time_limit !== undefined) setTimeLimit(config.time_limit);
+                    }
+                }
             } catch (e) {
                 console.error("Failed to fetch Loitering Detection logs", e);
             }
@@ -59,8 +70,11 @@ const LoiteringDetectionPanel = ({ cameraId }) => {
                             <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Person Threshold:</span>
                             <input
                                 type="number"
-                                defaultValue={3}
-                                onChange={(e) => handleConfigChange('threshold', e.target.value)}
+                                value={threshold}
+                                onChange={(e) => {
+                                    setThreshold(e.target.value);
+                                    handleConfigChange('threshold', e.target.value);
+                                }}
                                 style={{ width: '50px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--panel-border)', color: '#fff', padding: '2px 4px', borderRadius: '4px' }}
                             />
                         </div>
@@ -68,8 +82,11 @@ const LoiteringDetectionPanel = ({ cameraId }) => {
                             <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Time Limit (sec):</span>
                             <input
                                 type="number"
-                                defaultValue={10}
-                                onChange={(e) => handleConfigChange('time_limit', e.target.value)}
+                                value={timeLimit}
+                                onChange={(e) => {
+                                    setTimeLimit(e.target.value);
+                                    handleConfigChange('time_limit', e.target.value);
+                                }}
                                 style={{ width: '50px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--panel-border)', color: '#fff', padding: '2px 4px', borderRadius: '4px' }}
                             />
                         </div>

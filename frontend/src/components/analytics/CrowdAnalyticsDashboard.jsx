@@ -9,18 +9,30 @@ const CrowdAnalyticsDashboard = ({ cameraId }) => {
     const [trend, setTrend] = useState({ labels: [], today: [], yesterday: [] });
     const [timeline, setTimeline] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [threshold, setThreshold] = useState(5);
 
     useEffect(() => {
         const fetchAnalytics = async () => {
             try {
-                const [statsRes, trendRes, timelineRes] = await Promise.all([
+                const [statsRes, trendRes, timelineRes, modulesRes] = await Promise.all([
                     httpClient.get(`/api/cameras/${cameraId}/crowd-stats`),
                     httpClient.get(`/api/cameras/${cameraId}/crowd-trend`),
-                    httpClient.get(`/api/cameras/${cameraId}/crowd-timeline`)
+                    httpClient.get(`/api/cameras/${cameraId}/crowd-timeline`),
+                    httpClient.get(`/api/cameras/${cameraId}/modules`)
                 ]);
                 setStats(statsRes || { max_people: 0, total_events: 0, peak_hour: null, avg_density: 0 });
                 setTrend(trendRes || { labels: [], today: [], yesterday: [] });
                 setTimeline(timelineRes || []);
+
+                if (modulesRes) {
+                    const crowdModule = modulesRes.find(m => m.key === 'crowd-density');
+                    if (crowdModule) {
+                        const config = typeof crowdModule.config === 'string' ? JSON.parse(crowdModule.config) : (crowdModule.config || {});
+                        if (config.threshold !== undefined) {
+                            setThreshold(config.threshold);
+                        }
+                    }
+                }
             } catch (err) {
                 console.error("Error fetching crowd analytics:", err);
             } finally {
@@ -74,8 +86,11 @@ const CrowdAnalyticsDashboard = ({ cameraId }) => {
                     <div style={{ color: '#fff', fontSize: '0.9rem', fontWeight: '500' }}>Crowd Threshold:</div>
                     <input
                         type="number"
-                        defaultValue={5}
-                        onChange={(e) => handleThresholdChange(e.target.value)}
+                        value={threshold}
+                        onChange={(e) => {
+                            setThreshold(e.target.value);
+                            handleThresholdChange(e.target.value);
+                        }}
                         style={{ width: '60px', padding: '0.4rem', background: '#0f172a', border: '1px solid #334155', color: '#fff', borderRadius: '4px', textAlign: 'center' }}
                     />
                     <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem' }}>Alert when people count exceeds this value</div>

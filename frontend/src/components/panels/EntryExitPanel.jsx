@@ -4,16 +4,25 @@ import httpClient from '../../api/httpClient';
 const EntryExitPanel = ({ cameraId }) => {
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [lineY, setLineY] = useState(200);
 
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
             try {
                 // Fetch events specifically for Entry/Exit on this camera
-                const res = await httpClient.get('/events', {
-                    params: { camera_id: cameraId, module_key: 'entry-exit' }
-                });
-                setEvents(res || []);
+                const [eventsRes, modulesRes] = await Promise.all([
+                    httpClient.get('/events', { params: { camera_id: cameraId, module_key: 'entry-exit' } }),
+                    httpClient.get(`/api/cameras/${cameraId}/modules`)
+                ]);
+                setEvents(eventsRes || []);
+                if (modulesRes) {
+                    const module = modulesRes.find(m => m.key === 'entry-exit');
+                    if (module) {
+                        const config = typeof module.config === 'string' ? JSON.parse(module.config) : (module.config || {});
+                        if (config.line_y !== undefined) setLineY(config.line_y);
+                    }
+                }
             } catch (e) {
                 console.error("Failed to fetch Entry/Exit logs", e);
             }
@@ -58,8 +67,11 @@ const EntryExitPanel = ({ cameraId }) => {
                             <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Tripwire Position (Y):</span>
                             <input
                                 type="number"
-                                defaultValue={200}
-                                onChange={(e) => handleConfigChange('line_y', e.target.value)}
+                                value={lineY}
+                                onChange={(e) => {
+                                    setLineY(e.target.value);
+                                    handleConfigChange('line_y', e.target.value);
+                                }}
                                 style={{ width: '60px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--panel-border)', color: '#fff', padding: '2px 4px', borderRadius: '4px' }}
                             />
                         </div>
