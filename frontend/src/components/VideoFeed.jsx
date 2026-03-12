@@ -517,7 +517,12 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                         if (activeModuleFilters.some(m => ['human-detection', 'people-count', 'entry-exit', 'loitering-detection', 'intrusion-detection', 'line-crossing'].includes(m))) {
                             // Human-centric modules: only persons
                             if (isPerson) show = true;
-                            if (isTripwire) show = true;
+                        }
+                        // Strictly show tripwires ONLY on their specific dedicated detail pages, not on the main dashboard
+                        if (isTripwire) {
+                            if (activeModuleFilters.length === 1 && (activeModuleFilters[0] === 'line-crossing' || activeModuleFilters[0] === 'entry-exit')) {
+                                show = true;
+                            }
                         }
                         if (activeModuleFilters.some(m => ['face-detection', 'face-recognition'].includes(m))) {
                             if (isFace) show = true;

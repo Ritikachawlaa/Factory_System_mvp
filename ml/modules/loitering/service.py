@@ -118,30 +118,35 @@ class LoiteringService:
                 loitering_track_ids.append(track_id)
 
         # Trigger events if the number of loiterers meets the person threshold
+        # Trigger events if the number of loiterers meets the person threshold
         if len(loitering_track_ids) >= self.person_threshold:
-            for track_id in loitering_track_ids:
-                if track_id not in self.alerted_tracks:
+            for track_id_loiter in loitering_track_ids:
+                if track_id_loiter not in self.alerted_tracks:
                     events.append({
                         "camera_id": camera_id,
                         "module_key": "loitering-detection",
-                        "label": f"Loitering Detected (ID #{track_id})",
+                        "label": f"Loitering Detected (ID #{track_id_loiter})",
                         "confidence": 1.0,
                         "timestamp": now,
-                        "meta": f"Track ID: {track_id}, Concurrent Loiterers: {len(loitering_track_ids)}, Duration: {int(track_durations[track_id])}s"
+                        "meta": f"Track ID: {track_id_loiter}, Concurrent Loiterers: {len(loitering_track_ids)}, Duration: {int(track_durations[track_id_loiter])}s"
                     })
-                    self.alerted_tracks.add(track_id)
+                    self.alerted_tracks.add(track_id_loiter)
 
         # Draw boxes and assign classes
         for track_id, (x1, y1, x2, y2) in track_boxes.items():
             is_loitering = track_id in loitering_track_ids
 
             color = (0, 0, 255) if is_loitering else (0, 255, 0)
-            label = f"Loitering #{track_id}" if is_loitering else f"Person #{track_id}"
+            
+            # Use 'loitering' as the class name so VideoFeed.jsx picks it up correctly (lowercase conversion)
+            label_class = "loitering" if is_loitering else "person"
+            label_display = f"Loitering #{track_id}" if is_loitering else f"Person #{track_id}"
+            
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-            cv2.putText(frame, label, (x1, max(20, y1 - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+            cv2.putText(frame, label_display, (x1, max(20, y1 - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
             bounding_boxes.append({
-                "class": "Loitering" if is_loitering else "Person",
+                "class": label_class,
                 "track_id": int(track_id),
                 "x": int(x1),
                 "y": int(y1),
