@@ -102,6 +102,20 @@ def get_db_timestamp():
     """Helper for consistent timestamp formatting (UTC ISO 8601)."""
     return datetime.datetime.utcnow().isoformat() + "Z"
 
+def format_timestamp(ts):
+    """Robustly format any timestamp (datetime, str, or None) to ISO 8601 UTC string."""
+    if ts is None:
+        return None
+    if hasattr(ts, "isoformat"):
+        return ts.isoformat() + "Z"
+    ts_str = str(ts)
+    if ts_str and not ts_str.endswith("Z"):
+        # If it looks like a standard SQL timestamp 'YYYY-MM-DD HH:MM:SS', convert
+        if " " in ts_str and "T" not in ts_str:
+            return ts_str.replace(" ", "T") + "Z"
+        return ts_str + "Z"
+    return ts_str
+
 # --- User Management ---
 
 def create_user(username, password_hash, role="admin"):
@@ -365,7 +379,7 @@ def get_recent_events_by_range(days: int = 1, limit: int = 200):
         events = []
         for r in rows:
             events.append({
-                "timestamp": (r[0].isoformat() + "Z" if hasattr(r[0], "isoformat") else str(r[0])),
+                "timestamp": format_timestamp(r[0]),
                 "label": r[1],
                 "camera": r[2],
                 "type": r[3],
@@ -399,7 +413,7 @@ def get_events_filtered(camera_id: int = None, module_key: str = None, limit=50)
         results = []
         for r in rows:
             results.append({
-                "timestamp": (r[0].isoformat() + "Z" if hasattr(r[0], "isoformat") else str(r[0])),
+                "timestamp": format_timestamp(r[0]),
                 "label": r[1],
                 "camera_id": r[2],
                 "type": r[3],
@@ -424,7 +438,7 @@ def get_recent_detections(type_=None, limit=20):
             params["t"] = type_
         query += " ORDER BY id DESC LIMIT :lim"
         rows = conn.execute(text(query), params).fetchall()
-        return [{"timestamp": (r[0].isoformat() + "Z" if hasattr(r[0], "isoformat") else str(r[0])), "label": r[1], "confidence": r[2], "camera_id": r[3]} for r in rows]
+        return [{"timestamp": format_timestamp(r[0]), "label": r[1], "confidence": r[2], "camera_id": r[3]} for r in rows]
     finally:
         conn.close()
 
@@ -467,7 +481,12 @@ def get_dashboard_stats():
         # Recent late arrivals for list
         stmt_late_list = text("SELECT DISTINCT label, MIN(timestamp) as time FROM events WHERE module_key='face-recognition' AND label NOT ILIKE '%Unknown%' AND timestamp >= (CURRENT_DATE + INTERVAL '9 hours') GROUP BY label ORDER BY time DESC LIMIT 5")
         late_rows = conn.execute(stmt_late_list).fetchall()
-        late_arrivals = [{"name": r[0], "time": r[1].isoformat() + "Z"} for r in late_rows]
+        late_arrivals = [{"name": r[0], "time": format_timestamp(r[1])} for r in late_rows]
+
+        # Recent Faces for list (Standardize timestamps)
+        stmt_recent = text("SELECT label, MAX(timestamp) as time FROM events WHERE module_key='face-detection' GROUP BY label ORDER BY time DESC LIMIT 5")
+        recent_rows = conn.execute(stmt_recent).fetchall()
+        recent_faces = [{"name": r[0], "time": format_timestamp(r[1])} for r in recent_rows]
 
         attendance_pct = int((present_count / total_employees) * 100) if total_employees > 0 else 0
         
@@ -479,6 +498,7 @@ def get_dashboard_stats():
             "totalEmployees": total_employees,
             "lateCount": late_count,
             "lateArrivals": late_arrivals,
+            "recentFaces": recent_faces, # Added recent faces
             "systemStatus": "Healthy",
             "criticalAlerts": critical_alerts
         }
@@ -583,7 +603,7 @@ def get_human_timeline(camera_id: int = None, limit: int = 50):
     results = []
     for e in events:
         results.append({
-            "time": e["timestamp"],
+            "time": format_timestamp(e["timestamp"]),
             "label": e["label"],
             "confidence": f"{int(float(e['confidence'])*100)}%" if e['confidence'] else "95%"
         })
@@ -625,7 +645,7 @@ def get_face_timeline(camera_id: int = None, limit: int = 50):
     results = []
     for e in events:
         results.append({
-            "time": e["timestamp"],
+            "time": format_timestamp(e["timestamp"]),
             "label": e["label"],
             "confidence": f"{int(float(e['confidence'])*100)}%" if e['confidence'] else "95%"
         })
@@ -687,9 +707,11 @@ def get_crowd_analytics(camera_id: int = None):
                 max_people = max(max_people, count)
                 total_people += count
                 
-                # Extract hour from timestamp "2023-10-25 14:30:00"
-                if isinstance(ts, str) and len(ts) >= 13:
-                    hr = ts[11:13]
+                # Extract hour from timestamp
+                # Use format_timestamp to ensure consistent datetime object or string
+                formatted_ts = format_timestamp(ts)
+                if len(formatted_ts) >= 13: # e.g., "2023-10-25T14:30:00Z" or "2023-10-25 14:30:00"
+                    hr = formatted_ts[11:13]
                     hour_counts[hr] = hour_counts.get(hr, 0) + count
         
         peak_hour = None
@@ -720,7 +742,7 @@ def get_crowd_timeline(camera_id: int = None, limit: int = 50):
     results = []
     for e in events:
         results.append({
-            "time": e["timestamp"],
+            "time": format_timestamp(e["timestamp"]),
             "label": e["label"],
             "meta": e.get("metadata", e.get("meta", "")) # DB uses 'metadata', some older dicts use 'meta'
         })
@@ -1095,9 +1117,9 @@ def get_security_module_analytics(module_key: str, camera_id: int = None):
             unique_track_ids.update(_extract_track_ids_from_metadata(metadata))
 
             if ts is not None:
-                ts_str = str(ts)
-                if len(ts_str) >= 13:
-                    hr = ts_str[11:13]
+                formatted_ts = format_timestamp(ts)
+                if len(formatted_ts) >= 13:
+                    hr = formatted_ts[11:13]
                     hour_counts[hr] = hour_counts.get(hr, 0) + 1
 
             if conf is not None:
@@ -1133,7 +1155,7 @@ def get_security_module_timeline(module_key: str, camera_id: int = None, limit: 
         conf = e.get("confidence")
         conf_text = f"{int(float(conf) * 100)}%" if conf is not None else "--"
         results.append({
-            "time": e["timestamp"].split(" ")[1] if " " in e["timestamp"] else e["timestamp"],
+            "time": format_timestamp(e["timestamp"]),
             "label": e["label"],
             "meta": metadata if metadata else "",
             "track_id": track_id,
@@ -1164,7 +1186,7 @@ def get_security_module_trend(module_key: str, camera_id: int = None):
         yesterday_data = {h: 0 for h in labels_hours}
 
         for r in rows:
-            ts_str = str(r[0])
+            ts_str = format_timestamp(r[0])
             hr = ts_str[11:13] if len(ts_str) >= 13 else None
             if hr in today_data:
                 if ts_str.startswith(today_str):
@@ -1193,7 +1215,7 @@ def get_module_stats(camera_id: int, module_key: str):
         last_event = row[1] if row else None
         return {
             "event_count": count,
-            "last_event": (last_event.isoformat() + "Z" if hasattr(last_event, "isoformat") else str(last_event)) if last_event else None,
+            "last_event": format_timestamp(last_event),
             "status": "active"
         }
     except:
@@ -1292,7 +1314,7 @@ def get_ppe_timeline(camera_id: int = None, limit: int = 50):
 
         results.append({
             "id": e.get("id"),
-            "time": e["timestamp"],
+            "time": format_timestamp(e["timestamp"]),
             "label": e["label"],
             "severity": e["severity"],
             "confidence": f"{int(float(e['confidence'])*100)}%" if e['confidence'] else "95%",
@@ -1324,8 +1346,8 @@ def get_ppe_trend(camera_id: int = None):
         yesterday_data = {h: 0 for h in labels_hours}
         
         for r in rows:
-            ts_str = str(r[0])
-            hr = ts_str[11:13]
+            ts_str = format_timestamp(r[0])
+            hr = ts_str[11:13] if len(ts_str) >= 13 else None
             
             if hr in today_data:
                 if ts_str.startswith(today_str):
@@ -1503,7 +1525,7 @@ def get_audit_logs(limit: int = 100):
         return [
             {
                 "id": r[0],
-                "timestamp": (r[1].isoformat() + "Z" if hasattr(r[1], "isoformat") else str(r[1])),
+                "timestamp": format_timestamp(r[1]),
                 "user": r[2],
                 "action": r[3],
                 "target": r[4],
