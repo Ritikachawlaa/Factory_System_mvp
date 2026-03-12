@@ -22,6 +22,11 @@ class CrowdDensityService:
         self.last_count = 0
         self.last_log_time = 0
         self.LOG_INTERVAL = 10
+        self.threshold = 5
+
+    def update_config(self, config):
+        if 'threshold' in config:
+            self.threshold = int(config['threshold'])
 
     def _load(self):
         if not self.model_loaded:
@@ -33,17 +38,12 @@ class CrowdDensityService:
             except Exception as e:
                 logger.error(f"Crowd Density model load failed: {e}")
 
-    def process_frame(self, frame, camera_id=0, config=None):
+    def process_frame(self, frame, camera_id=0):
         self._load()
         if self.detector is None:
             return frame, []
 
-        # Get threshold from config or default to 5
-        threshold = 5
-        if config and isinstance(config, dict):
-            threshold = int(config.get("threshold", 5))
-        elif isinstance(config, str) and config.isdigit():
-            threshold = int(config)
+        threshold = self.threshold
 
         boxes, grid, density = self.detector.detect(frame)
         count = len(boxes)

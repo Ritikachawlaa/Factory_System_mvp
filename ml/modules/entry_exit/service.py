@@ -16,6 +16,10 @@ class EntryExitService:
         self.in_count = 0
         self.out_count = 0
     
+    def update_config(self, config):
+        if 'line_y' in config:
+            self.line_y = int(config['line_y'])
+            
     def _match_tracks_to_boxes(self, boxes, tracked_objects):
         centroids = []
         for (x1, y1, x2, y2) in boxes:

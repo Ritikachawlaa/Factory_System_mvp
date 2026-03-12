@@ -195,11 +195,22 @@ def run_camera_inference(camera, client):
                 cams = client.get_cameras()
                 for c in cams:
                     if c['id'] == cam_id:
-                        # Be flexible with status: 'active' or 'running' or 'enabled'
-                        active_keys = [
-                            m['key'] for m in c.get('modules', []) 
-                            if m.get('status', '').lower() in ['active', 'running'] or m.get('enabled', False)
-                        ]
+                        active_keys = []
+                        for m in c.get('modules', []):
+                            if m.get('status', '').lower() in ['active', 'running'] or m.get('enabled', False):
+                                key = m['key']
+                                active_keys.append(key)
+                                # Parse & apply config
+                                conf = m.get('config', {})
+                                if isinstance(conf, str):
+                                    import json
+                                    try: 
+                                        conf = json.loads(conf)
+                                    except: 
+                                        conf = {}
+                                service = SERVICES.get(key)
+                                if service and hasattr(service, 'update_config'):
+                                    service.update_config(conf)
                         break
             except Exception as e:
                 logger.debug(f"Config sync failed for camera {cam_id}: {e}")
