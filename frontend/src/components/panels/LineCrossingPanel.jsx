@@ -63,16 +63,21 @@ const LineCrossingPanel = ({ cameraId }) => {
                     </div>
 
                     <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', marginBottom: '0.5rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Tripwire Position (X):</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Tripwire Position (X)</span>
+                                <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold' }}>{lineX}</span>
+                            </div>
                             <input
-                                type="number"
+                                type="range"
+                                min="0"
+                                max="640"
                                 value={lineX}
                                 onChange={(e) => {
                                     setLineX(e.target.value);
                                     handleConfigChange('line_x', e.target.value);
                                 }}
-                                style={{ width: '60px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--panel-border)', color: '#fff', padding: '2px 4px', borderRadius: '4px' }}
+                                style={{ width: '100%', cursor: 'pointer' }}
                             />
                         </div>
                     </div>
