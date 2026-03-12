@@ -95,12 +95,24 @@ class LoiteringService:
         loitering_track_ids = []
         track_durations = {}
 
-        for track_id in track_boxes.keys():
-            start_ts = self.first_seen_by_track.get(track_id)
-            if start_ts is None:
-                self.first_seen_by_track[track_id] = now
-                start_ts = now
-            duration = now - start_ts
+        for track_id, (x1, y1, x2, y2) in track_boxes.items():
+            cx = (x1 + x2) / 2
+            cy = (y1 + y2) / 2
+            
+            track_data = self.first_seen_by_track.get(track_id)
+            if track_data is None:
+                self.first_seen_by_track[track_id] = {"ts": now, "anchor": (cx, cy)}
+                track_data = self.first_seen_by_track[track_id]
+                
+            anchor_x, anchor_y = track_data["anchor"]
+            dist_sq = (cx - anchor_x)**2 + (cy - anchor_y)**2
+            
+            # If they moved significantly (e.g., more than ~20-30 pixels), reset their loitering timer
+            if dist_sq > 900: # 30 pixels squared
+                self.first_seen_by_track[track_id] = {"ts": now, "anchor": (cx, cy)}
+                track_data = self.first_seen_by_track[track_id]
+
+            duration = now - track_data["ts"]
             track_durations[track_id] = duration
             if duration >= self.time_threshold:
                 loitering_track_ids.append(track_id)
@@ -123,7 +135,7 @@ class LoiteringService:
         for track_id, (x1, y1, x2, y2) in track_boxes.items():
             is_loitering = track_id in loitering_track_ids
 
-            color = (0, 0, 255) if is_loitering else (255, 255, 0)
+            color = (0, 0, 255) if is_loitering else (0, 255, 0)
             label = f"Loitering #{track_id}" if is_loitering else f"Person #{track_id}"
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
             cv2.putText(frame, label, (x1, max(20, y1 - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
@@ -135,7 +147,8 @@ class LoiteringService:
                 "y": int(y1),
                 "w": int(x2 - x1),
                 "h": int(y2 - y1),
-                "confidence": 1.0
+                "confidence": 1.0,
+                "color": "#ef4444" if is_loitering else "#10b981"
             })
 
         cv2.putText(frame, f"Count: {person_count}", (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
