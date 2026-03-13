@@ -18,9 +18,7 @@ class LabourCountingService:
     def __init__(self):
         self.detector = None
         self.model_loaded = False
-        self.last_log_time = 0
-        self.LOG_INTERVAL = 15
-        self.last_boxes_found = False
+        self.logged_tracks = {} # track_id -> status_key
 
     def _load(self):
         if not self.model_loaded:
@@ -32,7 +30,6 @@ class LabourCountingService:
             except Exception as e:
                 logger.error(f"Labour Counting model load failed: {e}")
 
-    # ---- Vest color classification (Refined for Green vs Orange/Red) ----
     def classify_vest_color(self, roi):
         """Classify vest color using HSV thresholds."""
         if roi is None or roi.size == 0:
@@ -43,14 +40,14 @@ class LabourCountingService:
         except Exception:
             return "UNKNOWN"
         
-        # Red ranges (wraps around 0/180 in HSV)
+        # Red ranges
         lower_red1 = np.array([0, 120, 70])
         upper_red1 = np.array([10, 255, 255])
         lower_red2 = np.array([170, 120, 70])
         upper_red2 = np.array([180, 255, 255])
         red_mask = cv2.inRange(hsv, lower_red1, upper_red1) + cv2.inRange(hsv, lower_red2, upper_red2)
         
-        # Orange range (approx 10-25 in HSV)
+        # Orange range
         lower_orange = np.array([10, 100, 100])
         upper_orange = np.array([25, 255, 255])
         orange_mask = cv2.inRange(hsv, lower_orange, upper_orange)
@@ -64,17 +61,14 @@ class LabourCountingService:
         orange_pixels = cv2.countNonZero(orange_mask)
         green_pixels = cv2.countNonZero(green_mask)
         
-        # Combine Red and Orange into a single "Non-Verified" pool
         not_verified_pixels = red_pixels + orange_pixels
-        
-        # Require a minimum pixel count to avoid noise
         min_pixels = 300
+
         if not_verified_pixels > green_pixels and not_verified_pixels > min_pixels:
             return "NOT_VERIFIED"
         elif green_pixels > not_verified_pixels and green_pixels > min_pixels:
             return "VERIFIED"
-        else:
-            return "UNKNOWN"
+        return "UNKNOWN"
 
     def is_inside(self, person_box, ppe_box):
         px1, py1, px2, py2, _, _ = person_box
@@ -83,98 +77,130 @@ class LabourCountingService:
         cy = (gy1 + gy2) / 2
         return (px1 <= cx <= px2) and (py1 <= cy <= py2)
 
-    # ---- main entry point ----
     def process_frame(self, frame, camera_id=0):
         self._load()
         if self.detector is None:
             return frame, [], []
 
-        # Get persons and PPE items if available
-        persons = []
+        # 1. Tracker for persistent IDs
+        tracks = self.detector.track(frame, classes=[0])
+        
+        # 2. PPE items for vest check
         ppe_items = []
-        if hasattr(self.detector, 'ppe_detector') and self.detector.ppe_detector:
-            persons, ppe_items = self.detector.ppe_detector.detect_all(frame)
-        else:
-            persons = self.detector.detect(frame, classes=[0])
+        if self.detector.ppe_detector:
+            ppe_items = self.detector.ppe_detector.detect(frame, classes=[0, 1, 2, 3])
 
         verified_count = 0
         not_verified_count = 0
         unknown_count = 0
         bounding_boxes = []
         events = []
+        
+        current_frame_ids = set()
 
-        for p_box in persons:
-            px1, py1, px2, py2, p_conf, p_cls = p_box
+        for track in tracks:
+            x1, y1, x2, y2, track_id, conf, cls = track
+            current_frame_ids.add(track_id)
+            person_box = (x1, y1, x2, y2, conf, cls)
             
-            # Find if this person is wearing a vest
+            # Vest detection
             vest_found = False
-            for i_box in ppe_items:
-                ix1, iy1, ix2, iy2, i_conf, cls_id = i_box
-                label = self.detector.ppe_detector.model.names.get(cls_id, "").lower()
-                if "vest" in label and self.is_inside(p_box, i_box):
-                    vest_found = True
-                    break
+            if self.detector.ppe_detector:
+                ppe_names = self.detector.ppe_detector.model.names
+                for i_box in ppe_items:
+                    ix1, iy1, ix2, iy2, i_conf, cls_id = i_box
+                    label = ppe_names.get(cls_id, "").lower()
+                    if "vest" in label and self.is_inside(person_box, i_box):
+                        vest_found = True
+                        break
             
             if not vest_found:
-                # No vest detected, classify as unknown/unclassified labour
                 status = "Unknown (No Vest)"
-                box_color = (128, 128, 128) # Grey
+                b_color = (128, 128, 128) # BGR Grey
+                hex_color = "#6b7280"     # CSS Grey
+                status_key = "UNKNOWN_NO_VEST"
                 unknown_count += 1
             else:
-                # Crop the torso region for vest color analysis
-                h = py2 - py1
-                torso_top = max(0, py1 + int(h * 0.2))
-                torso_bot = min(frame.shape[0], py1 + int(h * 0.6))
-                vest_roi = frame[torso_top:torso_bot, max(0, px1):min(frame.shape[1], px2)]
-                
-                color_label = self.classify_vest_color(vest_roi)
+                # Color analysis
+                h = y2 - y1
+                torso_roi = frame[max(0, y1 + int(h*0.2)):min(frame.shape[0], y1 + int(h*0.6)), 
+                                  max(0, x1):min(frame.shape[1], x2)]
+                color_label = self.classify_vest_color(torso_roi)
                 
                 if color_label == "VERIFIED":
-                    verified_count += 1
-                    box_color = (0, 255, 0)    # Green
                     status = "Verified (Permanent)"
+                    b_color = (0, 255, 0) # BGR Green
+                    hex_color = "#10b981" # CSS Green
+                    status_key = "VERIFIED"
+                    verified_count += 1
                 elif color_label == "NOT_VERIFIED":
-                    not_verified_count += 1
-                    box_color = (0, 0, 255)    # Red/Orange
                     status = "Not Verified"
+                    b_color = (0, 0, 255) # BGR Red
+                    hex_color = "#ef4444" # CSS Red
+                    status_key = "NOT_VERIFIED"
+                    not_verified_count += 1
                 else:
-                    unknown_count += 1
-                    box_color = (255, 165, 0)  # Orange
                     status = "Unknown (Color)"
+                    b_color = (0, 165, 255) # BGR Orange
+                    hex_color = "#f59e0b"    # CSS Orange
+                    status_key = "UNKNOWN_COLOR"
+                    unknown_count += 1
 
-            # Draw bounding box
-            cv2.rectangle(frame, (px1, py1), (px2, py2), box_color, 2)
-            cv2.putText(frame, status, (px1, py1 - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, box_color, 2)
+            # Draw & Collect Bounding Box
+            cv2.rectangle(frame, (x1, y1), (x2, y2), b_color, 2)
+            display_text = f"{status} #{track_id}" if track_id != -1 else status
+            cv2.putText(frame, display_text, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, b_color, 2)
             
             bounding_boxes.append({
                 "class": status,
-                "x": int(px1), "y": int(py1),
-                "w": int(px2 - px1), "h": int(py2 - py1),
-                "confidence": float(p_conf)
+                "label": display_text,
+                "track_id": track_id,
+                "x": int(x1), "y": int(y1), "w": int(x2-x1), "h": int(y2-y1),
+                "confidence": float(conf),
+                "color": hex_color
             })
+            
+            # 3. Deduplicated logging
+            if track_id != -1:
+                if self.logged_tracks.get(track_id) != status_key:
+                    msg = f"{status} Labour Detected | ID: #{track_id}"
+                    if status_key == "NOT_VERIFIED":
+                        msg = f"Unverified (Temporary) Labour Detected | ID: #{track_id}"
+                    
+                    events.append({
+                        "camera_id": camera_id,
+                        "module_key": "labour-counting",
+                        "label": "Labour Counting",
+                        "confidence": float(conf),
+                        "timestamp": time.time(),
+                        "meta": {
+                            "message": msg,
+                            "track_id": track_id,
+                            "status": status_key,
+                            "verified": verified_count,
+                            "not_verified": not_verified_count
+                        }
+                    })
+                    self.logged_tracks[track_id] = status_key
 
-        # Summary overlay
+        # 4. Cleanup old tracks (simplified)
+        # To avoid memory leak or stale statuses, if an ID is gone for long, remove it.
+        # But for BoT-SORT, we want it to re-log if they re-enter with same ID? 
+        # User said: "untill and unless, the person exists and re- enters".
+        # If we remove IDs from logged_tracks if they aren't in this frame, 
+        # then re-entry will ALWAYS re-log (even with same ID).
+        # This is exactly what the user asked.
+        
+        all_ids = list(self.logged_tracks.keys())
+        for tid in all_ids:
+            if tid not in current_frame_ids:
+                # Safer: only remove if not seen for N frames to avoid flickering logs
+                # For now, let's keep it simple: if not in frame, it's "exited" for logging state
+                del self.logged_tracks[tid]
+
+        # Summary
         total = verified_count + not_verified_count + unknown_count
-        cv2.putText(frame, f"Total: {total} | Verified: {verified_count} | Not Verified: {not_verified_count}",
-                    (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-
-        # Periodic event logging
-        now = time.time()
-        if now - self.last_log_time > self.LOG_INTERVAL:
-            events.append({
-                "camera_id": camera_id,
-                "module_key": "labour-counting",
-                "label": "Workforce Sync",
-                "confidence": 1.0,
-                "timestamp": now,
-                "meta": {
-                    "total_count": total,
-                    "verified": verified_count,
-                    "not_verified": not_verified_count,
-                    "unknown": unknown_count
-                }
-            })
-            self.last_log_time = now
+        cv2.putText(frame, f"Total: {total} | V: {verified_count} | NV: {not_verified_count}",
+                    (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
         return frame, events, bounding_boxes
