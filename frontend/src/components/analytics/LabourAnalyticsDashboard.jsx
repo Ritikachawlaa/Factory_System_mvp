@@ -9,8 +9,8 @@ import {
 const LabourAnalyticsDashboard = ({ cameraId }) => {
     const [stats, setStats] = useState({
         current_workers: 0,
-        red_vests: 0,
-        green_vests: 0,
+        not_verified: 0,
+        verified: 0,
         peak_count: 0,
         avg_shift_duration: '-'
     });
@@ -28,8 +28,8 @@ const LabourAnalyticsDashboard = ({ cameraId }) => {
                 ]);
                 setStats(statsRes || {
                     current_workers: 0,
-                    red_vests: 0,
-                    green_vests: 0,
+                    not_verified: 0,
+                    verified: 0,
                     peak_count: 0,
                     avg_shift_duration: '-'
                 });
@@ -58,8 +58,8 @@ const LabourAnalyticsDashboard = ({ cameraId }) => {
     }));
 
     const pieData = [
-        { name: 'Red Vest', value: stats.red_vests, color: '#ef4444' },
-        { name: 'Green Vest', value: stats.green_vests, color: '#10b981' }
+        { name: 'Not Verified', value: stats.not_verified, color: '#ef4444' },
+        { name: 'Verified (Perm)', value: stats.verified, color: '#10b981' }
     ];
 
     return (
@@ -67,8 +67,8 @@ const LabourAnalyticsDashboard = ({ cameraId }) => {
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
                 <SummaryCard label="Current Workers" value={stats.current_workers} subtext="Live Count" icon="👥" color="var(--accent-cyan)" />
-                <SummaryCard label="Red Vests" value={stats.red_vests} subtext="Authorized" icon="🦺" color="#ef4444" />
-                <SummaryCard label="Green Vests" value={stats.green_vests} subtext="Visitors/Temp" icon="🦺" color="#10b981" />
+                <SummaryCard label="Not Verified" value={stats.not_verified} subtext="Red/Orange Vest" icon="⚠️" color="#ef4444" />
+                <SummaryCard label="Verified (Perm)" value={stats.verified} subtext="Green Vest" icon="✅" color="#10b981" />
                 <SummaryCard label="Peak Today" value={stats.peak_count} subtext="At 12:45" icon="📈" color="#3b82f6" />
             </div>
 
@@ -116,7 +116,9 @@ const LabourAnalyticsDashboard = ({ cameraId }) => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     {timeline.slice(0, 5).map((t, i) => (
                         <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                            <span style={{ color: '#fff' }}>{new Date(t.time).toLocaleTimeString()} - {t.label}</span>
+                            <span style={{ color: '#fff' }}>
+                                {new Date(t.time).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })} - {t.label}
+                            </span>
                             <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Conf: {t.confidence}</span>
                         </div>
                     ))}

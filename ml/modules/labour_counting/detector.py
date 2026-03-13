@@ -11,3 +11,10 @@ class LabourDetector(BaseDetector):
         # MUST specify yolov8s.pt explicitly, otherwise BaseDetector
         # falls back to Core_Model_1.pt (face model) which has no "person" class
         super().__init__(model_path="yolov8s.pt", conf=conf)
+        from .detector import BaseDetector as BD
+        # We use a secondary detector for PPE (vests)
+        try:
+            from ..ppe_detection.detector import PPEDetector
+            self.ppe_detector = PPEDetector(conf=conf)
+        except ImportError:
+            self.ppe_detector = None
