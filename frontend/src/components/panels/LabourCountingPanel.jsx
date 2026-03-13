@@ -13,7 +13,18 @@ const LabourCountingPanel = ({ cameraId }) => {
                 const res = await httpClient.get('/events', {
                     params: { camera_id: cameraId, module_key: 'labour-counting' }
                 });
-                setEvents(res || []);
+                const formattedEvents = (res || []).map(e => {
+                    // Extract inner meta if nested
+                    let metaObj = {};
+                    try {
+                        const parsed = typeof e.metadata === 'string' ? JSON.parse(e.metadata) : (e.metadata || {});
+                        metaObj = parsed.meta || parsed;
+                    } catch (err) {
+                        metaObj = {};
+                    }
+                    return { ...e, meta: metaObj };
+                });
+                setEvents(formattedEvents);
             } catch (e) {
                 console.error("Failed to fetch Labour Counting logs", e);
             }
@@ -56,10 +67,10 @@ const LabourCountingPanel = ({ cameraId }) => {
                         <div key={i} style={{ padding: '1rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
                                 <span style={{ color: '#f59e0b', fontWeight: 'bold', fontSize: '0.9rem' }}>{e.label || 'Workforce Count'}</span>
-                                <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{new Date(e.timestamp || Date.now()).toLocaleTimeString()}</span>
+                                <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{new Date(e.timestamp || Date.now()).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}</span>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.8rem' }}>{e.meta || e.message || 'Details logged'}</span>
+                                <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.8rem' }}>{e.meta?.message || e.message || 'Details logged'}</span>
                             </div>
                         </div>
                     ))}

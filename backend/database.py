@@ -1400,31 +1400,35 @@ def get_labour_analytics(camera_id: int = None):
         
         row = conn.execute(text(query), params).fetchone()
         current_count = 0
-        red_vests = 0
-        green_vests = 0
+        not_verified = 0
+        verified = 0
         
         if row:
             try:
-                meta = json.loads(row[0]) if isinstance(row[0], str) else row[0]
-                current_count = meta.get("total_count", 0)
-                red_vests = meta.get("red_vests", 0)
-                green_vests = meta.get("green_vests", 0)
+                full_metadata = json.loads(row[0]) if isinstance(row[0], str) else row[0]
+                meta = full_metadata.get("meta", {})
+                verified = meta.get("verified", 0)
+                not_verified = meta.get("not_verified", 0)
+                current_count = verified + not_verified
             except: pass
 
         # Peak hours today
-        peak_query = "SELECT MAX(CAST(json_extract(metadata, '$.total_count') AS INTEGER)) FROM events WHERE module_key = 'labour-counting' AND timestamp >= CURRENT_DATE"
+        peak_query = "SELECT MAX(CAST(json_extract(metadata, '$.meta.verified') AS INTEGER) + CAST(json_extract(metadata, '$.meta.not_verified') AS INTEGER)) FROM events WHERE module_key = 'labour-counting' AND timestamp >= CURRENT_DATE"
+        if "sqlite" not in str(conn.engine.url):
+            peak_query = "SELECT MAX((metadata->'meta'->>'verified')::int + (metadata->'meta'->>'not_verified')::int) FROM events WHERE module_key = 'labour-counting' AND timestamp >= CURRENT_DATE"
+        
         peak_count = conn.execute(text(peak_query)).scalar() or 0
 
         return {
             "current_workers": current_count,
-            "red_vests": red_vests,
-            "green_vests": green_vests,
+            "not_verified": not_verified,
+            "verified": verified,
             "peak_count": peak_count,
             "avg_shift_duration": "7.8h"
         }
     except Exception as e:
         print(f"Get Labour Analytics Error: {e}")
-        return {"current_workers": 0, "red_vests": 0, "green_vests": 0, "peak_count": 0, "avg_shift_duration": "-"}
+        return {"current_workers": 0, "not_verified": 0, "verified": 0, "peak_count": 0, "avg_shift_duration": "-"}
     finally:
         conn.close()
 
@@ -1436,7 +1440,37 @@ def get_labour_trend(camera_id: int = None):
     }
 
 def get_labour_timeline(camera_id: int = None, limit: int = 50):
-    return get_ppe_timeline(camera_id, limit)
+    conn = get_connection()
+    try:
+        query = "SELECT id, timestamp, label, severity, confidence, metadata FROM events WHERE module_key = 'labour-counting' ORDER BY id DESC LIMIT :lim"
+        params = {"lim": limit}
+        if camera_id:
+            query = query.replace("WHERE", "WHERE camera_id = :cid AND")
+            params["cid"] = camera_id
+            
+        rows = conn.execute(text(query), params).fetchall()
+        results = []
+        for r in rows:
+            try:
+                full_metadata = json.loads(r[5]) if isinstance(r[5], str) else r[5]
+                meta = full_metadata.get("meta", {})
+            except:
+                meta = {}
+            
+            results.append({
+                "id": r[0],
+                "time": format_timestamp(r[1]),
+                "label": r[2],
+                "severity": r[3],
+                "confidence": f"{int(float(r[4])*100)}%" if r[4] else "95%",
+                "meta": meta
+            })
+        return results
+    except Exception as e:
+        print(f"Get Labour Timeline Error: {e}")
+        return []
+    finally:
+        conn.close()
 
 # --- Abandonment Analytics ---
 

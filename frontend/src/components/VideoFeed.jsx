@@ -493,7 +493,7 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                         const isTrack = detClass.includes('track id') || detClass.includes('tid');
                         const isFace = detClass.includes('face') || detClass.includes('unknown') || detClass.includes('[tid') || detClass.includes('(id:');
                         const isFire = detClass === 'fire' || detClass === 'smoke';
-                        const isWorker = detClass.includes('worker') || detClass.includes('permanent') || detClass.includes('unclassified');
+                        const isWorker = detClass.includes('worker') || detClass.includes('permanent') || detClass.includes('temporary') || detClass.includes('verified') || detClass.includes('unclassified');
                         const isTripwire = detClass.includes('tripwire');
 
                         // A "generic object" is anything NOT classified as person/face/PPE/fire/crowd/track/worker/tripwire

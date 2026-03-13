@@ -134,7 +134,7 @@ class LabourCountingService:
                     status_key = "VERIFIED"
                     verified_count += 1
                 elif color_label == "NOT_VERIFIED":
-                    status = "Not Verified"
+                    status = "Unverified (Temporary)"
                     b_color = (0, 0, 255) # BGR Red
                     hex_color = "#ef4444" # CSS Red
                     status_key = "NOT_VERIFIED"
@@ -163,9 +163,10 @@ class LabourCountingService:
             # 3. Deduplicated logging
             if track_id != -1:
                 if self.logged_tracks.get(track_id) != status_key:
-                    msg = f"{status} Labour Detected | ID: #{track_id}"
                     if status_key == "NOT_VERIFIED":
                         msg = f"Unverified (Temporary) Labour Detected | ID: #{track_id}"
+                    else:
+                        msg = f"{status} Labour Detected | ID: #{track_id}"
                     
                     events.append({
                         "camera_id": camera_id,
