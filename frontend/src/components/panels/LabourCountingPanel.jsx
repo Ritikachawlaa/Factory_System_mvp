@@ -31,13 +31,13 @@ const LabourCountingPanel = ({ cameraId }) => {
             <div className="glass-panel" style={{ flex: 1, padding: '0', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--panel-border)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                        <h3 style={{ margin: 0, color: '#fff', fontSize: '1.1rem' }}>People Counting Log</h3>
+                        <h3 style={{ margin: 0, color: '#fff', fontSize: '1.1rem' }}>Labour Counting Log</h3>
                         <span style={{ fontSize: '0.8rem', color: '#f59e0b', background: 'rgba(245, 158, 11, 0.1)', padding: '0.2rem 0.6rem', borderRadius: '12px' }}>
                             {events.length === 0 ? '● Standby' : '● Monitoring Traffic'}
                         </span>
                     </div>
                     <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                        Live, continuous shift-monitoring of people / workforce on site.
+                        Live, continuous shift-monitoring of labour / workforce on site.
                     </div>
                 </div>
 
