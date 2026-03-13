@@ -1391,7 +1391,11 @@ def get_labour_analytics(camera_id: int = None):
     conn = get_connection()
     try:
         # Get latest event for current count
-        query = "SELECT metadata FROM events WHERE module_key = 'labour-counting' AND timestamp >= datetime('now', '-5 minutes')"
+        if "sqlite" in str(conn.engine.url):
+            query = "SELECT metadata FROM events WHERE module_key = 'labour-counting' AND timestamp >= datetime('now', '-5 minutes')"
+        else:
+            query = "SELECT metadata FROM events WHERE module_key = 'labour-counting' AND timestamp >= (NOW() - INTERVAL '5 minutes')"
+        
         params = {}
         if camera_id:
             query += " AND camera_id = :cid"
@@ -1405,19 +1409,36 @@ def get_labour_analytics(camera_id: int = None):
         
         if row:
             try:
-                full_metadata = json.loads(row[0]) if isinstance(row[0], str) else row[0]
-                meta = full_metadata.get("meta", {})
+                # row[0] might be the metadata column
+                meta_data = row[0]
+                if isinstance(meta_data, str):
+                    meta_data = json.loads(meta_data)
+                
+                # The ML service nests everything in "meta"
+                meta = meta_data.get("meta", meta_data)
                 verified = meta.get("verified", 0)
                 not_verified = meta.get("not_verified", 0)
                 current_count = verified + not_verified
             except: pass
 
         # Peak hours today
-        peak_query = "SELECT MAX(CAST(json_extract(metadata, '$.meta.verified') AS INTEGER) + CAST(json_extract(metadata, '$.meta.not_verified') AS INTEGER)) FROM events WHERE module_key = 'labour-counting' AND timestamp >= CURRENT_DATE"
-        if "sqlite" not in str(conn.engine.url):
-            peak_query = "SELECT MAX((metadata->'meta'->>'verified')::int + (metadata->'meta'->>'not_verified')::int) FROM events WHERE module_key = 'labour-counting' AND timestamp >= CURRENT_DATE"
+        if "sqlite" in str(conn.engine.url):
+            peak_query = "SELECT MAX(CAST(json_extract(metadata, '$.meta.verified') AS INTEGER) + CAST(json_extract(metadata, '$.meta.not_verified') AS INTEGER)) FROM events WHERE module_key = 'labour-counting' AND timestamp >= CURRENT_DATE"
+        else:
+            # PostgreSQL: Handle JSONB or JSON column
+            peak_query = """
+                SELECT MAX(
+                    COALESCE((metadata->'meta'->>'verified')::int, (metadata->>'verified')::int, 0) + 
+                    COALESCE((metadata->'meta'->>'not_verified')::int, (metadata->>'not_verified')::int, 0)
+                ) 
+                FROM events 
+                WHERE module_key = 'labour-counting' AND timestamp >= CURRENT_DATE
+            """
         
-        peak_count = conn.execute(text(peak_query)).scalar() or 0
+        try:
+            peak_count = conn.execute(text(peak_query)).scalar() or 0
+        except:
+            peak_count = 0
 
         return {
             "current_workers": current_count,
@@ -1433,11 +1454,64 @@ def get_labour_analytics(camera_id: int = None):
         conn.close()
 
 def get_labour_trend(camera_id: int = None):
-    return {
-        "labels": ["08:00", "10:00", "12:00", "14:00", "16:00", "18:00"],
-        "today": [5, 12, 18, 15, 10, 4],
-        "yesterday": [4, 10, 15, 12, 8, 3]
-    }
+    conn = get_connection()
+    try:
+        # Fetch data for today and yesterday
+        if "sqlite" in str(conn.engine.url):
+            query = "SELECT metadata, timestamp FROM events WHERE module_key = 'labour-counting' AND timestamp >= datetime('now', '-1 day')"
+        else:
+            query = "SELECT metadata, timestamp FROM events WHERE module_key = 'labour-counting' AND timestamp >= (NOW() - INTERVAL '1 day')"
+        
+        params = {}
+        if camera_id:
+            query += " AND camera_id = :cid"
+            params["cid"] = camera_id
+            
+        rows = conn.execute(text(query), params).fetchall()
+        
+        from datetime import datetime
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        
+        labels_hours = ["08", "10", "12", "14", "16", "18", "20"]
+        labels = [f"{h}:00" for h in labels_hours]
+        
+        today_data = {h: [] for h in labels_hours}
+        yesterday_data = {h: [] for h in labels_hours}
+        
+        for meta_blob, ts in rows:
+            if not meta_blob or not ts: continue
+            
+            ts_str = str(ts)
+            hr = ts_str[11:13]
+            
+            if hr in today_data:
+                try:
+                    meta = json.loads(meta_blob) if isinstance(meta_blob, str) else meta_blob
+                    inner_meta = meta.get("meta", meta)
+                    # Use total current count as the data point for that hour
+                    count = inner_meta.get("verified", 0) + inner_meta.get("not_verified", 0)
+                    
+                    if ts_str.startswith(today_str):
+                        today_data[hr].append(count)
+                    else:
+                        yesterday_data[hr].append(count)
+                except: pass
+                    
+        # Max per hour to show peak periods
+        today = [max(today_data[h]) if today_data[h] else 0 for h in labels_hours]
+        yesterday = [max(yesterday_data[h]) if yesterday_data[h] else 0 for h in labels_hours]
+                    
+        return {
+            "labels": labels,
+            "today": today,
+            "yesterday": yesterday
+        }
+    except Exception as e:
+        print(f"Get Labour Trend Error: {e}")
+        labels = ["08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00"]
+        return {"labels": labels, "today": [0]*7, "yesterday": [0]*7}
+    finally:
+        conn.close()
 
 def get_labour_timeline(camera_id: int = None, limit: int = 50):
     conn = get_connection()
