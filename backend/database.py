@@ -1394,7 +1394,7 @@ def get_labour_analytics(camera_id: int = None):
         if "sqlite" in str(conn.engine.url):
             query = "SELECT metadata FROM events WHERE module_key = 'labour-counting' AND timestamp >= datetime('now', '-5 minutes')"
         else:
-            query = "SELECT metadata FROM events WHERE module_key = 'labour-counting' AND timestamp >= (NOW() - INTERVAL '5 minutes')"
+            query = "SELECT metadata FROM events WHERE module_key = 'labour-counting' AND timestamp >= (NOW() AT TIME ZONE 'UTC' - INTERVAL '5 minutes')"
         
         params = {}
         if camera_id:
@@ -1425,14 +1425,14 @@ def get_labour_analytics(camera_id: int = None):
         if "sqlite" in str(conn.engine.url):
             peak_query = "SELECT MAX(CAST(json_extract(metadata, '$.meta.verified') AS INTEGER) + CAST(json_extract(metadata, '$.meta.not_verified') AS INTEGER)) FROM events WHERE module_key = 'labour-counting' AND timestamp >= CURRENT_DATE"
         else:
-            # PostgreSQL: Handle JSONB or JSON column
+            # PostgreSQL: Handle JSONB or JSON column. Use UTC for comparison.
             peak_query = """
                 SELECT MAX(
                     COALESCE((metadata->'meta'->>'verified')::int, (metadata->>'verified')::int, 0) + 
                     COALESCE((metadata->'meta'->>'not_verified')::int, (metadata->>'not_verified')::int, 0)
                 ) 
                 FROM events 
-                WHERE module_key = 'labour-counting' AND timestamp >= CURRENT_DATE
+                WHERE module_key = 'labour-counting' AND timestamp >= (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date
             """
         
         try:
@@ -1460,7 +1460,7 @@ def get_labour_trend(camera_id: int = None):
         if "sqlite" in str(conn.engine.url):
             query = "SELECT metadata, timestamp FROM events WHERE module_key = 'labour-counting' AND timestamp >= datetime('now', '-1 day')"
         else:
-            query = "SELECT metadata, timestamp FROM events WHERE module_key = 'labour-counting' AND timestamp >= (NOW() - INTERVAL '1 day')"
+            query = "SELECT metadata, timestamp FROM events WHERE module_key = 'labour-counting' AND timestamp >= (NOW() AT TIME ZONE 'UTC' - INTERVAL '1 day')"
         
         params = {}
         if camera_id:
