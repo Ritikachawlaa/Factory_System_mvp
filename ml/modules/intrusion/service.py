@@ -108,11 +108,20 @@ class IntrusionService:
         
         now = time.time()
 
-        # Draw ROI if exists
+        # Draw ROI if exists (for local frame)
         if self.roi:
             rx1, ry1, rx2, ry2 = self.roi
             cv2.rectangle(frame, (rx1, ry1), (rx2, ry2), (255, 0, 0), 2)
             cv2.putText(frame, "Intrusion Zone", (rx1, ry1-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
+            
+            # Send ROI as a virtual box for UI rendering
+            bounding_boxes.append({
+                "class": "Intrusion Zone",
+                "x": int(rx1), "y": int(ry1), "w": int(rx2-rx1), "h": int(ry2-ry1),
+                "confidence": 1.0,
+                "color": "#3b82f6", # Blue
+                "is_roi": True
+            })
 
         for obj_id, (x1, y1, x2, y2) in track_boxes.items():
             # Check if this person is in the ROI

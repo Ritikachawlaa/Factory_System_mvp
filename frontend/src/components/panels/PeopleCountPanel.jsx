@@ -24,6 +24,13 @@ const PeopleCountPanel = ({ cameraId }) => {
         }
     }, [cameraId]);
 
+    const formatTime = (dateStr) => {
+        if (!dateStr) return '--:--:--';
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return 'Invalid Time';
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    };
+
     return (
         <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <div className="glass-panel" style={{ flex: 1, padding: '0', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -46,7 +53,7 @@ const PeopleCountPanel = ({ cameraId }) => {
                     {!loading && timeline && timeline.map((entry, i) => (
                         <div key={i} style={{ padding: '0.75rem 1rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-                                <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: '500' }}>{new Date(entry.time).toLocaleTimeString()}</span>
+                                <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: '500' }}>{formatTime(entry.time)}</span>
                                 <span style={{ color: 'var(--accent-cyan)', fontSize: '0.75rem', fontWeight: 'bold' }}>Update</span>
                             </div>
                             <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>

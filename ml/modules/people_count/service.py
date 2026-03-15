@@ -13,6 +13,7 @@ class PeopleCountService:
         self.LOG_INTERVAL = 10 # Log every 10 seconds if count significant
 
     def process_frame(self, frame, camera_id=0):
+        now = time.time()
         boxes = self.detector.detect(frame)
         count = len(boxes)
         events = []
@@ -30,7 +31,7 @@ class PeopleCountService:
                     cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
 
         # Event Logic: Log periodically or on significant change
-        if (count > 0 and now - self.last_log_time > self.LOG_INTERVAL) or (abs(count - self.last_count) > 2):
+        if (count > 0 and now - self.last_log_time > 5.0) or (abs(count - self.last_count) > 0):
             event = {
                 "camera_id": camera_id,
                 "module_key": "people-count",

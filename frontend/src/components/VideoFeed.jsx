@@ -494,7 +494,7 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                         const isFace = detClass.includes('face') || detClass.includes('unknown') || detClass.includes('[tid') || detClass.includes('(id:');
                         const isFire = detClass === 'fire' || detClass === 'smoke';
                         const isWorker = detClass.includes('worker') || detClass.includes('permanent') || detClass.includes('temporary') || detClass.includes('verified') || detClass.includes('unclassified');
-                        const isTripwire = detClass.includes('tripwire');
+                        const isTripwire = detClass.includes('tripwire') || detClass.includes('zone');
 
                         // A "generic object" is anything NOT classified as person/face/PPE/fire/crowd/track/worker/tripwire
                         const isGenericObject = !isPerson && !isCrowd && !isTrack && !isFace && !isPPEItem && !isPPEPerson && !isFire && !isWorker && !isTripwire;
@@ -515,8 +515,8 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                             if (isWorker || isPerson) show = true;
                         }
                         if (activeModuleFilters.some(m => ['human-detection', 'people-count', 'entry-exit', 'loitering-detection', 'intrusion-detection', 'line-crossing'].includes(m))) {
-                            // Human-centric modules: only persons
-                            if (isPerson) show = true;
+                            // Human-centric modules: persons and their related zones/ROI helpers
+                            if (isPerson || isTripwire) show = true;
                         }
                         // Strictly show tripwires ONLY on their specific dedicated detail pages, not on the main dashboard
                         if (isTripwire) {

@@ -44,6 +44,13 @@ const PeopleCountDashboard = ({ cameraId }) => {
         Yesterday: (trend?.yesterday || [])[i] || 0
     }));
 
+    const formatTime = (dateStr) => {
+        if (!dateStr) return '--:--:--';
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return 'Invalid Time';
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    };
+
     const peakHourFormatted = stats?.peak_hour !== null && stats?.peak_hour !== undefined
         ? `${stats.peak_hour.toString().padStart(2, '0')}:00`
         : '--:--';
@@ -127,7 +134,7 @@ const TimelineEntry = ({ entry }) => {
     return (
         <div style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: '500' }}>{new Date(entry.time).toLocaleTimeString()} - {entry.label}</span>
+                <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: '500' }}>{formatTime(entry.time)} - {entry.label}</span>
             </div>
             <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem', marginTop: '4px' }}>{displayMeta || 'Count recorded'}</div>
         </div>
