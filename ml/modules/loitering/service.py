@@ -160,6 +160,7 @@ class LoiteringService:
                 cv2.putText(frame, f"{dur}s", (x1 + 5, y1 + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
             bounding_boxes.append({
+                "module": "loitering-detection",
                 "class": label_class,
                 "track_id": int(track_id),
                 "label": f"{label_class.capitalize()} {dur}s",

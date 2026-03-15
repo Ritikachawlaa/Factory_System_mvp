@@ -78,6 +78,7 @@ class PPEDetectionService:
                     cv2.putText(frame, label, (ix1, iy1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.4, color_ppe, 1)
 
                     detection_item = {
+                        "module": "ppe-detection",
                         "class": label.capitalize(),
                         "x": int(ix1), "y": int(iy1), "w": int(ix2 - ix1), "h": int(iy2 - iy1),
                         "confidence": float(i_conf)
@@ -130,6 +131,7 @@ class PPEDetectionService:
             cv2.putText(frame, p_label, (px1, py1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
             bounding_boxes.append({
+                "module": "ppe-detection",
                 "class": f"Person ({p_label})",
                 "x": int(px1), "y": int(py1), "w": int(px2 - px1), "h": int(py2 - py1), "confidence": p_conf
             })

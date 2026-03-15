@@ -537,8 +537,17 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                             if (isFire) show = true;
                         }
 
+                        // --- STRICT MODULE FILTERING ---
+                        // If the detection has a 'module' tag and we are on a specific module page,
+                        // hide it if it doesn't match. This prevents "Loitering" labels appearing on "Intrusion" page.
+                        if (det.module && activeModuleFilters.length === 1) {
+                            if (det.module !== activeModuleFilters[0]) {
+                                show = false;
+                            }
+                        }
+
                         // Strictly show intrusion ROI only on the dedicated analytics page
-                        if (det.is_roi) {
+                        if (det.is_roi || (det.class && det.class.toLowerCase().includes('zone'))) {
                             const isIntrusionPage = activeModuleFilters.length === 1 && activeModuleFilters[0] === 'intrusion-detection';
                             if (!isIntrusionPage) show = false;
                         }

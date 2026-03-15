@@ -188,6 +188,7 @@ class IntrusionService:
             cv2.putText(frame, label, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
             bounding_boxes.append({
+                "module": "intrusion-detection",
                 "class": f"Intruded #{obj_id}" if is_intruding else "Person",
                 "label": f"Intruded #{obj_id}" if is_intruding else f"Person #{obj_id}",
                 "track_id": int(obj_id),
