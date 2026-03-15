@@ -10,6 +10,7 @@ import LoiteringDetectionPanel from '../components/panels/LoiteringDetectionPane
 import IntrusionDetectionPanel from '../components/panels/IntrusionDetectionPanel';
 import HeatMapPanel from '../components/panels/HeatMapPanel';
 import HumanDetectionPanel from '../components/panels/HumanDetectionPanel';
+import PeopleCountPanel from '../components/panels/PeopleCountPanel';
 
 // Single source of truth for AI Modules
 export const MODULE_REGISTRY = {
@@ -92,7 +93,7 @@ export const MODULE_REGISTRY = {
         key: 'people-count',
         label: 'People Count',
         icon: '👥',
-        panelComponent: null,
+        panelComponent: PeopleCountPanel,
         description: 'Count foot traffic and occupancy.',
         supportsAlerts: false,
         supportsStats: true

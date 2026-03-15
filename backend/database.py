@@ -26,7 +26,8 @@ DATABASE_URL = config.DATABASE_URL
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True, # Robustness: check connection before using
-    pool_recycle=3600
+    pool_recycle=3600,
+    connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -41,10 +42,16 @@ def init_db():
         conn = get_connection()
         conn.execute(text("SELECT 1"))
         
+        # Helper for type mapping
+        is_sqlite = DATABASE_URL.startswith("sqlite")
+        serial_type = "INTEGER PRIMARY KEY AUTOINCREMENT" if is_sqlite else "SERIAL PRIMARY KEY"
+        bytea_type = "BLOB" if is_sqlite else "BYTEA"
+        json_type = "TEXT" if is_sqlite else "JSONB"
+
         # Ensure tables exist (Basic Schema management for MVP)
-        conn.execute(text("""
+        conn.execute(text(f"""
             CREATE TABLE IF NOT EXISTS audit_logs (
-                id SERIAL PRIMARY KEY,
+                id {serial_type},
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 username VARCHAR(100),
                 action VARCHAR(100),
@@ -54,11 +61,11 @@ def init_db():
             )
         """))
         # Add Employee Table Schema if missing (MVP)
-        conn.execute(text("""
+        conn.execute(text(f"""
             CREATE TABLE IF NOT EXISTS employees (
-                id SERIAL PRIMARY KEY,
+                id {serial_type},
                 name VARCHAR(100) NOT NULL,
-                embedding BYTEA NOT NULL,
+                embedding {bytea_type} NOT NULL,
                 department VARCHAR(100) DEFAULT 'Engineering',
                 status VARCHAR(50) DEFAULT 'Active',
                 photo_path TEXT,
@@ -67,15 +74,60 @@ def init_db():
         """))
 
         # Add Face Gallery Table for persistent unknown faces
-        conn.execute(text("""
+        conn.execute(text(f"""
             CREATE TABLE IF NOT EXISTS face_gallery (
-                id SERIAL PRIMARY KEY,
-                embedding BYTEA NOT NULL,
+                id {serial_type},
+                embedding {bytea_type} NOT NULL,
                 name VARCHAR(100),
                 emp_id INTEGER,
                 first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                meta JSONB DEFAULT '{}'
+                meta {json_type} DEFAULT '{{}}'
+            )
+        """))
+        
+        # Ensure cameras and camera_modules exist
+        conn.execute(text(f"""
+            CREATE TABLE IF NOT EXISTS cameras (
+                id {serial_type},
+                name VARCHAR(100) NOT NULL,
+                source VARCHAR(255) NOT NULL,
+                stream_path VARCHAR(255)
+            )
+        """))
+        
+        conn.execute(text(f"""
+            CREATE TABLE IF NOT EXISTS camera_modules (
+                id {serial_type},
+                camera_id INTEGER NOT NULL,
+                module_key VARCHAR(100) NOT NULL,
+                status VARCHAR(50) DEFAULT 'paused',
+                config TEXT DEFAULT '{{}}',
+                actual_status VARCHAR(50) DEFAULT 'offline',
+                last_heartbeat TIMESTAMP,
+                last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        
+        conn.execute(text(f"""
+            CREATE TABLE IF NOT EXISTS users (
+                id {serial_type},
+                username VARCHAR(100) UNIQUE NOT NULL,
+                password_hash VARCHAR(255) NOT NULL,
+                role VARCHAR(50) DEFAULT 'admin'
+            )
+        """))
+        
+        conn.execute(text(f"""
+            CREATE TABLE IF NOT EXISTS events (
+                id {serial_type},
+                camera_id INTEGER,
+                module_key VARCHAR(100),
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                label VARCHAR(255),
+                severity VARCHAR(50),
+                confidence FLOAT,
+                metadata TEXT
             )
         """))
         
@@ -234,9 +286,18 @@ def update_camera(cam_id: int, name: str, source: str, stream_path: str = None):
 def get_camera_modules(camera_id: int):
     conn = get_connection()
     try:
-        stmt = text("SELECT module_key, status, config, last_updated FROM camera_modules WHERE camera_id = :cid")
+        stmt = text("SELECT module_key, status, config, last_updated, actual_status, last_heartbeat FROM camera_modules WHERE camera_id = :cid")
         rows = conn.execute(stmt, {"cid": camera_id}).fetchall()
-        return [{"key": r[0], "status": r[1], "config": r[2], "last_updated": r[3]} for r in rows]
+        return [
+            {
+                "key": r[0], 
+                "status": r[1], 
+                "config": r[2], 
+                "last_updated": format_timestamp(r[3]),
+                "actual_status": r[4] or "offline",
+                "last_heartbeat": format_timestamp(r[5])
+            } for r in rows
+        ]
     finally:
         conn.close()
 
@@ -964,17 +1025,26 @@ def get_people_analytics(camera_id: int = None):
         for meta, ts in rows:
             if not meta: continue
             
-            # Format: "Detected: 5 people"
-            m = re.search(r"Detected:\s*(\d+)", meta)
-            if m:
-                count = int(m.group(1))
+            count = 0
+            # Try parsing as JSON first
+            try:
+                data = json.loads(meta)
+                if isinstance(data, dict):
+                    count = data.get('count', 0)
+                else:
+                    count = int(data)
+            except:
+                # Fallback to regex for older logs
+                m = re.search(r"Detected:\s*(\d+)", meta)
+                if m:
+                    count = int(m.group(1))
+            
+            if count > 0:
                 max_people = max(max_people, count)
-                
                 # Extract hour
-                if isinstance(ts, str) and len(ts) >= 13:
-                    hr = ts[11:13]
-                    # Since person count isn't additive (it reflects current scene state), 
-                    # hour peaks is just max seen in that hour
+                ts_str = str(ts)
+                if len(ts_str) >= 13:
+                    hr = ts_str[11:13]
                     hour_counts[hr] = max(hour_counts.get(hr, 0), count)
         
         peak_hour = None
@@ -1031,9 +1101,19 @@ def get_people_trend(camera_id: int = None):
         for meta, ts in rows:
             if not meta or not ts: continue
             
-            m = re.search(r"Detected:\s*(\d+)", meta)
-            if not m: continue
-            count = int(m.group(1))
+            count = 0
+            try:
+                data = json.loads(meta)
+                if isinstance(data, dict):
+                    count = data.get('count', 0)
+                else:
+                    count = int(data)
+            except:
+                m = re.search(r"Detected:\s*(\d+)", meta)
+                if not m: continue
+                count = int(m.group(1))
+            
+            if count <= 0: continue
             
             ts_str = str(ts)
             hr = ts_str[11:13]

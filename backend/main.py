@@ -1604,3 +1604,7 @@ async def get_camera_face_trend(camera_id: int, current_user = Depends(get_curre
 async def get_camera_face_timeline(camera_id: int, limit: int = 50, current_user = Depends(get_current_user_debug_optional)):
     timeline = database.get_face_timeline(camera_id, limit)
     return timeline
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

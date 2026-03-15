@@ -111,13 +111,27 @@ const SummaryCard = ({ label, value, subtext, icon, color }) => (
     </div>
 );
 
-const TimelineEntry = ({ entry }) => (
-    <div style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: '500' }}>{new Date(entry.time).toLocaleTimeString()} - {entry.label}</span>
+const TimelineEntry = ({ entry }) => {
+    let displayMeta = entry.meta;
+    if (typeof entry.meta === 'string' && entry.meta.startsWith('{')) {
+        try {
+            const parsed = JSON.parse(entry.meta);
+            displayMeta = parsed.message || parsed.meta?.message || entry.meta;
+        } catch (e) {
+            displayMeta = entry.meta;
+        }
+    } else if (typeof entry.meta === 'object' && entry.meta !== null) {
+        displayMeta = entry.meta.message || entry.meta.meta?.message || JSON.stringify(entry.meta);
+    }
+
+    return (
+        <div style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: '500' }}>{new Date(entry.time).toLocaleTimeString()} - {entry.label}</span>
+            </div>
+            <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem', marginTop: '4px' }}>{displayMeta || 'Count recorded'}</div>
         </div>
-        <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem', marginTop: '4px' }}>{entry.meta || 'Count recorded'}</div>
-    </div>
-);
+    );
+};
 
 export default PeopleCountDashboard;

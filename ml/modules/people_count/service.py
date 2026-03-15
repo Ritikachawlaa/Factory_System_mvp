@@ -30,7 +30,6 @@ class PeopleCountService:
                     cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
 
         # Event Logic: Log periodically or on significant change
-        now = time.time()
         if (count > 0 and now - self.last_log_time > self.LOG_INTERVAL) or (abs(count - self.last_count) > 2):
             event = {
                 "camera_id": camera_id,
@@ -38,7 +37,11 @@ class PeopleCountService:
                 "label": "People Count Update",
                 "confidence": 1.0,
                 "timestamp": now,
-                "meta": f"Detected: {count} people"
+                "meta": {
+                    "message": f"Detected: {count} people",
+                    "count": count,
+                    "previous_count": self.last_count
+                }
             }
             events.append(event)
             self.last_log_time = now

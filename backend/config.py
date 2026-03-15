@@ -16,10 +16,11 @@ class Config:
     # Database
     DATABASE_URL = os.getenv("DATABASE_URL")
     if not DATABASE_URL:
-        raise RuntimeError("DATABASE_URL not configured. PostgreSQL required.")
+        # Default to SQLite for local development if PostgreSQL is not configured
+        DATABASE_URL = "sqlite:///factory_system.db"
     
-    if not DATABASE_URL.startswith("postgres"):
-        raise RuntimeError("SQLite is not supported. Please configure a PostgreSQL DATABASE_URL.")
+    if not (DATABASE_URL.startswith("postgres") or DATABASE_URL.startswith("sqlite")):
+        raise RuntimeError("Unsupported database type. Please configure a PostgreSQL or SQLite DATABASE_URL.")
 
     # Security
     SECRET_KEY = os.getenv("SECRET_KEY", "supersecretkey_dev_only")

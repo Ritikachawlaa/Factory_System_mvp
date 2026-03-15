@@ -107,8 +107,8 @@ class LoiteringService:
             anchor_x, anchor_y = track_data["anchor"]
             dist_sq = (cx - anchor_x)**2 + (cy - anchor_y)**2
             
-            # If they moved significantly (e.g., more than ~50 pixels), reset their loitering timer
-            if dist_sq > 2500: # 50 pixels squared
+            # If they moved significantly (e.g., more than ~75 pixels), reset their loitering timer
+            if dist_sq > 5625: # 75 pixels squared
                 self.first_seen_by_track[track_id] = {"ts": now, "anchor": (cx, cy)}
                 track_data = self.first_seen_by_track[track_id]
 
@@ -122,17 +122,21 @@ class LoiteringService:
             logger.debug(f"Loitering Debug: {len(loitering_track_ids)}/{person_count} loitering. Threshold: {self.person_threshold}")
 
         # Trigger events if the number of loiterers meets the person threshold
-        # Trigger events if the number of loiterers meets the person threshold
         if len(loitering_track_ids) >= self.person_threshold:
             for track_id_loiter in loitering_track_ids:
                 if track_id_loiter not in self.alerted_tracks:
                     events.append({
                         "camera_id": camera_id,
                         "module_key": "loitering-detection",
-                        "label": f"Loitering Detected (ID #{track_id_loiter})",
+                        "label": "Loitering Detected",
                         "confidence": 1.0,
                         "timestamp": now,
-                        "meta": f"Track ID: {track_id_loiter}, Concurrent Loiterers: {len(loitering_track_ids)}, Duration: {int(track_durations[track_id_loiter])}s"
+                        "meta": {
+                            "message": f"Track ID #{track_id_loiter} has been stationary for {int(track_durations[track_id_loiter])}s",
+                            "track_id": track_id_loiter,
+                            "duration": int(track_durations[track_id_loiter]),
+                            "concurrent_loiterers": len(loitering_track_ids)
+                        }
                     })
                     self.alerted_tracks.add(track_id_loiter)
 

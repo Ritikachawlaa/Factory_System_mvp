@@ -30,6 +30,24 @@ class IntrusionService:
         
         self.last_recog_time = {}
         self.model_loaded = False
+        self.roi = None # [x1, y1, x2, y2]
+        self.last_log_time = 0
+
+    def update_config(self, config):
+        """Called by run_ml.py when DB config changes."""
+        if 'roi' in config:
+            self.roi = config['roi'] # Expecting [x1, y1, x2, y2]
+        if 'authorized_personnel' in config:
+            self.intrusion_logic.authorized = set(config['authorized_personnel'])
+
+    def is_in_roi(self, box):
+        if self.roi is None:
+            return True # If no ROI, entire frame is sensitive
+        bx1, by1, bx2, by2 = box
+        rx1, ry1, rx2, ry2 = self.roi
+        # Check if centroid is in ROI
+        cx, cy = (bx1 + bx2) / 2, (by1 + by2) / 2
+        return rx1 <= cx <= rx2 and ry1 <= cy <= ry2
 
     def _match_tracks_to_boxes(self, boxes, tracked_objects):
         centroids = []
@@ -80,32 +98,41 @@ class IntrusionService:
             self.load_model()
             
         if self.detector is None:
-            return frame, []
+            return frame, [], []
             
-        # Detect Persons (Class 0)
         boxes = self.detector.detect(frame)
         objects = self.tracker.update(boxes)
         track_boxes = self._match_tracks_to_boxes(boxes, objects)
         events = []
         bounding_boxes = []
         
+        now = time.time()
+
+        # Draw ROI if exists
+        if self.roi:
+            rx1, ry1, rx2, ry2 = self.roi
+            cv2.rectangle(frame, (rx1, ry1), (rx2, ry2), (255, 0, 0), 2)
+            cv2.putText(frame, "Intrusion Zone", (rx1, ry1-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
+
         for obj_id, (x1, y1, x2, y2) in track_boxes.items():
+            # Check if this person is in the ROI
+            in_zone = self.is_in_roi((x1, y1, x2, y2))
+            
             pad = 20
             h, w = frame.shape[:2]
-            x1 = max(0, x1-pad)
-            y1 = max(0, y1-pad)
-            x2 = min(w, x2+pad)
-            y2 = min(h, y2+pad)
+            cx1 = max(0, x1-pad)
+            cy1 = max(0, y1-pad)
+            cx2 = min(w, x2+pad)
+            cy2 = min(h, y2+pad)
 
             name = "Detecting..."
-            now = time.time()
             last_time = self.last_recog_time.get(obj_id, 0)
 
             if obj_id in self.cache.locked:
                 name = self.cache.locked[obj_id]
             else:
                 if now - last_time > 2.0:
-                    face_crop = frame[y1:y2, x1:x2]
+                    face_crop = frame[cy1:cy2, cx1:cx2]
                     if face_crop.size > 0:
                         results = recognition.identify_faces(face_crop)
                         if results:
@@ -118,33 +145,46 @@ class IntrusionService:
                     self.last_recog_time[obj_id] = now
             
             base_name = name.split(" (ID:")[0].strip() if name else "Unknown"
+            
+            # Logic: If they are in the zone AND (Unauthorized OR still Detecting...)
+            is_unauthorized = (base_name == "Unknown" or base_name not in self.intrusion_logic.authorized)
+            
+            # Allow a small grace period for "Detecting..." before flagging
+            is_intruding = in_zone and (is_unauthorized or (name == "Detecting..." and now - self.last_recog_time.get(obj_id, now) > 3.0))
 
-            if name != "Detecting...":
-                if self.intrusion_logic.check_intrusion(base_name):
+            if is_intruding:
+                if now - self.last_log_time > 5.0:
+                    msg = f"Unauthorized person in zone: {name}" if is_unauthorized else "Unidentified person in zone"
                     event = {
                         "camera_id": camera_id,
                         "module_key": "intrusion-detection",
-                        "label": f"Unauthorized Entry (ID #{obj_id})",
+                        "label": "Unauthorized Entry",
                         "confidence": 1.0, 
-                        "meta": f"Track ID: {obj_id}, Person: {name}"
+                        "timestamp": now,
+                        "meta": {
+                            "message": msg,
+                            "track_id": int(obj_id),
+                            "person": name,
+                            "zone": self.roi
+                        }
                     }
-                    if event not in events:
-                        events.append(event)
+                    events.append(event)
+                    self.last_log_time = now
 
-            is_unauthorized = base_name == "Unknown" or base_name not in self.intrusion_logic.authorized
-            color = (0, 0, 255) if is_unauthorized else (0, 255, 0)
+            color = (0, 0, 255) if is_intruding else (0, 255, 0)
             label = f"{name} [ID {obj_id}]"
+            if is_intruding: label += " !! INTRUSION !!"
+            
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-            cv2.putText(frame, label, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+            cv2.putText(frame, label, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
             bounding_boxes.append({
-                "class": name if name != "Unknown" else "Unauthorized",
+                "class": "Unauthorized" if is_intruding else "Authorized",
+                "label": label,
                 "track_id": int(obj_id),
-                "x": int(x1),
-                "y": int(y1),
-                "w": int(x2 - x1),
-                "h": int(y2 - y1),
-                "confidence": 1.0
+                "x": int(x1), "y": int(y1), "w": int(x2 - x1), "h": int(y2 - y1),
+                "confidence": 1.0,
+                "color": "#ef4444" if is_intruding else "#10b981"
             })
             
         return frame, events, bounding_boxes
