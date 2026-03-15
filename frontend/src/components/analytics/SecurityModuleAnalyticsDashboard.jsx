@@ -44,8 +44,12 @@ const SecurityModuleAnalyticsDashboard = ({ cameraId, endpointPrefix, title, acc
 
     const formatTime = (dateStr) => {
         if (!dateStr) return '--:--:--';
-        const isoStr = typeof dateStr === 'string' ? dateStr.replace(' ', 'T') : dateStr;
-        const date = new Date(isoStr);
+        // Normalize SQL ' ' to ISO 'T' and ensure it ends with Z for UTC interpretation
+        let normalized = typeof dateStr === 'string' ? dateStr.replace(' ', 'T') : dateStr;
+        if (typeof normalized === 'string' && !normalized.endsWith('Z')) {
+            normalized += 'Z';
+        }
+        const date = new Date(normalized);
         if (isNaN(date.getTime())) return 'Invalid Time';
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     };

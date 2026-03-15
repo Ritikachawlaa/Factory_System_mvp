@@ -51,6 +51,18 @@ const LabourAnalyticsDashboard = ({ cameraId }) => {
 
     if (loading) return <div style={{ color: '#fff', padding: '2rem' }}>Loading Labour Analytics...</div>;
 
+    const formatTime = (dateStr) => {
+        if (!dateStr) return '--:--:--';
+        // Normalize SQL ' ' to ISO 'T' and ensure it ends with Z for UTC interpretation
+        let normalized = typeof dateStr === 'string' ? dateStr.replace(' ', 'T') : dateStr;
+        if (typeof normalized === 'string' && !normalized.endsWith('Z')) {
+            normalized += 'Z';
+        }
+        const date = new Date(normalized);
+        if (isNaN(date.getTime())) return 'Invalid Time';
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    };
+
     const chartData = (trend?.labels || []).map((label, i) => ({
         time: label,
         Today: (trend?.today || [])[i] || 0,
@@ -117,7 +129,7 @@ const LabourAnalyticsDashboard = ({ cameraId }) => {
                     {timeline.slice(0, 5).map((t, i) => (
                         <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                             <span style={{ color: '#fff' }}>
-                                {new Date(t.time).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })} - {t.meta?.message || t.label}
+                                {formatTime(t.time)} - {t.meta?.message || t.label}
                             </span>
                             <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Conf: {t.confidence}</span>
                         </div>

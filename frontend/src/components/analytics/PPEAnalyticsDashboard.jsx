@@ -52,6 +52,18 @@ const PPEAnalyticsDashboard = ({ cameraId }) => {
 
     if (loading) return <div style={{ color: '#fff', padding: '2rem' }}>Loading PPE Analytics...</div>;
 
+    const formatTime = (dateStr) => {
+        if (!dateStr) return '--:--:--';
+        // Normalize SQL ' ' to ISO 'T' and ensure it ends with Z for UTC interpretation
+        let normalized = typeof dateStr === 'string' ? dateStr.replace(' ', 'T') : dateStr;
+        if (typeof normalized === 'string' && !normalized.endsWith('Z')) {
+            normalized += 'Z';
+        }
+        const date = new Date(normalized);
+        if (isNaN(date.getTime())) return 'Invalid Time';
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    };
+
     // Prepare chart data
     const chartData = (trend?.labels || []).map((label, i) => ({
         time: label,
@@ -127,7 +139,7 @@ const PPEAnalyticsDashboard = ({ cameraId }) => {
                     <h3 style={{ color: '#fff', fontSize: '1rem', marginBottom: '1rem' }}>Violation Timeline</h3>
                     <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                         {Array.isArray(filteredTimeline) && filteredTimeline.length > 0 ? filteredTimeline.map((entry, idx) => (
-                            <TimelineEntry key={idx} entry={entry} />
+                            <TimelineEntry key={idx} entry={entry} formatTime={formatTime} />
                         )) : (
                             <div style={{ color: 'rgba(255,255,255,0.3)', textAlign: 'center', marginTop: '2rem' }}>No violations found</div>
                         )}
@@ -149,7 +161,7 @@ const SummaryCard = ({ label, value, subtext, icon, color }) => (
     </div>
 );
 
-const TimelineEntry = ({ entry }) => {
+const TimelineEntry = ({ entry, formatTime }) => {
     const [isOpen, setIsOpen] = useState(false);
 
     return (
@@ -159,7 +171,7 @@ const TimelineEntry = ({ entry }) => {
                 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', cursor: 'pointer' }}
             >
                 <div>
-                    <div style={{ color: '#fff', fontSize: '0.9rem', fontWeight: '500' }}>{new Date(entry.time).toLocaleTimeString()} - {entry.label}</div>
+                    <div style={{ color: '#fff', fontSize: '0.9rem', fontWeight: '500' }}>{formatTime(entry.time)} - {entry.label}</div>
                     <div style={{ color: entry.severity === 'high' ? '#ef4444' : '#f59e0b', fontSize: '0.7rem', textTransform: 'uppercase' }}>
                         {entry.severity}
                     </div>

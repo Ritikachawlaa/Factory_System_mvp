@@ -12,7 +12,7 @@ logger = logging.getLogger("loitering")
 class LoiteringService:
     def __init__(self):
         self.detector = None
-        self.tracker = CentroidTracker(max_distance=250, max_disappeared=30)
+        self.tracker = CentroidTracker(max_distance=250, max_disappeared=50) # More persistent
         self.model_loaded = False
 
         self.person_threshold = 1
@@ -107,8 +107,8 @@ class LoiteringService:
             anchor_x, anchor_y = track_data["anchor"]
             dist_sq = (cx - anchor_x)**2 + (cy - anchor_y)**2
             
-            # If they moved significantly (e.g., more than ~75 pixels), reset their loitering timer
-            if dist_sq > 5625: # 75 pixels squared
+            # If they moved significantly (e.g., more than ~100 pixels), reset their loitering timer
+            if dist_sq > 10000: # 100 pixels squared
                 self.first_seen_by_track[track_id] = {"ts": now, "anchor": (cx, cy)}
                 track_data = self.first_seen_by_track[track_id]
 

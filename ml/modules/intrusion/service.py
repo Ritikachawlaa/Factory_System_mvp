@@ -30,7 +30,7 @@ class IntrusionService:
         
         self.last_recog_time = {}
         self.model_loaded = False
-        self.roi = None # [x1, y1, x2, y2]
+        self.roi = [50, 50, 590, 500] # Default ROI for visibility if none set
         self.last_log_time = 0
 
     def update_config(self, config):
@@ -188,12 +188,13 @@ class IntrusionService:
             cv2.putText(frame, label, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
             bounding_boxes.append({
-                "class": "Unauthorized" if is_intruding else "Authorized",
-                "label": label,
+                "class": f"Intruded #{obj_id}" if is_intruding else "Person",
+                "label": f"Intruded #{obj_id}" if is_intruding else f"Person #{obj_id}",
                 "track_id": int(obj_id),
                 "x": int(x1), "y": int(y1), "w": int(x2 - x1), "h": int(y2 - y1),
                 "confidence": 1.0,
-                "color": "#ef4444" if is_intruding else "#10b981"
+                "color": "#ef4444" if is_intruding else "#10b981",
+                "is_intruder": is_intruding
             })
             
         return frame, events, bounding_boxes

@@ -488,7 +488,7 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                         const isPPEItem = ['helmet', 'vest', 'no-helmet', 'no-vest', 'gloves', 'shoes', 'mask', 'boots'].some(g => detClass.includes(g));
                         const isPPEPerson = detClass.includes('compliant') || detClass.includes('non-compliant') || detClass.includes('missing');
 
-                        const isPerson = (detClass.includes('person') || detClass.includes('human') || detClass.includes('loitering')) && !isPPEPerson;
+                        const isPerson = (detClass.includes('person') || detClass.includes('human') || detClass.includes('loitering') || detClass.includes('intrud') || detClass.includes('authorized')) && !isPPEPerson;
                         const isCrowd = detClass === 'crowd';
                         const isTrack = detClass.includes('track id') || detClass.includes('tid');
                         const isFace = detClass.includes('face') || detClass.includes('unknown') || detClass.includes('[tid') || detClass.includes('(id:');
@@ -545,37 +545,39 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                     const displayY = offsetY + (det.y * scaleY);
                     const displayW = det.w * scaleX;
                     const displayH = det.h * scaleY;
-                    const isTripwireRender = (det.class || "").toLowerCase().includes("tripwire");
+                    const isTripwireRender = (det.class || "").toLowerCase().includes("tripwire") || (det.class || "").toLowerCase().includes("zone") || det.is_roi;
 
                     // Determine color based on class
                     let targetColor = det.color || '#00ffcc'; // Default neon cyan
                     if (!det.color) {
                         if (det.class && det.class.toLowerCase().includes('track id')) targetColor = '#a855f7'; // Purple for Tracking
                         if (det.class && det.class.toLowerCase() === 'crowd') targetColor = '#ef4444'; // Red for Crowd
-                        if (det.class && det.class.toLowerCase() === 'person' && det.is_crowd === false) targetColor = '#10b981'; // Green for normal person
+                        if (det.class && (det.class.toLowerCase().includes('person') || det.class.toLowerCase().includes('authorized'))) targetColor = '#10b981'; // Green
+                        if (det.class && (det.class.toLowerCase().includes('intrud') || det.class.toLowerCase().includes('alarm'))) targetColor = '#ef4444'; // Red for Intrusion
                     }
 
                     ctx.strokeStyle = targetColor;
-                    ctx.lineWidth = 2;
+                    ctx.lineWidth = det.is_roi ? 3 : 2;
                     ctx.strokeRect(displayX, displayY, displayW, displayH);
 
-                    // Draw Label Background (Skip for Tripwires)
+                    // Add semi-transparent fill for zones
+                    if (det.is_roi || (det.class && det.class.toLowerCase().includes('zone'))) {
+                        ctx.fillStyle = targetColor + '15'; // Very light fill
+                        ctx.fillRect(displayX, displayY, displayW, displayH);
+                    }
+
+                    // Draw Label Background (Skip for Tripwires/Zones)
                     if (det.class && !isTripwireRender) {
-                        ctx.font = '14px sans-serif';
-                        // Label text format: class + optional confidence + optional track_id
-                        const showConf = det.confidence && det.confidence < 1.0;
-                        let labelText = showConf ? `${det.class} ${(det.confidence * 100).toFixed(0)}%` : det.class;
-                        if (det.track_id !== undefined && det.track_id !== null && !labelText.toLowerCase().includes('id')) {
-                            labelText += ` #${det.track_id}`;
-                        }
+                        ctx.font = 'bold 12px sans-serif';
+                        const labelText = det.class;
                         const textWidth = ctx.measureText(labelText).width;
 
                         ctx.fillStyle = targetColor;
-                        ctx.fillRect(displayX, displayY - 20, textWidth + 8, 20);
+                        ctx.fillRect(displayX, displayY - 20, textWidth + 10, 20);
 
                         // Draw Label Text
-                        ctx.fillStyle = '#000000';
-                        ctx.fillText(labelText, displayX + 4, displayY - 5);
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillText(labelText, displayX + 5, displayY - 6);
                     }
                 });
 
