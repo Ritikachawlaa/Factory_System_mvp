@@ -42,6 +42,14 @@ const SecurityModuleAnalyticsDashboard = ({ cameraId, endpointPrefix, title, acc
         Yesterday: (trend?.yesterday || [])[i] || 0
     }));
 
+    const formatTime = (dateStr) => {
+        if (!dateStr) return '--:--:--';
+        const isoStr = typeof dateStr === 'string' ? dateStr.replace(' ', 'T') : dateStr;
+        const date = new Date(isoStr);
+        if (isNaN(date.getTime())) return 'Invalid Time';
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    };
+
     const peakHourFormatted = stats?.peak_hour !== null && stats?.peak_hour !== undefined
         ? `${stats.peak_hour.toString().padStart(2, '0')}:00`
         : '--:--';
@@ -85,7 +93,7 @@ const SecurityModuleAnalyticsDashboard = ({ cameraId, endpointPrefix, title, acc
                     <h3 style={{ color: '#fff', fontSize: '1rem', marginBottom: '1rem' }}>Activity Timeline</h3>
                     <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                         {Array.isArray(timeline) && timeline.length > 0 ? timeline.map((entry, idx) => (
-                            <TimelineEntry key={idx} entry={entry} />
+                            <TimelineEntry key={idx} entry={entry} formatTime={formatTime} />
                         )) : (
                             <div style={{ color: 'rgba(255,255,255,0.3)', textAlign: 'center', marginTop: '2rem' }}>{emptyText}</div>
                         )}
@@ -104,10 +112,10 @@ const SummaryCard = ({ label, value, subtext, color }) => (
     </div>
 );
 
-const TimelineEntry = ({ entry }) => (
+const TimelineEntry = ({ entry, formatTime }) => (
     <div style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: '500' }}>{new Date(entry.time).toLocaleTimeString()} - {entry.label}</span>
+            <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: '500' }}>{formatTime(entry.time)} - {entry.label}</span>
             <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem' }}>{entry.confidence}</span>
         </div>
         <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.75rem', marginTop: '4px' }}>{entry.meta || 'Event recorded'}</div>

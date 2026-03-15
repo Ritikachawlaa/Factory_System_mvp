@@ -46,7 +46,8 @@ const PeopleCountDashboard = ({ cameraId }) => {
 
     const formatTime = (dateStr) => {
         if (!dateStr) return '--:--:--';
-        const date = new Date(dateStr);
+        const isoStr = typeof dateStr === 'string' ? dateStr.replace(' ', 'T') : dateStr;
+        const date = new Date(isoStr);
         if (isNaN(date.getTime())) return 'Invalid Time';
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     };
