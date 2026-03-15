@@ -101,7 +101,7 @@ const PeopleCountDashboard = ({ cameraId }) => {
                     <h3 style={{ color: '#fff', fontSize: '1rem', marginBottom: '1rem' }}>Count Updates</h3>
                     <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                         {Array.isArray(timeline) && timeline.length > 0 ? timeline.map((entry, idx) => (
-                            <TimelineEntry key={idx} entry={entry} />
+                            <TimelineEntry key={idx} entry={entry} formatTime={formatTime} />
                         )) : (
                             <div style={{ color: 'rgba(255,255,255,0.3)', textAlign: 'center', marginTop: '2rem' }}>No counting events today</div>
                         )}
@@ -123,7 +123,7 @@ const SummaryCard = ({ label, value, subtext, icon, color }) => (
     </div>
 );
 
-const TimelineEntry = ({ entry }) => {
+const TimelineEntry = ({ entry, formatTime }) => {
     let displayMeta = entry.meta;
     if (typeof entry.meta === 'string' && entry.meta.startsWith('{')) {
         try {
