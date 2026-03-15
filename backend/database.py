@@ -1396,17 +1396,16 @@ def get_ppe_timeline(camera_id: int = None, limit: int = 50):
     events = get_events_filtered(camera_id=camera_id, module_key='ppe-detection', limit=limit)
     results = []
     for e in events:
-        # Parse metadata for bounding boxes if present
+        # Parse metadata for message and bounding boxes
         metadata = e.get("metadata")
         boxes = []
+        msg = ""
         if metadata:
             try:
                 # Expecting JSON string or dict
-                if isinstance(metadata, str):
-                    meta_data = json.loads(metadata)
-                else:
-                    meta_data = metadata
+                meta_data = json.loads(metadata) if isinstance(metadata, str) else metadata
                 boxes = meta_data.get("boxes", [])
+                msg = meta_data.get("message", "")
             except:
                 pass
 
@@ -1414,6 +1413,7 @@ def get_ppe_timeline(camera_id: int = None, limit: int = 50):
             "id": e.get("id"),
             "time": format_timestamp(e["timestamp"]),
             "label": e["label"],
+            "message": msg,
             "severity": e["severity"],
             "confidence": f"{int(float(e['confidence'])*100)}%" if e['confidence'] else "95%",
             "boxes": boxes

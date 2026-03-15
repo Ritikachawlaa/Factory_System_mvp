@@ -54,14 +54,26 @@ const PPEAnalyticsDashboard = ({ cameraId }) => {
 
     const formatTime = (dateStr) => {
         if (!dateStr) return '--:--:--';
-        // Normalize SQL ' ' to ISO 'T' and ensure it ends with Z for UTC interpretation
-        let normalized = typeof dateStr === 'string' ? dateStr.replace(' ', 'T') : dateStr;
-        if (typeof normalized === 'string' && !normalized.endsWith('Z')) {
-            normalized += 'Z';
+        try {
+            // Force UTC interpretation by adding Z if missing
+            let normalized = typeof dateStr === 'string' ? dateStr : String(dateStr);
+            normalized = normalized.replace(' ', 'T');
+            if (!normalized.includes('Z') && !normalized.includes('+')) {
+                normalized += 'Z';
+            }
+
+            const date = new Date(normalized);
+            if (isNaN(date.getTime())) return 'Invalid Time';
+
+            return date.toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true
+            });
+        } catch (e) {
+            return 'Invalid Time';
         }
-        const date = new Date(normalized);
-        if (isNaN(date.getTime())) return 'Invalid Time';
-        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     };
 
     // Prepare chart data
@@ -73,7 +85,10 @@ const PPEAnalyticsDashboard = ({ cameraId }) => {
 
     const filteredTimeline = filter === 'All'
         ? timeline
-        : timeline.filter(item => item.label.toLowerCase().includes(filter.toLowerCase()));
+        : timeline.filter(item => {
+            const searchStr = `${item.label} ${item.message}`.toLowerCase();
+            return searchStr.includes(filter.toLowerCase());
+        });
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%' }}>
@@ -181,27 +196,38 @@ const TimelineEntry = ({ entry, formatTime }) => {
                     <div style={{ color: 'var(--accent-cyan)', fontSize: '0.7rem' }}>{isOpen ? '▲ Hide' : '▼ Details'}</div>
                 </div>
             </div>
-            {isOpen && entry.boxes && entry.boxes.length > 0 && (
+            {isOpen && (
                 <div style={{ marginTop: '0.75rem', padding: '0.75rem', background: 'rgba(0,0,0,0.2)', borderRadius: '4px' }}>
-                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '0.5rem' }}>Bounding Boxes (X, Y, W, H):</div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                        {entry.boxes.map((box, i) => (
-                            <div key={i} style={{
-                                background: 'rgba(255,255,255,0.05)',
-                                padding: '4px 8px',
-                                border: '1px solid rgba(255,255,255,0.1)',
-                                borderRadius: '4px',
-                                fontSize: '0.7rem',
-                                color: '#eee'
-                            }}>
-                                {box.label || 'Obj'}: [{box.x}, {box.y}, {box.w}, {box.h}]
+                    {entry.message && (
+                        <div style={{ color: '#fff', fontSize: '0.8rem', marginBottom: '0.5rem', fontWeight: '500' }}>
+                            {entry.message}
+                        </div>
+                    )}
+
+                    {entry.boxes && entry.boxes.length > 0 ? (
+                        <>
+                            <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.7rem', marginBottom: '0.4rem' }}>
+                                Bounding Boxes:
                             </div>
-                        ))}
-                    </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                                {entry.boxes.map((box, i) => (
+                                    <div key={i} style={{
+                                        background: 'rgba(255,255,255,0.05)',
+                                        padding: '2px 6px',
+                                        border: '1px solid rgba(255,255,255,0.1)',
+                                        borderRadius: '3px',
+                                        fontSize: '0.65rem',
+                                        color: 'rgba(255,255,255,0.6)'
+                                    }}>
+                                        {box.label || 'Obj'}: [{box.x}, {box.y}, {box.w}, {box.h}]
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    ) : (
+                        !entry.message && <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.7rem' }}>No details available.</div>
+                    )}
                 </div>
-            )}
-            {isOpen && (!entry.boxes || entry.boxes.length === 0) && (
-                <div style={{ marginTop: '0.75rem', color: 'rgba(255,255,255,0.3)', fontSize: '0.7rem' }}>No bounding box coordinates available for this log.</div>
             )}
         </div>
     );
