@@ -68,24 +68,6 @@ class PPEDetectionService:
                     
                     items_found += 1
                     
-                    # Colors
-                    color_ppe = (255, 255, 0) # Helmet
-                    if "vest" in label: color_ppe = (0, 165, 255) 
-                    elif "gloves" in label: color_ppe = (255, 0, 255)
-                    elif "boots" in label or "shoes" in label: color_ppe = (0, 255, 255)
-                    
-                    cv2.rectangle(frame, (ix1, iy1), (ix2, iy2), color_ppe, 1)
-                    cv2.putText(frame, label, (ix1, iy1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.4, color_ppe, 1)
-
-                    detection_item = {
-                        "module": "ppe-detection",
-                        "class": label.capitalize(),
-                        "x": int(ix1), "y": int(iy1), "w": int(ix2 - ix1), "h": int(iy2 - iy1),
-                        "confidence": float(i_conf)
-                    }
-                    bounding_boxes.append(detection_item)
-                    person_ppe_boxes.append(detection_item)
-
             # Heuristic: Only check shoes if feet are likely visible (not at bottom edge)
             feet_visible = py2 < (h - 30)
             
@@ -95,13 +77,6 @@ class PPEDetectionService:
             if not vest_present: frame_missing.append("Vest")
             if not gloves_present: frame_missing.append("Gloves")
             if not boots_present and feet_visible: frame_missing.append("Shoes")
-            
-            # Worker check: if detected any PPE, assume it's a worker who SHOULD have PPE
-            is_worker = items_found > 0
-            
-            # Simple Smoothing (Centroid Hysteresis)
-            cx, cy = (px1 + px2) // 2, (py1 + py2) // 2
-            grid_id = f"{cx//60}_{cy//60}"
             
             # Simple Smoothing (Centroid Hysteresis) for everyone
             cx, cy = (px1 + px2) // 2, (py1 + py2) // 2
