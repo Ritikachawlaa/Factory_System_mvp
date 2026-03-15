@@ -537,6 +537,12 @@ const VideoFeedContent = ({ modules, cameraId: propCameraId }) => {
                             if (isFire) show = true;
                         }
 
+                        // Strictly show intrusion ROI only on the dedicated analytics page
+                        if (det.is_roi) {
+                            const isIntrusionPage = activeModuleFilters.length === 1 && activeModuleFilters[0] === 'intrusion-detection';
+                            if (!isIntrusionPage) show = false;
+                        }
+
                         if (!show) return;
                     }
 
