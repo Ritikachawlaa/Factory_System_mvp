@@ -103,31 +103,31 @@ class PPEDetectionService:
             cx, cy = (px1 + px2) // 2, (py1 + py2) // 2
             grid_id = f"{cx//60}_{cy//60}"
             
-            if is_worker:
-                if grid_id not in self.person_states:
-                    self.person_states[grid_id] = {"missing": frame_missing, "stability_count": 1, "last_seen": now}
-                else:
-                    state = self.person_states[grid_id]
-                    if set(state["missing"]) == set(frame_missing):
-                        state["stability_count"] = min(state["stability_count"] + 1, self.SMOOTH_FRAMES)
-                    else:
-                        state["stability_count"] -= 1
-                        if state["stability_count"] <= 0:
-                            state["missing"] = frame_missing
-                            state["stability_count"] = 1
-                    state["last_seen"] = now
-
-                # Use smoothed status
-                current_missing = self.person_states[grid_id]["missing"]
-                is_compliant = len(current_missing) == 0
+            # Simple Smoothing (Centroid Hysteresis) for everyone
+            cx, cy = (px1 + px2) // 2, (py1 + py2) // 2
+            grid_id = f"{cx//60}_{cy//60}"
+            
+            if grid_id not in self.person_states:
+                self.person_states[grid_id] = {"missing": frame_missing, "stability_count": 1, "last_seen": now}
             else:
-                is_compliant = True # Non-workers are ignored
-                current_missing = []
+                state = self.person_states[grid_id]
+                if set(state["missing"]) == set(frame_missing):
+                    state["stability_count"] = min(state["stability_count"] + 1, self.SMOOTH_FRAMES)
+                else:
+                    state["stability_count"] -= 1
+                    if state["stability_count"] <= 0:
+                        state["missing"] = frame_missing
+                        state["stability_count"] = 1
+                state["last_seen"] = now
+
+            # Use smoothed status
+            current_missing = self.person_states[grid_id]["missing"]
+            is_compliant = len(current_missing) == 0
 
             color = (0, 255, 0) if is_compliant else (0, 0, 255)
             cv2.rectangle(frame, (px1, py1), (px2, py2), color, 2)
             
-            p_label = "Compliant" if is_compliant else f"Non-Compliant (Missing: {', '.join(current_missing)})"
+            p_label = "PPE Compliant" if is_compliant else f"Missing: {', '.join(current_missing)}"
             cv2.putText(frame, p_label, (px1, py1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
             bounding_boxes.append({
@@ -136,7 +136,7 @@ class PPEDetectionService:
                 "x": int(px1), "y": int(py1), "w": int(px2 - px1), "h": int(py2 - py1), "confidence": p_conf
             })
 
-            if not is_compliant and is_worker:
+            if not is_compliant:
                 if now - self.last_log_time > self.LOG_INTERVAL:
                     events.append({
                         "camera_id": camera_id,
