@@ -69,7 +69,7 @@ For detailed module documentation, see [MODULES_DOCUMENTATION.md](MODULES_DOCUME
 
 ## Author
 
-Ritik Chawla (ritik@redma.ai)
+Ritik Chawla (ritikachawla8092@gmail.com)
 
 ## Last Updated
 
