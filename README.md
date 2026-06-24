@@ -23,50 +23,50 @@ A production-grade factory safety monitoring system leveraging computer vision a
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                          PRESENTATION LAYER                                  │
-│                                                                               │
+│                          PRESENTATION LAYER                                 │
+│                                                                             │
 │         ┌──────────────────────────────────────────────────────────┐        │
 │         │         React Dashboard + Web UI (Vite)                  │        │
-│         │                                                           │        │
-│         │  ├─ Live Video Feeds        ├─ Real-time Alerts        │        │
-│         │  ├─ Camera Management       ├─ Analytics & Reports     │        │
-│         │  ├─ Event Timeline          └─ Settings & Config       │        │
+│         │                                                          │        │
+│         │  ├─ Live Video Feeds        ├─ Real-time Alerts          │        │
+│         │  ├─ Camera Management       ├─ Analytics & Reports       │        │
+│         │  ├─ Event Timeline          └─ Settings & Config         │        │
 │         └──────────────────────────────────────────────────────────┘        │
-└────────────────────────────┬─────────────────────────────────────────────────┘
+└────────────────────────────┬────────────────────────────────────────────────┘
                              │ HTTPS/WebSocket
                              │
 ┌────────────────────────────┴─────────────────────────────────────────────────┐
-│                          APPLICATION LAYER                                    │
-│                                                                               │
-│  ┌──────────────────────────────┐      ┌──────────────────────────────┐     │
-│  │   FastAPI Backend Service    │      │   ML Engine (Flask)          │     │
-│  │   (Python + Async)           │◄────►│   (YOLOv8 + DeepFace)       │     │
-│  │                              │      │                              │     │
-│  │ ├─ Authentication (JWT)      │      │ ├─ Frame Inference           │     │
-│  │ ├─ API Endpoints             │      │ ├─ 14 Detection Modules     │     │
-│  │ ├─ WebSocket Streaming       │      │ ├─ Face Recognition         │     │
-│  │ ├─ Event Management          │      │ ├─ Object Tracking          │     │
-│  │ └─ Database Operations       │      │ └─ Real-time Bbox Output   │     │
-│  └──────────────────────────────┘      └──────────────────────────────┘     │
-│                                                                               │
+│                          APPLICATION LAYER                                   │
+│                                                                              │
+│  ┌──────────────────────────────┐      ┌──────────────────────────────┐      │
+│  │   FastAPI Backend Service    │      │   ML Engine (Flask)          │      │
+│  │   (Python + Async)           │◄────►│   (YOLOv8 + DeepFace)        │      │
+│  │                              │      │                              │      │
+│  │ ├─ Authentication (JWT)      │      │ ├─ Frame Inference           │      │
+│  │ ├─ API Endpoints             │      │ ├─ 14 Detection Modules      │      │
+│  │ ├─ WebSocket Streaming       │      │ ├─ Face Recognition          │      │
+│  │ ├─ Event Management          │      │ ├─ Object Tracking           │      │
+│  │ └─ Database Operations       │      │ └─ Real-time Bbox Output     │      │
+│  └──────────────────────────────┘      └──────────────────────────────┘      │
+│                                                                              │
 └────────────────────────────┬─────────────────────────────────────────────────┘
                              │ SQL / REST
                              │
 ┌────────────────────────────┴─────────────────────────────────────────────────┐
-│                          DATA LAYER                                           │
-│                                                                               │
-│  ┌──────────────────────┐    ┌──────────────────────┐    ┌─────────────┐   │
-│  │  PostgreSQL / SQLite │    │  Face Gallery        │    │  AWS Cloud  │   │
-│  │                      │    │  (Embeddings)        │    │  Services   │   │
-│  │ ├─ Users             │    │                      │    │             │   │
-│  │ ├─ Cameras           │    │ ├─ Employee Faces   │    │ ├─ Rekogn.  │   │
-│  │ ├─ Events            │    │ ├─ Unknown Faces    │    │ ├─ S3       │   │
-│  │ ├─ Detections        │    │ └─ Face Metadata    │    │ └─ CloudWatch
-│  │ ├─ Audit Logs        │    │                      │    │             │   │
-│  │ └─ System Config     │    └──────────────────────┘    └─────────────┘   │
+│                          DATA LAYER                                          │
+│                                                                              │
+│  ┌──────────────────────┐    ┌──────────────────────┐    ┌────────────-─┐    │
+│  │  PostgreSQL / SQLite │    │  Face Gallery        │    │  AWS Cloud   │    │
+│  │                      │    │  (Embeddings)        │    │  Services    │    │
+│  │ ├─ Users             │    │                      │    │              │    │
+│  │ ├─ Cameras           │    │ ├─ Employee Faces    │    │ ├─ Rekogn.   │    │
+│  │ ├─ Events            │    │ ├─ Unknown Faces     │    │ ├─ S3        |    │
+│  │ ├─ Detections        │    │ └─ Face Metadata     │    │ └─ CloudWatch|    |
+│  │ ├─ Audit Logs        │    │                      │    │              │    │
+│  │ └─ System Config     │    └──────────────────────┘    └──────── ─────┘    │
 │  └──────────────────────┘                                                    │
-│                                                                               │
-└─────────────────────────────────────────────────────────────────────────────┘
+│                                                                              │
+└───────────────────────────────────────────────────────────────────────────-──┘
 ```
 
 ---
@@ -117,25 +117,25 @@ STAGE 5: ANALYTICS & VISUALIZATION
 
 ```
 ┌────────────────────────────────────────────────────────────────────┐
-│              ML INFERENCE SERVICE (Flask + Python)                  │
+│              ML INFERENCE SERVICE (Flask + Python)                 │
 └────────────────────────────────────────────────────────────────────┘
                               │
                     ┌─────────┴──────────┐
                     │                    │
-         ┌──────────▼──────────┐    ┌───▼──────────────┐
+         ┌──────────▼──────────┐    ┌──-─▼─────────────┐
          │ COMPUTER VISION     │    │ TRACKING ENGINE  │
          │ ─────────────────── │    │ ──────────────── │
          │                     │    │                  │
-         │ ├─ YOLOv8 Detector  │    │ ├─ BoT-SORT     │
-         │ ├─ Confidence: 0.3  │    │ ├─ Centroid     │
-         │ ├─ Face Embeddings  │    │ │   Matching    │
-         │ └─ Output: [bbox,   │    │ └─ Track ID     │
-         │           conf,cls] │    │    Persistence  │
-         └──────────┬──────────┘    └────────┬────────┘
+         │ ├─ YOLOv8 Detector  │    │ ├─ BoT-SORT      │
+         │ ├─ Confidence: 0.3  │    │ ├─ Centroid      │
+         │ ├─ Face Embeddings  │    │ │   Matching     │
+         │ └─ Output: [bbox,   │    │ └─ Track ID      │
+         │           conf,cls] │    │    Persistence   │
+         └──────────┬──────────┘    └────────┬────────-┘
                     │                        │
          ┌──────────▼────────────────────────▼──────────┐
          │   BUSINESS LOGIC LAYER                       │
-         │   ──────────────────────────                  │
+         │   ──────────────────────────                 │
          │                                              │
          │ ├─ PPE Compliance Check                      │
          │ ├─ Fall Detection Logic                      │
@@ -145,8 +145,8 @@ STAGE 5: ANALYTICS & VISUALIZATION
          │ └─ [10 More Detectors...]                    │
          └──────────┬───────────────────────────────────┘
                     │
-         ┌──────────▼──────────────┐
-         │  DETECTION RESULTS      │
+         ┌──────────▼─────────────┐
+         │  DETECTION RESULTS     │
          │  ──────────────────────│
          │  {                     │
          │    module: "ppe",      │
@@ -242,7 +242,7 @@ ML Engine (Flask)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│         REACT DASHBOARD (Vite + React 19 + Axios)              │
+│         REACT DASHBOARD (Vite + React 19 + Axios)               │
 └─────────────────────────────────────────────────────────────────┘
               │
     ┌─────────┴─────────────────────────────┐
@@ -256,24 +256,24 @@ ML Engine (Flask)
                             │
          ┌──────────────────┼──────────────────┐
          │                  │                  │
-    ┌────▼──────────┐  ┌───▼────────┐  ┌─────▼────────┐
+    ┌────▼──────────┐  ┌───▼────────┐  ┌───--──▼──────┐
     │ LIVE MONITOR  │  │ ANALYTICS  │  │ MANAGEMENT   │
     │ ──────────────│  │ ───────────│  │ ─────────────│
     │               │  │            │  │              │
     │ ├─ Camera     │  │ ├─ Charts  │  │ ├─ Camera    │
     │ │  Grid       │  │ │ (Recharts)  │ │  Setup     │
-    │ ├─ Live Feed  │  │ ├─ Events  │  │ ├─ Module   │
+    │ ├─ Live Feed  │  │ ├─ Events  │  │ ├─ Module    │
     │ │ (MJPEG)     │  │ │ Timeline │  │ │  Config    │
     │ ├─ Alert      │  │ ├─ Stats   │  │ ├─ Users     │
     │ │ Panel       │  │ │ Dashboard│  │ └─ Settings  │
     │ └─ Event Log  │  │ └─ Reports │  │              │
-    └──────┬────────┘  └────┬──────┘  └──────┬───────┘
-           │                 │               │
-           └─────────┬───────┴───────────────┘
+    └──────┬────────┘  └────┬─────-─┘  └─────┬──────-─┘
+           │                │                │
+           └─────────┬──────┴─────────────-──┘
                      │
          ┌───────────▼────────────┐
          │ HTTP CLIENT (Axios)    │
-         │ ──────────────────────│
+         │ ────────────────────── │
          │ ├─ Token attachment    │
          │ ├─ Error handling      │
          │ ├─ WebSocket mgmt      │
